@@ -1,0 +1,320 @@
+\chapter{Methods}
+
+\section{Curating a Benchmarking Dataset}
+
+To establish a common ground for evaluating the performance of machine learning models, I curated a benchmarking dataset using data from various literatures. The main data source is the 2024 study by Mathis et al. which has the most diverse editing types ranging from 1-to-5bp replacement to 1-to-15bp deletions and insertions\cite{mathisMachineLearningPrediction2024}. It is complimented by the DeepPrime dataset, as it has a much bigger HEK293T dataset ($\sim290,000$ vs $\sim22,000$) as well as a wider range of cell type and PE pairs that can be used for fine-tuning the model to achieve better coverage and higher impact\cite{yuPredictionEfficienciesDiverse2023}. The mutated sequences in the datasets were masked by 'x', exposing only the region corresponding to PBS-RTT. To match the PRIDICT format, the mutated sequences were unmasked, and the missing regions due to the shorter wide sequence window is padded by `N'.
+
+
+The dataset was parsed to preserve all essential information required by the models while also limiting the number of fields for better readability. More importantly, the standardized format allows easier conversion between datasets, with each data source requiring only two functions to allow universal usability, one to convert to and one to convert from standard format. The standard (std) format contains the following information:
+
+\begin{itemize}[itemsep=-0mm]
+    \item \textcolor{blue}{cell-line}: the cell line used in the experiment
+    \item \textcolor{blue}{group-id}: the id of the target loci, used for grouping the data during cross validation
+    \item \textcolor{blue}{mut-type}: the type of mutation introduced by the prime editor, 0 for replacements, 1 for insertions, 2 for deletions
+    \item \textcolor{blue}{wt-sequence}: the 100bp/74bp long wild type target sequence starting from 10bp/4bp upstream of the protospacer(PRIDCT/DeepPrime dataset)
+    \item \textcolor{blue}{mut-sequence}: the 100bp/74bp long edited target sequence starting from 4bp upstream of the protospacer(PRIDCT/DeepPrime dataset)
+    \item \textcolor{blue}{protospacer-location}: the location of protospacer sequence complementary to sgRNA in the wild-type sequence 
+    \item \textcolor{blue}{pbs-location}: the prime binding site
+    \item \textcolor{blue}{rtt-location-wt/rtt-location-mut}: the location of reverse transcription template in the wild-type/edited sequence
+    \item \textcolor{blue}{lha-location}: the location of left homology arm
+    \item \textcolor{blue}{rha-location-wt/rha-location-mut}: the location of right homology arm in the wild-type/edited sequence
+    \item \textcolor{blue}{spcas9-score}: precalculated SpCas9 score
+    \item \textcolor{blue}{editing-result}: empirically observed editing efficiency
+\end{itemize}
+
+The locations are separated into two columns in the format of "start:end", where start is the 0-based index of the first base of the sequence, while end is for last base of the sequence(non-inclusive). All sequences were read in the direction of from protospacer to PAM for easier interpretation. This is often different from previous studies that read from 5' end to the 3' end of the pegRNA instead of using their relative position to the target sequence.
+
+The data files are named as ``\{format\}-\{source\}-\{cell-line\}-\{PE-version\}.csv". `format' can be `std' for standard format, `shap' for files with only extracted features, as well as formats for individual models containing all the data required for training, such as `pd' for PRIDICT and `dp' for DeepPrime. `source' is the name of the study that the data was extracted from, while `cell-line' and `PE-version' are self explanatory.
+
+Five main datasets of size greater than 10,000 were used frequently for benchmarking in this study: DeepPrime HEK293T PE2, PRIDICT2.0 HEK293T, PRIDICT2.0 K562, PRIDICT2.0 K562MLH1d, and PRIDICT2.0 Adv. The HEK293T cells refer to the human embryonic kidney cells\cite{kavsanImmortalizedCellsOne2011}; `Adv' refers to prime editing performed in-vivo (in a living organism) in mouse liver cells; K562 cells were derived from a chronic myelogenous leukemia patient\cite{lozzioMultipotentialLeukemiaCell1981} (K562MLH1d refers to K562 cells with MMR inhibition using the MLH1dn proteins). Other smaller datasets were used for fine tuning models trained with the DeepPrime HEK293T PE2 dataset, such as the DeepPrime HEK293T PE2-Max dataset.
+
+The editing efficiencies were calculated using the method suggested by Kim et al.\cite{kimPredictingEfficiencyPrime2021} in \autoref{eq:efficiency}, which was also used by PRIDICT:
+\begin{equation}
+    \label{eq:efficiency}
+    \begin{split}
+        \text{Editing Efficiency} =& \frac{\text{Edited Count}}{\text{Total Count}} \times 100\% \\
+    \end{split}
+\end{equation}
+Where:
+\begin{equation}
+    \begin{split}
+        \text{Edited Count} =& \text{Read Counts With Intended Edit at Target Site} - \\
+        &( \text{Total Read Counts} \times \text{Background Editing  Rate} ) \\
+        \text{Total Count} =& \text{Total Read Counts} - (\text{Total Read Counts} \times \\ &\text{Background Editing  Rate})
+    \end{split}
+\end{equation}
+        
+Background editing rate refers to the percentage of target loci that were edited without being transfected with the prime editor. Subtracting the background edits from the total read counts gives the estimated true number of reads that were edited by the prime editor.
+
+The datasets are split into 5 folds based on the group id assigned to each target loci and pegRNA combination. Edits on the same target loci have the same group id, and are thus placed in the same fold to prevent data leakage. The folds are then used for cross validation to evaluate the model's performance.
+
+
+
+\section{Determinants of Prime Editing Outcome}
+\label{sec:determinants}
+
+\begin{figure}
+    \centering
+    \subfigure[DeepPrime]{
+        \label{fig:shap-dp-pe2-hek}
+        \includegraphics[width=0.99\textwidth]{shap-dp-hek293t-pe2.png}}
+    \subfigure[Deletion]{
+        \includegraphics[width=0.3\textwidth]{shap-pd-hek293t-pe2-delete.png}
+    }
+    \subfigure[Insertion]{
+        \includegraphics[width=0.3\textwidth]{shap-pd-hek293t-pe2-insert.png}
+    }
+    \subfigure[Replacement]{
+        \includegraphics[width=0.3\textwidth]{shap-pd-hek293t-pe2-replace.png}
+    }
+    \caption[SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line.]{SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line: \textbf{(a)} Top 15 determinants from SHAP analysis using all of DeepPrime HEK293T Datasets. \textbf{(b-d)} Top 10 determinants from SHAP analysis using PRIDICT2.0 HEK293T data for each individual editing types. The colour of the individual data point shows their normalized values from high (red) to low (blue). The binary values have 1 (True) for high and 0 (False) for low. A number of shorthands have been used to improve the clarity of the illustrations. gcc for GC Content (different from GC count); et for editing type; tm for melting temperature; mfe for minimum free energy; n ap \# for base n at protospacer position \#; max cns for the length of maximum consecutive sequence of base n.} 
+    \label{fig:shap}
+\end{figure}
+
+As discussed in \autoref{sec:motivation}, most of the recent deep learning models surveyed in the literature (DeepPrime\cite{yuPredictionEfficienciesDiverse2023} and PRIDICT\cite{mathisPredictingPrimeEditing2023,mathisMachineLearningPrediction2024}) followed a similar two model structure. The first model is a deep neural network taking in raw sequence data, and the second model is a smaller MLP/regression model that takes as input the features extracted from the PBS, RTT and ngRNA. For single model architecture (DeepPE\cite{kimPredictingEfficiencyPrime2021}), the features are concatenated to the sequence data and fed into the model.
+
+As a result, it is important to find the most prominent determinants of prime editing outcomes and to extract the most informative features for describing the pegRNA. A large number of features were selected from various sources as the studies focus on different aspects of pegRNA. Shapley Additive Explanations (SHAP) with XGBoost regressor to rank the features based on their importance. The full list of features investigated can be found in \autoref{appendix:features}. 
+
+A number of Python libraries were utilized when extracting the features into the `shap' format. The melting temperature of the sequences were calculated using the 'biopython' library\cite{cockBiopythonFreelyAvailable2009}, the minimum free energy was calculated with the ViennaRNA package and adjusted using sequence length to ensure it's mostly influenced by sequence's nucleotide order and composition\cite{lorenzViennaRNAPackage2011,trottaNormalizationMinimumFree2014}, and the SpCas9 scores were provided by the 'DeepSpCas9' model\cite{kimSpCas9ActivityPrediction2019}. Other features such as GC content were extracted using simple Python string processing functions.
+
+SHAP analysis was first conducted on the largest DeepPrime PE2 HEK293T dataset to provide the most robust identification of the most informative features (Figure \ref{fig:shap-dp-pe2-hek}). The features were then sorted based on their importance, and the top 24 features were used for the model, matching the design optimized by DeepPrime\cite{yuPredictionEfficienciesDiverse2023}. To identify the influence of the features on different editing types, SHAP analysis was also conducted on the PRIDICT2.0 HEK293T dataset for each individual editing type (\autoref{fig:shap}(b-d)), due to its higher variety of editing length. 
+
+The major determinants are as follows:
+\begin{itemize}[itemsep=-0mm]
+    \item \textcolor{red}{Editing type and length}: editing type has a significant impact on the editing efficiency, with the replacement type having higher efficiency than the insertion and deletion, as shown by the `et replacement' feature in Figure \ref{fig:shap-dp-pe2-hek}. The length of the edit also has great influence on editing result, and its important is more pronounced for deletions and insertions than replacements. As expected, longer edits have lower efficiency due to the increased difficulty in the annealing and repair process.
+    \item \textcolor{red}{Melting temperature}: melting temperature (Tm) refers to the temperature at which half of the RNA strand become unfolded or denatured. It is strongly correlated with the editing efficiency, possibly due to its influence on RNA structural stability. Its actual effect, however, is highly mixed. A low Tm in extension seems to positively affect the editing result, while the opposite is true for pbs. At the same time, high Tm in RHA has a mixed impact in the DeepPrime dataset (`tm rha' in Figure \ref{fig:shap-dp-pe2-hek}), while in the PRIDICT2\.0 dataset, high Tm in the PBS is clearly beneficial for the editing process of all types (`tm rha' in \autoref{fig:shap}(b-d)).
+    \item \textcolor{red}{Minimum free energy}: minimum free energy (MFE) describes the lowest possible energy required for a RNA sequence to stay in a particular form\cite{lorenzViennaRNAPackage2011}. It appears to have similar effect to Tm, with low MFE in the extension being beneficial for the editing efficiency.
+    % TODO: Check MFE 
+    \item \textcolor{red}{GC content/count}: GC count in the PBS sequence was shown to be the most important feature for the DeepPrime dataset (Figure \ref{fig:shap-dp-pe2-hek}), consistent with the observation made by Liu et al in their 2019 study introducing prime editors\cite{liudavidr.SearchandreplaceGenomeEditing2019}. They expected lower editing efficiency with low GC count in the PBS, due to the energetic requirements of hybridization of the nicked DNA strand to the PBS. GC content also correlates to the minimum free energy and melting temperature, as GC base pairs have stronger hydrogen bond than AU base pairs.
+    \item \textcolor{red}{Poly-T sequences}: Shown as `max cts' in \autoref{fig:shap}, the length of the longest consecutive T (poly-T) sequences in the cDNA of the 3'extension and spacer RNA sequences has a clear negative impact on the editing efficiency. The poly-T termination signal, while not causing termination in itself, causes catalytic inactivation and backtracking of Pol III\cite{nielsenMechanismEukaryoticRNA2013}
+    \item \textcolor{red}{SpCas9 score}: DeepSpCas9 is a deep learning model that estimates the activity of the SpCas9 protein on a target loci, and has been shown to be a good indicator of prime editing efficiency\cite{kimPredictingEfficiencyPrime2021}. This is likely due the SpCas9's role in the prime editing process, as it is responsible for the initial binding of the pegRNA to the target loci. 
+    \item \textcolor{red}{PAM disruption}: it was shown that prime editors can sometimes rebind to the edited sequences and induce unintended edits, lowering the editing efficiency\cite{liudavidr.SearchandreplaceGenomeEditing2019}. Thus, the disruption of the PAM sequence is beneficial for the editing efficiency as it prevents the reannealing of the pegRNA to the edited sequence.
+    \item \textcolor{red}{LHA/RHA/PBS length}: the length of rha (right homology arm, RTT overhang) is a significant determinant for all editing types, with a short rha length leading to deceased prime editing efficiency, while the positive effect of a long rha is not as pronounced. This suggests the existence of a minimum threshold for rha length below which the edited strand cannot efficiently anneal to the unedited strand, consistent with the findings of Yu et al, 2023, recommending a rha length of at least 7nt\cite{yuPredictionEfficienciesDiverse2023}. Reported as edit position in some literatures, lha length corresponding to the distance between the PAM sequence and the edit location is also a significant feature for all editing types, especially insertion and deletion. A longer lha length adversely affects the editing efficiency, suggesting that although prime editors have less stringent requirements for PAM locations, editing should still be done close to the protospacer whenever possible. As for PBS length, both a very short and a very long PBS have a negative impact on the editing efficiency, suggesting an optimal range.
+    \item \textcolor{red}{Protospacer nucleotide composition}: in Figure \ref{fig:shap-dp-pe2-hek}, a guanine nucleotide (G) at protospacer location 16 was shown to have a positive impact on the editing efficiency. On top of that, among the top 24 features, the nucleotide compositions from protospacer location 13 to 17 were all shown to have a significant impact. 
+    % TODO explain why
+\end{itemize}
+
+On top of the quantitatively invested sequence based features, higher level features have also been shown to impact prime editing efficiency:
+\begin{itemize}[itemsep=-0mm]
+    \item \textcolor{red}{pegRNA secondary structure}: the secondary structure of the pegRNA can impact the efficiency by inducing degradation of the 3' extension. The defunct pegRNA can still combine with target loci using its functioning 5' ngRNA, thus lowering the editing efficiency\cite{nelsonEngineeredPegRNAsImprove2022}.
+    \item \textcolor{red}{MMR Behaviour}: as briefly mentioned at the beginning of \autoref{sec:prime-editing-process}, the mismatch repair(MMR) system adversely affects the editing efficiency during step (e) of the prime editing process. The MMR system may reject the annealing of the editing strand to the target loci, or it may excise the edited sequence, preferring the original sequence\cite{chenEnhancedPrimeEditing2021}. 
+\end{itemize}
+
+These features are encapsulated in the editing cell type and PE version and are thus not explicitly included in the feature list. For example, epegRNAs(engineered pegRNA) are improved version of pegRNA that are designed for protection against 3' erosion with a more robust secondary structure than the original versions\cite{nelsonEngineeredPegRNAsImprove2022}. At the same time, PE4 and PE5 are newer versions of prime editors with MLH1dn proteins that can suppress the MMR system\cite{chenEnhancedPrimeEditing2021}, and the HEK293T cell line has weaker MMR activity than other cell lines such
+as HAP1(derived from a chronic myelogenous leukemia patient)\cite{mathisPredictingPrimeEditing2023}. 
+
+\section{Data Engineering}
+
+A conspicuous issue with the dataset is the imbalance in target values. Shown in Figure \ref{fig:imbalanced-original}, the distribution of the editing efficiency is heavily skewed towards the lower end, with a large number of pegRNAs having an efficiency of around 0. This can cause the model to be less accurate in predicting the higher efficiency pegRNAs, as the model would be more inclined to predict lower efficiency to minimize the loss. 
+
+\begin{figure}
+    \centering
+    \subfigure[Original]{
+        \label{fig:imbalanced-original}
+        \includegraphics[width=0.45\textwidth]{editing-efficiency-comparison.png}
+    }
+    \subfigure[Log Adjusted]{
+        \label{fig:imbalanced-log}
+        \includegraphics[width=0.45\textwidth]{editing-efficiency-log-adjusted.png}
+    }
+    \subfigure[Undersampling]{
+        \label{fig:imbalanced-undersampling}
+        \includegraphics[width=0.45\textwidth]{editing-efficiency-undersample.png}
+    }
+    \subfigure[Quantile transformation]{
+        \label{fig:imbalanced-quantile}
+        \includegraphics[width=0.45\textwidth]{editing-efficiency-quantile-transform.png}
+    }
+    \label{fig:imbalanced}
+    \caption[Target Distribution Imbalance]{The distribution of the editing efficiency in the DeepPrime HEK293T PE2 (DP) dataset, the PRIDICT2.0 HEK293T (PD HEK293T) dataset, the PRIDICT2.0 K562 (PD K562) as well as K562 MMR deficient (PD K562MLH1DN) dataset, and the PRIDICT2.0 Adv (PD ADV) dataset. (a), followed by the distribution after several adjustments (b-d). Due to the significant different in dataset sizes, DeepPrime datasets and PRIDICT datasets used different y-axis scale (left and right for DeepPrime and PRIDICT respectively): 
+    \textbf{(a)} the distribution of original editing efficiency in the datasets. editing efficiency on the x axis is limited to [0, 100], with bin size of 10; \textbf{(b)} the distribution of the log adjusted editing efficiency in the DeepPrime HEK293T PE2 dataset; \textbf{(c)} the distribution of the editing efficiency after undersampling the data with editing efficiency $<10$ with a ratio of 10:1 (10\% of the original data were preserved); \textbf{(d)}, the distribution of the editing efficiency after uniformly quantile transformed.}
+\end{figure}
+
+Although the research for imbalanced regression task is relatively limited compared to classification, a number of methods have been proposed\cite{krawczykLearningImbalancedData2016}. The simplest method is to adjust the target values so that better balance can be achived in the projected space. Log transformation is a suitable method for the editing efficiency dataset, as it increases the distance between the lower values while keeping the higher values close (Figure \ref{fig:imbalanced-log}). The numpy \verb|log1p| function was used to prevent the transformation from being undefined when the target value is 0. During inference, the predicted values were transformed back to the original scale using the \verb|expm1| function. Undersampling is also a useful technique, by removing the majority of the lower efficiency pegRNAs, the model can be trained to better predict the higher efficiency pegRNAs. The undersampling ratio was set to 10:1, with the majority of the pegRNAs with efficiency $<10$ removed (Figure \ref{fig:imbalanced-undersampling})\cite{torgoResamplingStrategiesRegression2015}. SMOTE (Synthetic Minority Over-sampling Technique) was also considered, but the generation of synthetic data is very difficult for the prime editing prediction task, as the pegRNA sequence is highly structured and the synthetic data generated may not be biologically feasible. Additionally, quantile transformation was also tested. However, since it discretizes the data, some precision is expected to be lost during the inverse transformation.
+
+In addition to adjusting the dataset itself, the loss function can also be adjusted to assign different importance to different target values. Sample weights can be used to penalize the model more for mispredicting the higher efficiency pegRNAs. 
+
+
+DeepPrime applied a weighted loss function of the editing efficiency tuned for their dataset:
+\begin{equation}
+    \text{weight} = \text{min}(\exp(6(\log(x+1)-3)+1),5)
+\end{equation}
+where x is the measured editing efficiency. The weight is then used in the loss function to penalize the model more for mispredicting the higher efficiency pegRNAs.
+
+At the mean time, PRIDICT did not report any special treatment for the imbalanced dataset, possibly because the having high accuracy for the lower efficiency pegRNAs is as important as predicting the performance higher efficiency pegRNAs accuractely. 
+
+To verify if the adjustments had made any significant different on the model's performance, a simple two layer MLP with 128 hidden units in each layer was trained on the DeepPrime HEK293T PE2 dataset using the original, log adjusted, undersampled and quantile transformed datasets. An additional model using the DeepPrime adjusted MSE was also tested. The models were trained using the Adam optimizer with a learning rate of 0.005, and the learning rate was adjusted using the CosineAnnealingLRWarmRestart scheduler, with a T\_0 (epoch of the first restart) of 15 and T\_mult (the factor to extend the restart intervals) of 1 to escape local minima. 
+
+\begin{figure}
+    \centering
+    \vspace{-3mm} % Reduce vertical space between subfigures
+    \subfigure[DP HEK293T]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-dp-hek293t-performance.png}
+        \label{fig:dp-hek293t-adjustment-performance}
+    }
+    \vspace{-3mm}
+    \subfigure[PD HEK293T]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-pd-hek293t-performance.png}
+        \label{fig:pd-hek293t-adjustment-performance}
+    }
+    \vspace{-3mm}
+    \subfigure[PD K562]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-pd-k562-performance.png}
+        \label{fig:pd-k562-adjustment-performance}
+    }
+    \vspace{-3mm}
+    \subfigure[PD K562MLH1dn]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-pd-k562mlh1d-performance.png}
+        \label{fig:pd-k562mlh1d-adjustment-performance}
+    }
+    \vspace{-3mm}
+    \subfigure[PD Adv]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-pd-adv-performance.png}
+        \label{fig:pd-adv-adjustment-performance}
+    }
+    \caption{Performance comparison of the MLP model trained on the DeepPrime HEK293T PE2 dataset \textbf{(a)}, the PRIDICT2.0 HEK293T dataset \textbf{(b)}, the PRIDICT2.0 K562 dataset (PD K562\textbf{(c)}), the PRIDICT2.0 K562MLH1d dataset \textbf{(d)}, and the PRIDICT2.0 Adv dataset \textbf{(e)} using the log adjusted (LA), undersampled (US), quantile transformed (QT), and DeepPrime weighted MSE (WMSE) adjustments, in addition to the original dataset and citerion (OG). 
+    The performance of each fold is shown as a strip plot on top of the matching bar.}
+    \label{fig:adjustment-performance}
+\end{figure}
+
+The result of the five adjustments on the five datasets are shown in \autoref{fig:adjustment-performance}. Significant improvements were only observed in three occasions ($p<0.05$, paired t-test between performance in each fold). The log adjustment improved both the Pearson ($p<0.001$) and Spearman ($p<0.01$) correlation of the model on the DeepPrime HEK293T PE2 dataset, as well as the Pearson correlation on the PRIDICT K562 dataset ($p<0.001$), while undersampling noticebly improved both correlation coefficients on the PRIDICT Adv dataset ($p<0.001$). However, the improvement is not universal, as siginificantly lower performance for undersampling was observed on all datasets other than PRIDICT Adv ($p<0.001$). At the same time, log adjustment resulted in severly reduced performance PRIDICT HEK293T and K562MLH1dn datasets ($p<0.001$). 
+
+This narrows down the option to log adjustment and undersampling. numpy provides a very efficienct implementation of the log1p and expm1 functions, making the log adjustment a very attractive option. Meanwhile, the undersampling method is even simpler to implement, and it has the added benefit of reducing the training time, as the model would have to process less data. However, on more complex models, the undersampling method significantly reduce the training size, which may lead to overfitting and reduced validation performance.
+
+% reduce subfigure vertical space
+\begin{figure}
+    \centering
+    \vspace{-3mm} % Reduce vertical space between subfigures
+    \subfigure[DP HEK293T]{
+        \includegraphics[width=0.8\textwidth]{adjustment-deepprime-dp-hek293t-performance.png}
+        \label{fig:deepprime-dp-hek293t-adjustment-performance}
+    }
+    \vspace{-3mm} % Reduce vertical space between subfigures
+    \subfigure[PD HEK293T]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-deepprime-pd-hek293t-performance.png}
+        \label{fig:deepprime-pd-hek293t-adjustment-performance}
+    }
+    \vspace{-3mm} 
+    \subfigure[PD K562]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-deepprime-pd-k562-performance.png}
+        \label{fig:deepprime-pd-k562-adjustment-performance}
+    }
+    \vspace{-3mm} 
+    \subfigure[PD K562MLH1dn]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-deepprime-pd-k562mlh1d-performance.png}
+        \label{fig:deepprime-pd-k562mlh1d-adjustment-performance}
+    }
+    \vspace{-3mm} 
+    \subfigure[PD Adv]{
+        \centering
+        \includegraphics[width=0.8\textwidth]{adjustment-deepprime-pd-adv-performance.png}
+        \label{fig:deepprime-pd-adv-adjustment-performance}
+    }
+    \caption{
+        Similar to \autoref{fig:adjustment-performance}, the performance comparison of the MLP model trained on the DeepPrime HEK293T PE2 dataset \textbf{(a)}, the PRIDICT2.0 HEK293T dataset \textbf{(b)}, the PRIDICT2.0 K562 dataset \textbf{(c)}, the PRIDICT2.0 K562MLH1d dataset \textbf{(d)}, and the PRIDICT2.0 Adv dataset \textbf{(e)} using the log adjusted (LA), undersampled (US), and the original dataset (OG). 
+    }
+    \label{fig:deepprime-adjustment-performance}
+\end{figure}
+
+To further verify the necessity of the adjustments, the DeepPrime model with log adjusted and undersampled target were trained on the five datasets using the optimized hyperparameters reported by Yu et al in their study\cite{yuPredictionEfficienciesDiverse2023}. The performance of the models were then evaluated using Pearson and Spearman correlation and compared to the result trained on the original model, shown in \autoref{fig:deepprime-adjustment-performance}.
+
+As expected the relative performance of the undersampling adjustment took a nosedive when training the DeepPrime model with far more parameters than the simple MLP model. Siginificantly lower performance was observed on all datasets ($p<0.01$) trained with undersampled training data. The log adjustment, on the other hand, showed a significant improvement in terms of Spearman's $\rho$ on the DeepPrime HEK293T dataset ($p<0.001$), the PRIDICT K562 dataset ($p<0.001$), and the PRIDICT Adv dataset ($p<0.01$). Additionally, no siginificant decrease in performance was observed other than the DeepPrime and PRIDICT HEK293T datasets ($p<0.05$).
+
+\section{Conventional Machine Learning Models}
+
+Using the top 24 computed features, a number of conventional machine learning models were trained to serve as a baseline for the deep learning models. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron. 
+
+Their hyperparameter were optimized on one fold of the DeepPrime HEK293T using sklearn GridSearchCV. The performance of the optimized models were then evaluated using Pearson and Spearman correlation on the DeepPrime and PRIDICT dataset for three different cell types on all 5 folds to provide a more accurate estimation of the models' performance. The MLP model involved the additional Skorch library to allow for the use of scikit-learn's GridSearchCV for hyperparameter optimization on the Pytorch model. The optimized parameters for the models are as follows:
+
+\begin{itemize}[itemsep=-0mm]
+    \item \textcolor{blue}{Lasso}: \verb|alpha=0006158482110660266| (coefficient for penalty term for L1 regularization)
+    \item \textcolor{blue}{Ridge}: \verb|alpha=494.17133613238286| (coefficient for penalty term for L2 regularization)
+    \item \textcolor{blue}{Random Forest}: \verb|n_estimators=200| (number of trees to build), \verb|max_depth=20| (maximum depth of the trees)
+    \item \textcolor{blue}{XGBoost}: \verb|n_estimators=200| (number of boosting rounds, similar to number of trees), \verb|max_depth=5| 
+    \item \textcolor{blue}{MLP}: \verb|hidden_layer_sizes=(64, 64)| (two hidden layer with 64 units each), \verb|activation='relu'| (rectified linear unit activation), \verb|solver='adam'| (adaptive moment estimation solver), \verb|lr=0.001| (learning rate)
+\end{itemize}
+
+The models' performance were evaluated using Pearson and Spearman correlation between predicted and measured efficiency, and the result of the conventional models on the four datasets were shown in \autoref{fig:conventional_ml_models_performance}. The MLP model has the best overall performance, justifying DeepPrime and PRIDICT's choice of MLP to process extracted features, and prompted me to use a similar design. The XGBoost and Scikit-learn Random Forest trail closely behind, while Lasso and Ridge regression have significantly lower performance. Although similar in accuracy, XGBoost's gradient boosted trees have far superiour efficiency compared to the Random Forest model thanks to its GPU support and optimized implementation ($\sim$300 times faster).
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\textwidth]{conventional_ml_models_performance.png}
+    \caption[Conventional ML model performance comparison]{Performance compaison in terms of Pearson's r (\textbf{left}) and Spearman's R (\textbf{right}) for a number of conventional machine learning models on the DeepPrime HEK293T PE2 dataset and the PRIDICT2.0 datasets for three different cell lines. The models are Multi-Layer Perceptron(MLP), Random Forest Regressor(RF), Lasso, Ridge, and XGBoost. The performance of the models were evaluated using mean of 5-fold cross validation. The heatmap were mapped to the same scale of [0, 1] for easier comparison.}
+    \label{fig:conventional_ml_models_performance}
+\end{figure}
+
+
+\section{Adoption of LLM Method}
+
+The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences. It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}.
+
+\section{Improving Performance with Ensemble Learning}
+
+
+
+
+
+For easier identification, the training models stored in `trained-models' directory also follows a uniform naming convention: `model-\{source\}-\{cell-line\}-\{PE-version\}-\{fold\}.pth/pkl/json'. All 5 folds of the models were used during evaluation, and the results were averaged to produce the final prediction. 
+
+Since all of the deep learning models are all effectively an ensemble of a deep learning model and a MLP, XGBoost was chosen to compliment the deep learning models instead of another MLP.
+
+\subsection{Simple Averaging}
+
+\subsection{Stacking}
+
+
+\subsection{Blending}
+
+
+\section{Development of pegRNA Design Web Tool}
+
+To facilitate the use of the model in the community, a web tool was developed for users to input their target edit and receive the best pegRNA design as per the model's prediction. The web tool was implemented using the Django framework for easier interaction with Python scripts. 
+
+User input should be in the PRIDICT format of \{at-lesat-100bp\}-(before-edit/after-edit)-\{at-lesat-100bp\}. The user response is then handled by the prediction API endpoint, which would parse the input into original and mutated sequence as well as edit location, type and length. A number of pegRNAs would then be propossed accordingly, and the best performing model would be used to produce an estimation of the editing efficiency for each pegRNA candidate. 
+
+The result is returned as a JSON response and is parsed by the front end as a table of pegRNA candidates with their corresponding editing efficiency. The pegRNA's composition with regard to the wild type sequence can also be visualized by selecting a particular result for easier interpretation.
+
+Other than the model itself, an algorithm for suggesting candidate pegRNAs given a desirable edit was also implemented. Supposing the nick is done at 3bp upstream of the PAM, for the edit to be possible, the PAM sequence must be at most 3bp downstream of the edit start location (in which case LHA length is 0). As discussed in \autoref{sec:determinants}, the length of LHA, RHA and PBS all have significant impact on the editing efficiency. To come up with a recommended range for these parameters, a more detailed analysis of the relationship between the lengths and the editing efficiency was conducted.
+
+\begin{figure}
+    \includegraphics[width=\textwidth]{lha-rha-pbs-length-requirement.png}
+    \caption[Relationship between LHA, RHA and PBS length and editing efficiency]{Relationship between PBS (top), RHA (middle) and LHA (bottom) length and editing efficiency. Data from the DeepPrime ClinVar HEK293T PE2 dataset was used in the analysis. random samples of 5\% of the individual data points were plotted as a strip plot on top of the box plot. Y axis is limited to a max value of 5 + 1.5 * IQR to improve readability.}
+    \label{fig:lha-rha-pbs-length}
+\end{figure}
+
+
+Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths of LHA, RHA and PBS and the editing efficiency was analyzed using the DeepPrime ClinVar HEK293T dataset. Consistent with Yu et al, 2023's finding, editing editing efficiency plateaued with RHA length of 7-12bp. Since RHA is the component with the greatest flexibility in length as it does not depend on target location, I decided to only use the 7-12bp range where the corresponding efficiency is the highest so that the resulting search space can be smaller.  As for LHA, the efficiency was shown to decrease with longer LHA length, with an elbow point at around 20bp, where the decrease significantly slows down. Thus, the recommended distance between the nick and the edit location is set to 0-20bp, and this is only extended if no suitable PAM is found within the range. Last but not least, as expected, PBS length's impact on the editing efficiency is roughly normally distributed, with the highest efficiency at around 12bp. Decent performance can be observed from 8bp all the way up to the highest recorded value of 17bp, which covers the entire range of the protospacer upstream of the nick site. Thus, although the SHAP analysis showed that long PBS can be detrimental to the editing efficiency, the range of PBS length was still set to 8-17bp.
+
+In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c|c|c}
+        % \hline
+        \textbf{Component} & \textbf{Min Length} & \textbf{Max Length} \\
+        \hline
+        LHA & 0 & 20 \\
+        RHA & 7 & 12 \\
+        PBS & 8 & 17 \\
+        % \hline
+    \end{tabular}
+    \caption{Recommended range for LHA, RHA and PBS length}
+    \label{tab:recommended-range}
+\end{table}
+
+
+Limited by the scale and funding of this project, the web tool was not deployed to a public server, but instead packaged in a container for local use with Docker. 
+
+It is also accessible using Python with Django and Pytorch installed by executing 
+
+\verb|python webtool/manage.py runserver|
+
+suppose that the user is in the root directory of the project. The web tool can then be accessed by visiting \verb|http://127.0.0.1:8000/|.

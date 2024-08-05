@@ -1,0 +1,8 @@
+xgboost
+seaborn
+pandas
+numpy
+matplotlib
+scikit-learn
+torch
+ipykernel>=6.9

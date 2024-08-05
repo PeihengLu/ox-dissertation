@@ -1,0 +1,73 @@
+{
+  "daily-notes": [
+    {
+      "modifiers": [
+        "Mod",
+        "Shift"
+      ],
+      "key": "D"
+    }
+  ],
+  "workspace:copy-url": [
+    {
+      "modifiers": [
+        "Mod",
+        "Shift"
+      ],
+      "key": "C"
+    }
+  ],
+  "graph:open-local": [
+    {
+      "modifiers": [
+        "Alt",
+        "Mod"
+      ],
+      "key": "G"
+    }
+  ],
+  "editor:open-link-in-new-leaf": [],
+  "markdown:toggle-preview": [
+    {
+      "modifiers": [
+        "Mod"
+      ],
+      "key": "Enter"
+    }
+  ],
+  "highlightr-plugin:highlighter-plugin-menu": [
+    {
+      "modifiers": [
+        "Mod",
+        "Shift"
+      ],
+      "key": "H"
+    }
+  ],
+  "file-explorer:move-file": [
+    {
+      "modifiers": [
+        "Alt"
+      ],
+      "key": "M"
+    }
+  ],
+  "obsidian-rollover-daily-todos:obsidian-rollover-daily-todos-rollover": [
+    {
+      "modifiers": [
+        "Alt",
+        "Mod"
+      ],
+      "key": "R"
+    }
+  ],
+  "obsidian-zotero-desktop-connector:zdc-Format #1": [
+    {
+      "modifiers": [
+        "Alt",
+        "Mod"
+      ],
+      "key": "I"
+    }
+  ]
+}

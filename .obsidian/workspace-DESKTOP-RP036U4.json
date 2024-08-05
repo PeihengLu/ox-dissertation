@@ -1,0 +1,226 @@
+{
+  "main": {
+    "id": "3c66f4a30d28b161",
+    "type": "split",
+    "children": [
+      {
+        "id": "bf79efc7dede441b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1707e4548d7209c7",
+            "type": "leaf",
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "DBSI/classes/DSI-Class-4.pdf"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "9aca8953b2f15b98",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "6e3236e5938735ee",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "DBSI/classes/dbsi-class-4-peiheng.md",
+                "mode": "source",
+                "backlinks": true,
+                "source": false
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "42f43d04b6fdb762",
+    "type": "split",
+    "children": [
+      {
+        "id": "3a4f298ee440cf18",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9e1449a5cec6d5ed",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "4edbf221c0732520",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "b2ffdf9201c68dd3",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200,
+    "collapsed": true
+  },
+  "right": {
+    "id": "bcc79743a86cb549",
+    "type": "split",
+    "children": [
+      {
+        "id": "77793ce8bb7b70b8",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2c4b5064be012e40",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "815d3d1237066cda",
+            "type": "leaf",
+            "state": {
+              "type": "calendar",
+              "state": {}
+            }
+          },
+          {
+            "id": "22ab4a866e2a16ad",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "DBSI/classes/DSI-Class-4.pdf"
+              }
+            }
+          },
+          {
+            "id": "62ab502f22c15c39",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "DBSI/classes/DSI-Class-4.pdf",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "5aa1edb35acff566",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "DBSI/classes/DSI-Class-4.pdf",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 237.5,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false
+    }
+  },
+  "active": "1707e4548d7209c7",
+  "lastOpenFiles": [
+    "DBSI/classes/dbsi-class-4-peiheng.md",
+    "DBSI/classes/DSI-Class-4.pdf",
+    "ASEC/classes/asec-class-2-peiheng-lu.md",
+    "ASEC/classes/2023ProblemSheet2.pdf",
+    "ASEC/asec-class-2-peiheng-lu.pdf",
+    "attachments/Pasted image 20240206161804.png",
+    "attachments/Pasted image 20240206161711.png",
+    "DBSI/classes/DSI-Class-2.pdf",
+    "DBSI/classes/dbsi-class-2-peiheng-lu.md",
+    "attachments/Pasted image 20240205200343.png",
+    "attachments/Pasted image 20240205200333.png",
+    "attachments/Pasted image 20240205200315.png",
+    "attachments/Pasted image 20240130204919.png",
+    "attachments/Pasted image 20240130201026.png",
+    "attachments/Pasted image 20240130200822.png",
+    "attachments/Pasted image 20240130200316.png",
+    "attachments/Pasted image 20240130195414.png",
+    "attachments",
+    "New folder",
+    "ASEC/classes/asec-class-1.md",
+    "ASEC/classes/ProblemSheet1HT23.pdf",
+    "DBSI/classes/DSI-Class-3.pdf",
+    "DBSI/classes/dbsi-class-3-peiheng-lu.md",
+    "DBSI/dbsi-class-2-peiheng-lu_marked.pdf.crswap",
+    "DBSI/dbsi-class-2-peiheng-lu_marked.pdf",
+    "school/course_index.md",
+    "daily_notes/2024-02-04.md",
+    "papers/european-support-for-refugees-of-varying-background-is-stable-over-time-2023.md",
+    "papers/layer-normalization-2016.md",
+    "papers/papers_index.md",
+    "papers/attention_is_all_you_need_2017.md",
+    "papers/why-most-published-research-findings-are-false-2005.md",
+    "papers/Sequence-specific prediction of the efficiencies of adenine and cytosine base editors-2019.md",
+    "papers/Demystifying-global-climate-models-for-use-in-the-life-sciences-2023.md",
+    "daily_notes/2024-01-29.md",
+    "papers/Climate Change Attribution Correction.md",
+    "papers/Climate-Change-Attribution-Correction-JWR942KV.md",
+    "daily_notes/2024-01-28.md",
+    "daily_notes/2024-01-27.md",
+    "OX-practicals/DBSI/classes/dbsi-class-2.md",
+    "school/DBSI-Notes-H6657MV4.md",
+    "programming/deep-learning.md",
+    "OX-practicals/ASEC/classes/asec-class-1.md",
+    "daily_notes/2024-01-26.md",
+    "daily_notes/2024-01-25.md",
+    "attachments/Untitled.canvas",
+    "Untitled.canvas"
+  ]
+}

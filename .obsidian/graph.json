@@ -1,0 +1,22 @@
+{
+  "collapse-filter": false,
+  "search": "-path: daily_notes  ",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": true,
+  "colorGroups": [],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 2.80432525951557,
+  "lineSizeMultiplier": 1.91118518518519,
+  "collapse-forces": false,
+  "centerStrength": 0.558823529411765,
+  "repelStrength": 20,
+  "linkStrength": 1,
+  "linkDistance": 356,
+  "scale": 0.8537008103727356,
+  "close": true
+}

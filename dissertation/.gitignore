@@ -1,0 +1,10 @@
+/*
+!.gitignore
+!*.tex
+!*.bib
+!/figures
+!/text
+/text/*
+!/text/*.tex
+._*
+!*.cls

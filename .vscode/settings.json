@@ -1,0 +1,9 @@
+{
+    "cSpell.words": [
+        "assessibility"
+    ],
+    "cSpell.language": "en,en-GB",
+    "files.watcherExclude": {
+        "**/target": true
+    }
+}
