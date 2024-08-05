@@ -32,8 +32,9 @@ for ind, row in summary.iterrows():
     cell_line = cell_line.lower()
     pe_version = pe_version.lower()
     
-    cell_line.replace('-', '_')
-    pe_version.replace('-', '_')
+    cell_line = cell_line.replace('-', '_')
+    pe_version = pe_version.replace('-', '_')
+    
     # load the table
     df = pd.read_excel(xls, sheetname, skiprows=3)
     print(sheetname)
