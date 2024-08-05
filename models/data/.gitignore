@@ -1,0 +1,4 @@
+# ignore the csv content of pridct, deepprime and shap folders
+pridict/*.csv
+deepprime/*.csv
+shap/*.csv
