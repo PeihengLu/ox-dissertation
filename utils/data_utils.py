@@ -249,7 +249,7 @@ def convert_to_deepprime(source: str) -> None:
     for col in columns:
         if col not in ['wt-sequence', 'mut-sequence']:
             output_df[col] = output_df[col].astype(np.float32)
-    output_df.to_csv(pjoin('deepprime', target), index=False)
+    output_df.to_csv(pjoin('..', 'deepprime', target), index=False)
     
 
 def convert_from_pridict2_org(data: pd.DataFrame) -> None:
@@ -410,7 +410,7 @@ def convert_to_pridict(source: str) -> None:
     for col in columns:
         if col not in ['wt-sequence', 'mut-sequence']:
             output_df[col] = output_df[col].astype(np.float32)
-    output_df.to_csv(pjoin('pridict', target), index=False)
+    output_df.to_csv(pjoin('..', 'pridict', target), index=False)
 
 def convert_to_SHAP(source: str) -> None:
     '''
