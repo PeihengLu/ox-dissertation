@@ -128,7 +128,7 @@ class AnnotEmbeder_WTSeq(nn.Module):
     def __init__(self, embed_dim, annot_embed, assemb_opt='add'):
         super().__init__()
         self.num_nucl = 4 # nucleotide embeddings
-        self.num_inidc = 0 # padding index
+        self.num_inidc = 2 # padding index for protospacer, PBS and RTT
         self.assemb_opt = assemb_opt
         # wt+mut+protospacer+PBS+RTT
         self.We = nn.Embedding(self.num_nucl+1, embed_dim, padding_idx=0)
@@ -303,8 +303,8 @@ class FeatureEmbAttention(nn.Module):
 # feature processing
 class MLPEmbedder(nn.Module):
     def __init__(self,
-                 inp_dim,
-                 embed_dim,
+                 input_dim, # number of features
+                 embed_dim, # number of features after embedding
                  mlp_embed_factor=2,
                  nonlin_func=nn.ReLU(), 
                  pdropout=0.3, 
@@ -312,7 +312,7 @@ class MLPEmbedder(nn.Module):
         
         super().__init__()
         
-        self.We = nn.Linear(inp_dim, embed_dim, bias=True)
+        self.We = nn.Linear(input_dim, embed_dim, bias=True)
         encunit_layers = [MLPBlock(embed_dim,
                                    embed_dim,
                                    mlp_embed_factor,
@@ -482,7 +482,7 @@ class Pridict(nn.Module):
         self.global_featemb_mut_attn = FeatureEmbAttention(z_dim)
 
         # encoder 3
-        self.seqlevel_featembeder = MLPEmbedder(inp_dim=feature_dim,
+        self.seqlevel_featembeder = MLPEmbedder(input_dim=feature_dim,
                                            embed_dim=z_dim,
                                            mlp_embed_factor=mlp_embed_factor,
                                            nonlin_func=nonlinear_func,
@@ -511,13 +511,14 @@ class Pridict(nn.Module):
             X_mut_rt: tensor, (batch, seqlen) representing location of mutated RTT sequence, dtype=torch.bool
             features: tensor, (batch, feature_dim) representing feature vector
         """
+        # process feature embeddings
         wt_embed = self.init_annot_embed(X_nucl, X_proto, X_pbs, X_rt)
         mut_embed = self.mut_annot_embed(X_mut_nucl, X_mut_pbs, X_mut_rt)
         
-        # feature embedding
         
         
         # attention mechanism
+        # mask out the regions not part of the rtt using the X_rt tensor
         
 def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     # sequence data
@@ -526,7 +527,7 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     # the rest are the features
     features = X_train.iloc[:, 2:26].values
     
-    protospacer_location = X_train['protospacer-location-l']
+    protospacer_location = X_train['protospacer-location']
     pbs_start = X_train['pbs-location-l-relative-protospacer'] + protospacer_location
     rtt_start = X_train['rtt-location-l-relative-protospacer'] + protospacer_location
     
@@ -546,16 +547,33 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
         else:
             rtt_length_mut.append(rtt_length[i])
         
-    X_pbs = torch.zeros((len(wt_seq), len(wt_seq[0])))
-    X_pbs[pbs_start:pbs_start+pbs_length] = 1
+    X_pbs = torch.zeros((len(wt_seq), len(wt_seq[0])))    
+    X_rtt = torch.zeros((len(wt_seq), len(wt_seq[0])))    
+    X_proto = torch.zeros((len(wt_seq), len(wt_seq[0])))
+    X_rtt_mut = torch.zeros((len(wt_seq), len(wt_seq[0])))
     
-    X_rtt = torch.zeros((len(wt_seq), len(wt_seq[0])))
-    X_rtt[rtt_start:rtt_start+rtt_length] = 1
-    
-    print(X_pbs.shape)
-        
+    for i in range(len(wt_seq)):
+        for j in range(int(pbs_start[i]), int(pbs_start[i]+pbs_length[i])):
+            X_pbs[i, j] = 1
+        for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length[i])):
+            X_rtt[i, j] = 1
+        for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length_mut[i])):
+            X_rtt_mut[i, j] = 1
+        for j in range(int(protospacer_location[i]), int(protospacer_location[i]+len(wt_seq[i]))):
+            X_proto[i, j] = 1
+            
     nut_to_ix = {'N': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
+    X_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in wt_seq])
+    X_mut_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in mut_seq])
     
-
-    
+    result = {
+        'X_nucl': X_nucl,
+        'X_proto': X_proto,
+        'X_pbs': X_pbs,
+        'X_rtt': X_rtt,
+        'X_mut_nucl': X_mut_nucl,
+        'X_mut_pbs': X_pbs,
+        'X_mut_rtt': X_rtt_mut,
+        'features': torch.tensor(features)
+    }
     

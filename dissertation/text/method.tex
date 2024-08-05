@@ -226,7 +226,9 @@ This narrows down the option to log adjustment and undersampling. numpy provides
 
 To further verify the necessity of the adjustments, the DeepPrime model with log adjusted and undersampled target were trained on the five datasets using the optimized hyperparameters reported by Yu et al in their study\cite{yuPredictionEfficienciesDiverse2023}. The performance of the models were then evaluated using Pearson and Spearman correlation and compared to the result trained on the original model, shown in \autoref{fig:deepprime-adjustment-performance}.
 
-As expected the relative performance of the undersampling adjustment took a nosedive when training the DeepPrime model with far more parameters than the simple MLP model. Siginificantly lower performance was observed on all datasets ($p<0.01$) trained with undersampled training data. The log adjustment, on the other hand, showed a significant improvement in terms of Spearman's $\rho$ on the DeepPrime HEK293T dataset ($p<0.001$), the PRIDICT K562 dataset ($p<0.001$), and the PRIDICT Adv dataset ($p<0.01$). Additionally, no siginificant decrease in performance was observed other than the DeepPrime and PRIDICT HEK293T datasets ($p<0.05$).
+As expected the relative performance of the undersampling adjustment took a nosedive when training the DeepPrime model with far more parameters than the simple MLP model. Siginificantly lower performance was observed on all datasets ($p<0.01$) trained with undersampled training data. The log adjustment, on the other hand, showed a significant improvement in terms of Spearman's $\rho$ on the DeepPrime HEK293T dataset ($p<0.001$), the PRIDICT K562 dataset ($p<0.001$), and the PRIDICT Adv dataset ($p<0.01$). Additionally, no siginificant decrease in performance was observed other than the DeepPrime and PRIDICT HEK293T datasets ($p<0.05$). 
+
+Taking into account the performance of the DeepPrime model, the log adjustment was chosen as the primary method to address the imbalance in the dataset. The log adjustment was applied to the target values of all datasets used in this study from this point on.
 
 \section{Conventional Machine Learning Models}
 

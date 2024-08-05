@@ -23,8 +23,9 @@ def convert_from_deepprime_org(data: pd.DataFrame, cell_line: str, editor: str, 
         target = f"std-dp-{cell_line}-{editor}.csv"
     else:
         target = f"std-dp_{source}-{cell_line}-{editor}.csv"
-    if isfile(pjoin('../', 'std', target)):
-        return
+        
+    # if isfile(pjoin('../', 'std', target)):
+    #     return
 
     # replace the '-' in editor and cell line with '_'
     cell_line = cell_line.lower()
@@ -136,6 +137,8 @@ def convert_from_deepprime_org(data: pd.DataFrame, cell_line: str, editor: str, 
 
     # save the extracted information
     output_df = pd.DataFrame(output, columns=result_columns, index=None)
+    # add fold column
+    output_df = k_fold_cross_validation_split(output_df, 5)
     output_df.to_csv(pjoin('..', 'std', target), index=False)
 
 def convert_to_deepprime(source: str) -> None:
@@ -147,8 +150,8 @@ def convert_to_deepprime(source: str) -> None:
     
     target = f"dp-{org}-{cell_line}-{editor}.csv"
 
-    # if isfile(pjoin('deepprime', target)):
-    #     return
+    if isfile(pjoin('..', 'deepprime', target)):
+        return
     
     # if basename(source) != 'std-dp-a549-pe2max.csv':
     #     return
@@ -266,10 +269,15 @@ def convert_from_pridict2_org(data: pd.DataFrame) -> None:
 
     # enum of mutation types
     mutation_types = ['1bpReplacement', 'MultibpReplacement', 'Insertion', 'Deletion']
+    
+    group_prev = -1
+    group_id = -1
 
     # extract the important information
     for ind, item in tqdm.tqdm(data.iterrows(), total=len(data)):
-        group_id = item['group']
+        if item['group'] != group_prev:
+            group_id += 1
+            group_prev = item['group']
         wt_sequence = item['wide_initial_target']
         mut_sequence = item['wide_mutated_target']
         protospacer_location = ast.literal_eval(item['protospacerlocation_only_initial'])
@@ -328,6 +336,8 @@ def convert_from_pridict2_org(data: pd.DataFrame) -> None:
     for cell_line in cell_lines.values():
         target = f"std-pd-{cell_line}-pe2.csv"
         cell_line_data = output_df[output_df['cell-line'] == cell_line]
+        # add fold column
+        cell_line_data = k_fold_cross_validation_split(cell_line_data, 5)
         cell_line_data.to_csv(pjoin('..', 'std', target), index=False)
         
 # convert to pridict
@@ -342,7 +352,7 @@ def convert_to_pridict(source: str) -> None:
     
     target = f"pd-{org}-{cell_line}-{editor}.csv"
     
-    if isfile(pjoin('pridict', target)):
+    if isfile(pjoin('..', 'pridict', target)):
         return
     
     # load the data
@@ -351,6 +361,7 @@ def convert_to_pridict(source: str) -> None:
     columns = ['wt-sequence', 'mut-sequence'] + [s+'-length' for s in ['edit', 'pbs', 'rtt', 'rha']] + ['mut-type'] + [f"{s}-melting-temperature" for s in ['edit', 'extension', 'preedit', 'protospacer', 'rha', 'pbs']] + [f"{s}-sequence-zero-length" for s in ['edit', 'preedit']] + ['protospacer-location'] + [f"{s}-location-l-relative-protospacer" for s in ['pbs', 'rtt', 'rha']] + [f"{s}-minimum-free-energy" for s in ['extension', 'extension-scaffold', 'pbs', 'spacer', 'spacer-extension-scaffold', 'spacer-scaffold', 'rtt']] + ['group-id', 'editing-efficiency', 'fold']
     
     scaffold = 'GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGC'
+    # scaffold = 'G'
     scaffold = get_compliment_dna_to_rna(scaffold)
     
     output = []
@@ -386,6 +397,7 @@ def convert_to_pridict(source: str) -> None:
         pbs_melting_temperature = get_melting_temperature(pbs, 'R_DNA_NN1')
         rha_melting_temperature = get_melting_temperature(rha, 'R_DNA_NN1')
         extension_melting_temperature = get_melting_temperature(extension, 'R_DNA_NN1')
+        protosacer_melting_temperature = get_melting_temperature(spacer, 'R_DNA_NN1')
         
         pbs_location_l = item['pbs-location-l'] - item['protospacer-location-l']
         rtt_location_l = item['rtt-location-mut-l'] - item['protospacer-location-l']
@@ -401,8 +413,7 @@ def convert_to_pridict(source: str) -> None:
         rtt_minimum_free_energy = get_minimum_free_energy(rtt)
         
         
-        output.append([wt_sequence, mut_sequence, edit_len, len(pbs), len(rtt), len(rha), mut_type, edit_melting_temperature, extension_melting_temperature, preedit_melting_temperature, pbs_melting_temperature, rha_melting_temperature, edit_sequence_zero_length, preedit_sequence_zero_length, protospacer_location_l, pbs_location_l, rtt_location_l, rha_location_l, extension_minimum_free_energy, extension_scaffold_minimum_free_energy, pbs_minimum_free_energy, spacer_minimum_free_energy, spacer_extension_scaffold_minimum_free_energy, spacer_scaffold_minimum_free_energy, rtt_minimum_free_energy, item['group-id'], item['editing-efficiency'], item['fold']])
-        
+        output.append([wt_sequence, mut_sequence, edit_len, len(pbs), len(rtt), len(rha), mut_type, edit_melting_temperature, extension_melting_temperature, preedit_melting_temperature, protosacer_melting_temperature, pbs_melting_temperature, rha_melting_temperature, edit_sequence_zero_length, preedit_sequence_zero_length, protospacer_location_l, pbs_location_l, rtt_location_l, rha_location_l, extension_minimum_free_energy, extension_scaffold_minimum_free_energy, pbs_minimum_free_energy, spacer_minimum_free_energy, spacer_extension_scaffold_minimum_free_energy, spacer_scaffold_minimum_free_energy, rtt_minimum_free_energy, item['group-id'], item['editing-efficiency'], item['fold']])
     
     # save the extracted information
     output_df = pd.DataFrame(output, columns=columns)
@@ -417,8 +428,8 @@ def convert_to_SHAP(source: str) -> None:
     convert from standard format to SHAP format used for SHAP analysis
     '''
     target = f"shap-{'-'.join(source.split('-')[1:])}"
-    # if isfile(pjoin('shap', target)):
-    #     return
+    if isfile(pjoin('..', 'shap', target)):
+        return
 
     feature_list = ['edit-type-' + s for s in ['replacement', 'insertion', 'deletion']] 
     feature_list += ['gc-content-' + s for s in ['spacer', 'pbs', 'extension', 'rha']]
@@ -561,7 +572,7 @@ def convert_to_SHAP(source: str) -> None:
 
     # save the extracted information
     output_df = pd.DataFrame(output, columns=feature_list, dtype=np.float16)
-    output_df.to_csv(pjoin('shap', target), index=False)
+    output_df.to_csv(pjoin('..', 'shap', target), index=False)
 
 
 def convert_to_conventional_ml(source: str) -> None:
@@ -706,7 +717,7 @@ def convert_to_conventional_ml(source: str) -> None:
     # save the extracted information
     output_df = pd.DataFrame(output, columns=features, dtype=np.float32)
     # save the data
-    output_df.to_csv(pjoin('conventional-ml', target), index=False)
+    output_df.to_csv(pjoin('..', 'conventional-ml', target), index=False)
 
 # =============================================================================
 # Sequence data preprocessing
