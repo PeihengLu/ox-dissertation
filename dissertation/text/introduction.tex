@@ -1,5 +1,7 @@
 \chapter{Introduction}
 
+\minitoc
+
 \section{Background}
 
 % TODO: 
@@ -73,9 +75,11 @@ The learning-based methods can be further divided into another two groups: the c
 
 Each category has their own strengths and weaknesses in performance and efficiency. Hypothesis driven and conventional machine learning algorithms are more efficient to train due to the much smaller input size and the lower complexity of the computation. However, hypothesis based methods struggle to unbiasedly optimize the weights attributed to each feature\cite{liEasyPrimeMachineLearning2021}, while conventional machine learning algorithms loses the DNA context data that can be informative to prime editor optimization. 
 
-The deep learning methods require a much larger dataset to train and are computationally more expensive to train and use. They also need more expertise to design and tune, and are more prone to overfitting due to the large number of parameters. However, their superior performance in the prime editing efficiency prediction task has been convincingly demonstrated in recent years.
+The deep learning methods require a much larger dataset to train and are computationally more expensive to train and use. They also need more expertise to design and tune, and are more prone to overfitting due to the large number of parameters. However, their superior performance in the prime editing efficiency prediction task has been convincingly demonstrated by a number of models in recent years.
 
 % TODO: overview of DeepPE, DeepPrime, PRIDICT 1 and 2
+
+\subsection{DeepPE and DeepPrime convolutional neural network}
 
 DeepPE was one of the earliest attempts at leveraging deep learning to achieve above par performance in predicting prime editing outcomes\cite{kimPredictingEfficiencyPrime2021}. It is a convolutional neural network that takes the stacked one-hot encoded wild type and  mutated DNA sequences, the extension RNA sequence as well as a number of features extracted from pegRNA sequence and the target site as input. Despite its simple architecture, DeepPE managed to outperform the conventional machine learning models in terms of Pearson's r and Spearman's R. This indicated that the deep learning model was able to better capture the complex interactions between the sequence data and the editing efficiency compared to using the extracted features alone. It was however very limited in terms of the types of edits it can predict, with the base model only capable of predicting the efficiency of G to C replacement at 5bp upstream of the nick. Additional models were trained to predict other types of edits, and most of them also only support one single specific edit.
 
@@ -84,9 +88,8 @@ Noticing that stacking the additional PBS-RTT sequence did not improve the perfo
 
 DeepPrime achieved far superior performance to DeepPE, while at the same time, one single model can now predict all types of edits for a cell line and prime editor pair existing in the dataset. This enabled the training process to take advantage of the shared features between different edits (further enhancing performance) and significantly improve the ease of use.
 
+\subsection{PRIDICT 1 and 2 bidirectional LSTM}
 
-
-
-% A more detailed review and comparison of some existing learning-based models as well as illustrations of their architectures were done as part of my submission for the course SC8 Computational Biology, and were attached here for reference in \autoref{appendix:models}. 
+The PRIDICT model was developed by Mathis et al from the Schwank lab at the University of Zurch, and used RNN (Recurrent Neural Network) instead of CNN to process the sequence data\cite{mathisPredictingPrimeEditing2023}. The first version of PRIDICT used a bidirectional LSTM (Long Short Term Memory) to process the sequence data, and a separate MLP to process the extracted features (similar to DeepPrime). The output of the two models were then concatenated and fed into the final MLP to predict the editing efficiency.
 
 The development of these models inspired me to further explore the potential of deep learning models in predicting prime editing outcomes. In this study, I aim to develop a deep learning model that is on par or even better than the existing models in predicting prime editing outcomes for a wide range of cell lines and edit types. I will also explore the possibility of using ensemble learning to improve the performance of the models, and investigate the potential of using the model to predict the efficiency of prime editing outcomes for cell lines and edit types that are not present in the training dataset. 

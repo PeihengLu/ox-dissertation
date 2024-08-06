@@ -1,5 +1,7 @@
 \chapter{Methods}
 
+\minitoc
+
 \section{Curating a Benchmarking Dataset}
 
 To establish a common ground for evaluating the performance of machine learning models, I curated a benchmarking dataset using data from various literatures. The main data source is the 2024 study by Mathis et al. which has the most diverse editing types ranging from 1-to-5bp replacement to 1-to-15bp deletions and insertions\cite{mathisMachineLearningPrediction2024}. It is complimented by the DeepPrime dataset, as it has a much bigger HEK293T dataset ($\sim290,000$ vs $\sim22,000$) as well as a wider range of cell type and PE pairs that can be used for fine-tuning the model to achieve better coverage and higher impact\cite{yuPredictionEfficienciesDiverse2023}. The mutated sequences in the datasets were masked by 'x', exposing only the region corresponding to PBS-RTT. To match the PRIDICT format, the mutated sequences were unmasked, and the missing regions due to the shorter wide sequence window is padded by `N'.
@@ -104,6 +106,7 @@ These features are encapsulated in the editing cell type and PE version and are 
 as HAP1(derived from a chronic myelogenous leukemia patient)\cite{mathisPredictingPrimeEditing2023}. 
 
 \section{Data Engineering}
+\label{sec:data-engineering}
 
 A conspicuous issue with the dataset is the imbalance in target values. Shown in Figure \ref{fig:imbalanced-original}, the distribution of the editing efficiency is heavily skewed towards the lower end, with a large number of pegRNAs having an efficiency of around 0. This can cause the model to be less accurate in predicting the higher efficiency pegRNAs, as the model would be more inclined to predict lower efficiency to minimize the loss. 
 
@@ -177,7 +180,7 @@ To verify if the adjustments had made any significant different on the model's p
         \includegraphics[width=0.8\textwidth]{adjustment-pd-adv-performance.png}
         \label{fig:pd-adv-adjustment-performance}
     }
-    \caption{Performance comparison of the MLP model trained on the DeepPrime HEK293T PE2 dataset \textbf{(a)}, the PRIDICT2.0 HEK293T dataset \textbf{(b)}, the PRIDICT2.0 K562 dataset (PD K562\textbf{(c)}), the PRIDICT2.0 K562MLH1d dataset \textbf{(d)}, and the PRIDICT2.0 Adv dataset \textbf{(e)} using the log adjusted (LA), undersampled (US), quantile transformed (QT), and DeepPrime weighted MSE (WMSE) adjustments, in addition to the original dataset and citerion (OG). 
+    \caption[MLP model performance comparison after adjustments]{Performance comparison of the MLP model trained on the DeepPrime HEK293T PE2 dataset \textbf{(a)}, the PRIDICT2.0 HEK293T dataset \textbf{(b)}, the PRIDICT2.0 K562 dataset (PD K562\textbf{(c)}), the PRIDICT2.0 K562MLH1d dataset \textbf{(d)}, and the PRIDICT2.0 Adv dataset \textbf{(e)} using the log adjusted (LA), undersampled (US), quantile transformed (QT), and DeepPrime weighted MSE (WMSE) adjustments, in addition to the original dataset and citerion (OG). 
     The performance of each fold is shown as a strip plot on top of the matching bar.}
     \label{fig:adjustment-performance}
 \end{figure}
@@ -218,7 +221,7 @@ This narrows down the option to log adjustment and undersampling. numpy provides
         \includegraphics[width=0.8\textwidth]{adjustment-deepprime-pd-adv-performance.png}
         \label{fig:deepprime-pd-adv-adjustment-performance}
     }
-    \caption{
+    \caption[DeepPrime model performance comparison after adjustments]{
         Similar to \autoref{fig:adjustment-performance}, the performance comparison of the MLP model trained on the DeepPrime HEK293T PE2 dataset \textbf{(a)}, the PRIDICT2.0 HEK293T dataset \textbf{(b)}, the PRIDICT2.0 K562 dataset \textbf{(c)}, the PRIDICT2.0 K562MLH1d dataset \textbf{(d)}, and the PRIDICT2.0 Adv dataset \textbf{(e)} using the log adjusted (LA), undersampled (US), and the original dataset (OG). 
     }
     \label{fig:deepprime-adjustment-performance}
@@ -230,9 +233,12 @@ As expected the relative performance of the undersampling adjustment took a nose
 
 Taking into account the performance of the DeepPrime model, the log adjustment was chosen as the primary method to address the imbalance in the dataset. The log adjustment was applied to the target values of all datasets used in this study from this point on.
 
+Another problem with the dataset is the lack of variety in the PBS length and location in the PRIDICT dataset. For some reason, all PBS sequences start at 4bp downstream of the protospacer start location and have a length of 13bp, ending at the nick site. To help the models trained on PRIDICT datasets work on unseen data supplied by the users, when working with models trained on PRIDICT datasets, the PBS length is fixed at 13bp. 
+
+
 \section{Conventional Machine Learning Models}
 
-Using the top 24 computed features, a number of conventional machine learning models were trained to serve as a baseline for the deep learning models. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron. 
+Using the top 24 computed features, a number of conventional machine learning models were trained to serve as a baseline for the deep learning models. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron.
 
 Their hyperparameter were optimized on one fold of the DeepPrime HEK293T using sklearn GridSearchCV. The performance of the optimized models were then evaluated using Pearson and Spearman correlation on the DeepPrime and PRIDICT dataset for three different cell types on all 5 folds to provide a more accurate estimation of the models' performance. The MLP model involved the additional Skorch library to allow for the use of scikit-learn's GridSearchCV for hyperparameter optimization on the Pytorch model. The optimized parameters for the models are as follows:
 
@@ -258,22 +264,30 @@ The models' performance were evaluated using Pearson and Spearman correlation be
 
 The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences. It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}.
 
+The implementation of the transformer was adopted from Sasha Rush's implementation of the transformer model in Pytorch\cite{AnnotatedTransformer}, while the MLP encoder and decoder were implemented according to the design of the PRIDICT model. The overall architecture is heavily inspired by the BE-DICT bystander model, where the transformer model is used to encode the sequence before and after edit and the MLP model is used to encode the features extracted from the sgRNA used by the base editor.
+
 \section{Improving Performance with Ensemble Learning}
 
+The performance of the deep learning models can be further improved by using ensemble learning. The idea behind ensemble learning is to combine multiple models to produce a more accurate prediction than any individual model. 
 
+Most of the models tested in this study so far are already using ensembling learning. The XGBoost model is an ensemble of multiple decision trees using gradient boosting, while DeepPrime, PRIDICT and the Transformer model are effectively an ensemble of a deep learning model and a MLP.
 
+Thus, in this section, the focus is on combining these models to form a higher level parallel ensemble, where the models are trained independently and in parallel.
 
+\subsection{Training DeepPrime and PRIDICT}
 
-For easier identification, the training models stored in `trained-models' directory also follows a uniform naming convention: `model-\{source\}-\{cell-line\}-\{PE-version\}-\{fold\}.pth/pkl/json'. All 5 folds of the models were used during evaluation, and the results were averaged to produce the final prediction. 
-
-Since all of the deep learning models are all effectively an ensemble of a deep learning model and a MLP, XGBoost was chosen to compliment the deep learning models instead of another MLP.
+For easier identification, the training models stored in `trained-models' directory also follows a uniform naming convention: `model-\{source\}-\{cell-line\}-\{PE-version\}-\{fold\}.pth/pkl/json'. All 5 folds of the models were used during evaluation, and the results were averaged to produce the final prediction. Additionally, PRIDICT and DeepPrime have overlapping datasets, and when a editor-cell line combination is present in both datasets, both models were used to predict the editing efficiency, and the results were averaged again to produce the predicted efficiency.
 
 \subsection{Simple Averaging}
+
+
 
 \subsection{Stacking}
 
 
+
 \subsection{Blending}
+
 
 
 \section{Development of pegRNA Design Web Tool}
@@ -288,14 +302,15 @@ Other than the model itself, an algorithm for suggesting candidate pegRNAs given
 
 \begin{figure}
     \includegraphics[width=\textwidth]{lha-rha-pbs-length-requirement.png}
-    \caption[Relationship between LHA, RHA and PBS length and editing efficiency]{Relationship between PBS (top), RHA (middle) and LHA (bottom) length and editing efficiency. Data from the DeepPrime ClinVar HEK293T PE2 dataset was used in the analysis. random samples of 5\% of the individual data points were plotted as a strip plot on top of the box plot. Y axis is limited to a max value of 5 + 1.5 * IQR to improve readability.}
+    \caption[Relationship between LHA, RHA and PBS length and editing efficiency]{Relationship between PBS (top), RHA (middle) and LHA (bottom) length and editing efficiency. Data from all of the DeepPrime and PRIDICT datasets was used in the analysis for better generalizability. Random samples of 5\% of the individual data pointso were plotted as a strip plot on top of the box plot to shw real data while keeping the figure from clutering. Y axis is limited to a max value of 5 + 1.5 * IQR to further improve readability. }
+    % The values associated with rha length over 30bp were omitted due to the small number of data points and very low efficiency.
     \label{fig:lha-rha-pbs-length}
 \end{figure}
 
 
-Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths of LHA, RHA and PBS and the editing efficiency was analyzed using the DeepPrime ClinVar HEK293T dataset. Consistent with Yu et al, 2023's finding, editing editing efficiency plateaued with RHA length of 7-12bp. Since RHA is the component with the greatest flexibility in length as it does not depend on target location, I decided to only use the 7-12bp range where the corresponding efficiency is the highest so that the resulting search space can be smaller.  As for LHA, the efficiency was shown to decrease with longer LHA length, with an elbow point at around 20bp, where the decrease significantly slows down. Thus, the recommended distance between the nick and the edit location is set to 0-20bp, and this is only extended if no suitable PAM is found within the range. Last but not least, as expected, PBS length's impact on the editing efficiency is roughly normally distributed, with the highest efficiency at around 12bp. Decent performance can be observed from 8bp all the way up to the highest recorded value of 17bp, which covers the entire range of the protospacer upstream of the nick site. Thus, although the SHAP analysis showed that long PBS can be detrimental to the editing efficiency, the range of PBS length was still set to 8-17bp.
+Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths of LHA, RHA and PBS and the editing efficiency was analyzed using the all data in the DeepPime and PRIDICT datasets. Consistent with Yu et al, 2023's finding, editing editing efficiency plateaued with RHA length of 7-12bp. Since RHA is the component with the greatest flexibility in length as it does not depend on target location, I decided to only use the 7-12bp range where the corresponding efficiency is the highest so that the resulting search space can be smaller.  As for LHA, the efficiency was shown to decrease with longer LHA length, with an elbow point at around 13bp, where the decrease in performance with regard to the lha length speeded up. Thus, the recommended distance between the nick and the edit location is set to 0-13bp, and this is only extended if no suitable PAM is found within the range. Last but not least, as expected, PBS length's impact on the editing efficiency is roughly normally distributed, with the highest efficiency at around 12bp. Decent performance can be observed from 8bp all the way up to the highest recorded value of 17bp, which covers the entire range of the protospacer upstream of the nick site. Thus, although the SHAP analysis showed that long PBS can be detrimental to the editing efficiency, the range of PBS length was still set to 8-17bp.
 
-In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}.
+In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}. The recommended range results in
 
 \begin{table}[h]
     \centering
@@ -303,7 +318,7 @@ In summary, unless specified otherwise by the users, the algorithm would only pr
         % \hline
         \textbf{Component} & \textbf{Min Length} & \textbf{Max Length} \\
         \hline
-        LHA & 0 & 20 \\
+        LHA & 0 & 13 \\
         RHA & 7 & 12 \\
         PBS & 8 & 17 \\
         % \hline
