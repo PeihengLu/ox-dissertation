@@ -127,9 +127,9 @@
         <div class="input-group">
             <select id="editorCellType">
                 <option value="" disabled selected>Select Prime Editor and Cell Type</option>
-                <option value="editor1-cell1">Prime Editor 1 - Cell Type 1</option>
-                <option value="editor2-cell2">Prime Editor 2 - Cell Type 2</option>
-                <option value="editor3-cell3">Prime Editor 3 - Cell Type 3</option>
+                <option value="pe2-hek293t">Prime Editor 1 - Cell Type 1</option>
+                <option value="pe2-k562">Prime Editor 2 - Cell Type 2</option>
+                <option value="pe2-adv">Prime Editor 3 - Cell Type 3</option>
                 <!-- Add more options as needed -->
             </select>
         </div>
@@ -157,7 +157,15 @@
         async function getPrediction() {
             showLoading();
             const userInput = document.getElementById('dnaInput').value;
+            // Get the selected Prime Editor and Cell Type
             const pe_cell_line = document.getElementById('editorCellType').value;
+            
+            // user must make a selection before proceeding
+            if (!pe_cell_line) {
+                alert("Please select a Prime Editor and Cell Type before proceeding.");
+                return;
+            }
+
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             setTimeout(function() {
                 const response = fetch('/predict/', {
@@ -168,7 +176,7 @@
                 },
                 body: JSON.stringify({
                     dna_sequence: userInput,
-                    pe_cell_line: pe_cell_line
+                    pe_cellline: pe_cell_line
                 })
                 });
                 const data = response.json();

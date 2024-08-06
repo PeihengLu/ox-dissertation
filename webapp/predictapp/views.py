@@ -17,16 +17,32 @@ model = DummyModel()
 def predict(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        user_input: str = data.get('input', 0)
+        sequence: str = data.get('dna_sequence', 0)
+        pe_cell_line: str = data.get('pe_cell_line', 0)
+        
+        pe, cellline = pe_cell_line.split('-')
+        
+        pam_table = {
+            'pe2': 'NGG',
+        }
+        
+        trained_on_pridict_only = ['k562', 'adv']
+        
+        sequences, pegRNAs = propose_pegrna(sequence, pam_table[pe], cellline in trained_on_pridict_only)
+        
+        # load all models trained on the specified cell line and prime editors
+        # then takes an average of the predictions
 
         # parse user's input
-
-        input_tensor = torch.tensor([user_input], dtype=torch.float32)
-        prediction = model(input_tensor).item()
         return JsonResponse({'prediction': prediction})
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
 
+def propose_pegrna(dna_sequence: str, pam: str, pridicrt_only: bool) -> str:
+    pbs_len_range = range(8, 18) if not pridicrt_only else [13] 
+    lha_len_range = range(0, 13)
+    rha_len_range = range(7, 12)
+    
 
 def index(request):
     return render(request, 'predictapp/index.html')
