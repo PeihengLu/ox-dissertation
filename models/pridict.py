@@ -5,6 +5,10 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import numpy as np
 import pandas as pd
 from typing import Dict
+import skorch
+
+import os
+from sklearn.preprocessing import StandardScaler
 
 class RNN_Net(nn.Module):
     def __init__(self, 
@@ -102,7 +106,7 @@ class RNN_Net(nn.Module):
             
         z_logit = self.nonlinear_func(self.Wz(unpacked_output))
   
-        return(hidden, z_logit)
+        return (hidden, z_logit)
     
     def forward(self, batch_seqs, seqs_len, requires_grad=True):
         return self.forward_complete(batch_seqs, seqs_len, requires_grad=requires_grad)
@@ -125,7 +129,7 @@ class MaskGenerator():
 
 # wt sequence embedding
 class AnnotEmbeder_WTSeq(nn.Module):
-    def __init__(self, embed_dim, annot_embed, assemb_opt='add'):
+    def __init__(self, embed_dim, annot_embed_dim, assemb_opt='add'):
         super().__init__()
         self.num_nucl = 4 # nucleotide embeddings
         self.num_inidc = 2 # padding index for protospacer, PBS and RTT
@@ -133,11 +137,11 @@ class AnnotEmbeder_WTSeq(nn.Module):
         # wt+mut+protospacer+PBS+RTT
         self.We = nn.Embedding(self.num_nucl+1, embed_dim, padding_idx=0)
         # protospacer embedding
-        self.Wproto = nn.Embedding(self.num_inidc+1, annot_embed, padding_idx=self.num_inidc)
+        self.Wproto = nn.Embedding(self.num_inidc+1, annot_embed_dim, padding_idx=self.num_inidc)
         # PBS embedding
-        self.Wpbs = nn.Embedding(self.num_inidc+1, annot_embed, padding_idx=self.num_inidc)
+        self.Wpbs = nn.Embedding(self.num_inidc+1, annot_embed_dim, padding_idx=self.num_inidc)
         # RTT embedding
-        self.Wrt = nn.Embedding(self.num_inidc+1, annot_embed, padding_idx=self.num_inidc)
+        self.Wrt = nn.Embedding(self.num_inidc+1, annot_embed_dim, padding_idx=self.num_inidc)
     
     def forward(self, X_nucl, X_proto, X_pbs, X_rt):
         if self.assemb_opt == 'add':
@@ -148,103 +152,23 @@ class AnnotEmbeder_WTSeq(nn.Module):
 
 # mutated sequence embedding
 class AnnotEmbeder_MutSeq(nn.Module):
-    def __init__(self, embed_dim, annot_embed, assemb_opt='add'):
+    def __init__(self, embed_dim, annot_embed_dim, assemb_opt='add'):
         super().__init__()
         self.num_nucl = 4 # nucleotide embeddings
-        self.num_inidc = 0 # padding index
+        self.num_inidc = 2 # padding index
         self.assemb_opt = assemb_opt
         # one hot encoding
         self.We = nn.Embedding(self.num_nucl+1, embed_dim, padding_idx=0)
         # PBS embedding
-        self.Wpbs = nn.Embedding(self.num_inidc+1, annot_embed, padding_idx=self.num_inidc)
+        self.Wpbs = nn.Embedding(self.num_inidc+1, annot_embed_dim, padding_idx=self.num_inidc)
         # RTT embedding
-        self.Wrt = nn.Embedding(self.num_inidc+1, annot_embed, padding_idx=self.num_inidc)
+        self.Wrt = nn.Embedding(self.num_inidc+1, annot_embed_dim, padding_idx=self.num_inidc)
     
     def forward(self, X_nucl, X_pbs, X_rt):
         if self.assemb_opt == 'add':
             return self.We(X_nucl) + self.Wpbs(X_pbs) + self.Wrt(X_rt)
         elif self.assemb_opt == 'stack':
             return torch.cat([self.We(X_nucl), self.Wpbs(X_pbs), self.Wrt(X_rt)], axis=-1)
-
-
-class SH_Attention(nn.Module):
-    """ single head self-attention module
-    """
-    def __init__(self, input_size, embed_size):
-        
-        super().__init__()
-        # define query, key and value transformation matrices
-        # usually input_size is equal to embed_size
-        self.embed_size = embed_size
-        self.Wq = nn.Linear(input_size, self.embed_size, bias=False)
-        self.Wk = nn.Linear(input_size, self.embed_size, bias=False)
-        self.Wv = nn.Linear(input_size, self.embed_size, bias=False)
-        self.softmax = nn.Softmax(dim=2) # normalized across feature dimension
-        self.neginf = -1e6
-    
-    def forward(self, Xin_q, Xin_k, Xin_v, mask=None):
-        """
-        Args:
-            Xin_q: query tensor, (batch, sequence length, input_size)
-            Xin_k: key tensor, (batch, sequence length, input_size)
-            Xin_v: value tensor, (batch, sequence length, input_size)
-            mask: tensor, (batch, sequence length, sequence length) with 0/1 entries
-                  (default None)
-                  
-        .. note:
-            
-            mask has to have at least one element in a row that is equal to one otherwise a uniform distribution
-            will be genertaed when computing attn_w_normalized!
-            
-        """
-        # print('---- SH layer ----')
-        # print('Xin_q.shape', Xin_q.shape)
-        # print('Xin_q.shape', Xin_k.shape)
-        # print('Xin_v.shape', Xin_v.shape)
-
-        # print('self.Wq:', self.Wq)
-        # print('self.Wk:', self.Wk)
-        # print('self.Wv:', self.Wv)
-
-        X_q = self.Wq(Xin_q) # queries
-        X_k = self.Wk(Xin_k) # keys
-        X_v = self.Wv(Xin_v) # values
-        
-        # print('---- SH layer transform ----')
-        # print('X_q.shape', X_q.shape)
-        # print('X_k.shape', X_k.shape)
-        # print('X_v.shape', X_v.shape)
-
-        
-        # scaled queries and keys by forth root 
-        X_q_scaled = X_q / (self.embed_size ** (1/4))
-        X_k_scaled = X_k / (self.embed_size ** (1/4))
-        
-        # (batch, sequence length, sequence length)
-        attn_w = torch.bmm(X_q_scaled, X_k_scaled.transpose(1,2))
-        # print('attn_w.shape:', attn_w.shape)
-        # print()
-         
-        if mask is not None:
-            # (batch, seqlen, seqlen)
-            # if mask.dim() == 2: # assumption mask.shape = (seqlen, seqlen)
-            #     mask = mask.unsqueeze(0) # add batch dimension
-            # fill with neginf where mask == 0  
-            attn_w = attn_w.masked_fill(mask == 0, self.neginf)
-            # print('attn_w masked:\n', attn_w)
-
-        attn_w_normalized = self.softmax(attn_w)
-        # print('attn_w_normalized.shape', attn_w_normalized.shape)
-        # print('attn_w_normalized masked:\n', attn_w_normalized)
-        
-        if mask is not None:
-            # for cases where the mask is all 0 in a row
-            attn_w_normalized = attn_w_normalized * mask
-        
-        # reweighted value vectors
-        z = torch.bmm(attn_w_normalized, X_v)
-        
-        return z, attn_w_normalized
 
 
 class FeatureEmbAttention(nn.Module):
@@ -261,21 +185,26 @@ class FeatureEmbAttention(nn.Module):
         self.softmax = nn.Softmax(dim=1) # normalized across seqlen
         self.neg_inf = -1e6
 
-    def forward(self, X, mask=None):
+    def forward(self, X: torch.Tensor, mask=None):
         '''Performs forward computation
         Args:
             X: torch.Tensor, (bsize, seqlen, feature_dim), dtype=torch.float32
         '''
-
-        X_scaled = X / (self.input_dim ** (1/4))
-        queryv_scaled = self.queryv / (self.input_dim ** (1/4))
-        # using  matmul to compute tensor vector multiplication
+        # scale the input and query vector
+        # scaling by the forth root of the input dimension
+        # this is to prevent the dot product from becoming too large
+        # print('X.shape', X.shape)
+        X_scaled = X / torch.tensor(self.input_dim ** (1/4), device=X.device)
+        queryv_scaled = self.queryv / torch.tensor(self.input_dim ** (1/4), device=self.queryv.device)
         
-        # (bsize, seqlen)
+        # using matmul to compute tensor vector multiplication
+        # produce attention weights of size (bsize, seqlen)
         attn_w = X_scaled.matmul(queryv_scaled)
+        # print('attn_w.shape', attn_w.shape)
 
-
+        # apply mask if available
         if mask is not None:
+            # mask is of same size with attn_w
             # (batch, seqlen)
             # fill with neginf where mask == 0  
             attn_w = attn_w.masked_fill(mask == 0, self.neg_inf)
@@ -286,7 +215,8 @@ class FeatureEmbAttention(nn.Module):
         # print('attn_w_normalized masked:\n', attn_w_normalized)
         
         if mask is not None:
-            # for cases where the mask is all 0 in a row
+            # ensures that the attention weights are 0 where the mask is 0
+            # guarantees that they have no contribution to the final output
             attn_w_normalized = attn_w_normalized * mask
 
 
@@ -312,7 +242,8 @@ class MLPEmbedder(nn.Module):
         
         super().__init__()
         
-        self.We = nn.Linear(input_dim, embed_dim, bias=True)
+        self.We = nn.Linear(input_dim, embed_dim, bias=True, dtype=torch.float32)
+        # create a pipeline of MLP blocks
         encunit_layers = [MLPBlock(embed_dim,
                                    embed_dim,
                                    mlp_embed_factor,
@@ -320,14 +251,15 @@ class MLPEmbedder(nn.Module):
                                    pdropout)
                           for i in range(num_encoder_units)]
 
+        # create a sequential model from the MLP blocks
         self.encunit_pipeline = nn.Sequential(*encunit_layers)
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor):
         """
         Args:
             X: tensor, float32, (batch, embed_dim) representing x_target
         """
-
+        X = X.to(torch.float32)
         X = self.We(X)
         out = self.encunit_pipeline(X)
         return out
@@ -387,10 +319,12 @@ class MLPDecoder(nn.Module):
 
         self.encunit_pipeline = nn.Sequential(*encunit_layers)
 
+        # output embedding, returns the mean of the distribution
         self.W_mu = nn.Linear(embed_dim, outp_dim)
-        # self.W_sigma = nn.Linear(embed_dim, outp_dim)
         
-        # self.softplus = nn.Softplus()
+        # # output distribution
+        # self.W_sigma = nn.Linear(embed_dim, outp_dim)
+        # self.solfmax = nn.Softmax(dim=1)
 
     def forward(self, X):
         """
@@ -403,6 +337,8 @@ class MLPDecoder(nn.Module):
 
         mu = self.W_mu(out)
         return mu
+    
+        # calculate the distribution
         # logsigma  = self.W_sigma(out)
         # sigma = 0.1 + 0.9 * self.softplus(logsigma)
 
@@ -438,10 +374,10 @@ class Pridict(nn.Module):
         self.rnninput_dim = self.input_dim
 
         self.init_annot_embed = AnnotEmbeder_WTSeq(embed_dim=embed_dim,
-                                                annot_embed=annot_embed,
+                                                annot_embed_dim=annot_embed,
                                                 assemb_opt=assemb_opt)
         self.mut_annot_embed = AnnotEmbeder_MutSeq(embed_dim=embed_dim,
-                                              annot_embed=annot_embed,
+                                              annot_embed_dim=annot_embed,
                                               assemb_opt=assemb_opt)
         if assemb_opt == 'stack':
             init_embed_dim = embed_dim + 3*annot_embed
@@ -453,7 +389,7 @@ class Pridict(nn.Module):
             z_dim = np.min([init_embed_dim, mut_embed_dim])//2 
 
         # encoder 1
-        self.init_encoder = RNN_Net(input_dim =init_embed_dim,
+        self.wt_encoder = RNN_Net(input_dim =init_embed_dim,
                               hidden_dim=embed_dim,
                               z_dim=z_dim,
                               device=device,
@@ -475,10 +411,10 @@ class Pridict(nn.Module):
                               nonlinear_func=nonlinear_func,
                               fdtype=fdtype)
 
-        self.local_featemb_init_attn = FeatureEmbAttention(z_dim)
+        self.local_featemb_wt_attn = FeatureEmbAttention(z_dim)
         self.local_featemb_mut_attn = FeatureEmbAttention(z_dim)
 
-        self.global_featemb_init_attn = FeatureEmbAttention(z_dim)
+        self.global_featemb_wt_attn = FeatureEmbAttention(z_dim)
         self.global_featemb_mut_attn = FeatureEmbAttention(z_dim)
 
         # encoder 3
@@ -492,7 +428,7 @@ class Pridict(nn.Module):
         # decoder
         self.decoder  = MLPDecoder(5*z_dim,
                               embed_dim=z_dim,
-                              outp_dim=1,
+                              outp_dim=1, # output is a scalar
                               mlp_embed_factor=2,
                               nonlin_func=nonlinear_func, 
                               pdropout=dropout, 
@@ -514,28 +450,74 @@ class Pridict(nn.Module):
         # process feature embeddings
         wt_embed = self.init_annot_embed(X_nucl, X_proto, X_pbs, X_rt)
         mut_embed = self.mut_annot_embed(X_mut_nucl, X_mut_pbs, X_mut_rt)
+                
+        # rnn encoding
+        # sequence lengths record the true length of the sequences without padding
+        sequence_lengths = torch.sum(X_nucl != 0, axis=1)
+        _, z_wt = self.wt_encoder(wt_embed, sequence_lengths)
+        _, z_mut = self.mut_encoder(mut_embed, sequence_lengths)
         
-        
-        
+
         # attention mechanism
+        # global attention
+        # mask out regions that are part of the padding
+        # mask is 1 where the padding is not present
+        wt_mask = MaskGenerator.create_content_mask(X_nucl.shape, sequence_lengths)
+        mut_mask = MaskGenerator.create_content_mask(X_mut_nucl.shape, sequence_lengths)
+        
         # mask out the regions not part of the rtt using the X_rt tensor
+        # X_rt is 0 where the RTT is not present
+        # mask is 1 where the RTT is present
+        wt_mask_local = X_rt
+        mut_mask_local = X_mut_rt
+        
+        # move the masks to the device
+        wt_mask = wt_mask.to(self.device)
+        mut_mask = mut_mask.to(self.device)
+        wt_mask_local = wt_mask_local.to(self.device)
+        mut_mask_local = mut_mask_local.to(self.device)
+        
+        local_attention_wt, _ = self.local_featemb_wt_attn(z_wt, wt_mask_local)
+        local_attention_mut, _ = self.local_featemb_mut_attn(z_mut, mut_mask_local)
+        
+        global_attention_wt, _ = self.global_featemb_wt_attn(z_wt, wt_mask)
+        global_attention_mut, _ = self.global_featemb_mut_attn(z_mut, mut_mask)
+        
+        # MLP feature embedding
+        features_embed = self.seqlevel_featembeder(features)
+        
+        # concatenate the features
+        z = torch.cat([local_attention_wt, local_attention_mut, global_attention_wt, global_attention_mut, features_embed], axis=1)
+        
+        # decoder
+        mu = self.decoder(z)
+        
+        return mu
         
 def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
+    """transform the pridict data into a format that can be used by the model
+
+    Args:
+        X_train (pd.DataFrame): the sequence and feature level data
+
+    Returns:
+        Dict[str, torch.Tensor]: dictionary of input names and their corresponding tensors, so that skorch can use them with the forward function
+    """
     # sequence data
-    wt_seq = X_train['wt-sequence']
-    mut_seq = X_train['mut-sequence']
+    wt_seq = X_train['wt-sequence'].values
+    mut_seq = X_train['mut-sequence'].values
     # the rest are the features
     features = X_train.iloc[:, 2:26].values
     
-    protospacer_location = X_train['protospacer-location']
-    pbs_start = X_train['pbs-location-l-relative-protospacer'] + protospacer_location
-    rtt_start = X_train['rtt-location-l-relative-protospacer'] + protospacer_location
+    protospacer_location = X_train['protospacer-location'].values
+    pbs_start = X_train['pbs-location-l-relative-protospacer'].values + protospacer_location
+    rtt_start = X_train['rtt-location-l-relative-protospacer'].values + protospacer_location
     
-    mut_type = X_train['mut-type']
+    mut_type = X_train['mut-type'].values
     
-    edit_length = X_train['edit-length']
-    pbs_length = X_train['pbs-length']
-    rtt_length = X_train['rtt-length']
+    edit_length = X_train['edit-length'].values
+    pbs_length = X_train['pbs-length'].values
+    rtt_length = X_train['rtt-length'].values
 
     rtt_length_mut = []
     
@@ -561,19 +543,126 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
             X_rtt_mut[i, j] = 1
         for j in range(int(protospacer_location[i]), int(protospacer_location[i]+len(wt_seq[i]))):
             X_proto[i, j] = 1
+        # annotate the padding regions
+        for j in range(len(wt_seq[i])):
+            if wt_seq[i][j] == 'N':
+                X_pbs[i, j] = 2
+                X_rtt[i, j] = 2
+                X_proto[i, j] = 2
+                X_rtt_mut[i, j] = 2
             
     nut_to_ix = {'N': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
     X_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in wt_seq])
     X_mut_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in mut_seq])
     
+    # transform to int64
+    X_pbs = X_pbs.to(torch.int64)
+    X_rtt = X_rtt.to(torch.int64)
+    X_proto = X_proto.to(torch.int64)
+    X_rtt_mut = X_rtt_mut.to(torch.int64)
+    X_nucl = X_nucl.to(torch.int64)
+    
     result = {
         'X_nucl': X_nucl,
         'X_proto': X_proto,
         'X_pbs': X_pbs,
-        'X_rtt': X_rtt,
+        'X_rt': X_rtt,
         'X_mut_nucl': X_mut_nucl,
         'X_mut_pbs': X_pbs,
-        'X_mut_rtt': X_rtt_mut,
+        'X_mut_rt': X_rtt_mut,
         'features': torch.tensor(features)
     }
     
+    return result
+    
+    
+def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, adjustment: str, num_features: int) -> skorch.NeuralNetRegressor:
+    """train the pridict model
+
+    Args:
+        train_fname (str): _description_
+
+    Returns:
+        Pridict: _description_
+    """
+    # load a dp dataset
+    dp_dataset = pd.read_csv(os.path.join('models', 'data', 'pridict', train_fname))
+    
+    # TODO read the top 2000 rows only during development
+    # dp_dataset = dp_dataset.head(2000)
+    
+    # standardize the scalar values at column 2:26
+    scalar = StandardScaler()
+    dp_dataset.iloc[:, 2:26] = scalar.fit_transform(dp_dataset.iloc[:, 2:26])
+    
+    # data origin
+    data_origin = os.path.basename(train_fname).split('-')[1]
+    
+    fold = 5
+    
+    # device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    for i in range(fold):
+        print(f'Fold {i+1} of {fold}')
+        train = dp_dataset[dp_dataset['fold']!=i]
+        X_train = train.iloc[:, :num_features+2]
+        y_train = train.iloc[:, -2]
+        
+        if adjustment == 'log':
+            y_train = np.log1p(y_train)
+
+        X_train = preprocess_pridict(X_train)
+        y_train = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
+        
+        print("Training DeepPrime model...")
+        
+        best_val_loss = np.inf
+    
+        for i in range(num_runs):
+            # model
+            m = Pridict(input_dim=5,
+                        hidden_dim=32,
+                        z_dim=16,
+                        device=device,
+                        num_hiddenlayers=1,
+                        bidirection=False,
+                        dropout=0.5,
+                        rnn_class=nn.LSTM,
+                        nonlinear_func=nn.ReLU(),
+                        fdtype=torch.float32,
+                        annot_embed=32,
+                        embed_dim=64,
+                        feature_dim=24,
+                        mlp_embed_factor=2,
+                        num_encoder_units=2,
+                        num_hidden_layers=2,
+                        assemb_opt='stack')
+            
+            # skorch model
+            model = skorch.NeuralNetRegressor(
+                m,
+                criterion=nn.MSELoss,
+                optimizer=torch.optim.AdamW,
+                optimizer__lr=lr,
+                device=device,
+                batch_size=batch_size,
+                max_epochs=epochs,
+                train_split= skorch.dataset.ValidSplit(cv=5),
+                # early stopping
+                callbacks=[
+                    skorch.callbacks.EarlyStopping(patience=patience),
+                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', 
+                                    f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), 
+                                    f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), 
+                                    f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"),
+                                    f_criterion=None),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1),
+                    skorch.callbacks.ProgressBar()
+                ]
+            )
+            
+            model.fit(X_train, y_train)
+        
+        
+    return model
