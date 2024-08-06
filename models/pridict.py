@@ -601,13 +601,15 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
     fold = 5
     
     # device
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda')
     
     for i in range(fold):
         print(f'Fold {i+1} of {fold}')
         train = dp_dataset[dp_dataset['fold']!=i]
         X_train = train.iloc[:, :num_features+2]
+        print(X_train.columns)
         y_train = train.iloc[:, -2]
+        print(y_train)
         
         if adjustment == 'log':
             y_train = np.log1p(y_train)
@@ -619,7 +621,8 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         
         best_val_loss = np.inf
     
-        for i in range(num_runs):
+        for j in range(num_runs):
+            print(f'Run {j+1} of {num_runs}')
             # model
             m = Pridict(input_dim=5,
                         hidden_dim=32,
@@ -663,6 +666,84 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
             )
             
             model.fit(X_train, y_train)
-        
+            
+            if np.min(model.history[:, 'valid_loss']) < best_val_loss:
+                best_val_loss = np.min(model.history[:, 'valid_loss'])
+                # rename the model file to the best model
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-best.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-best.json")) 
+            else: # delete the last model
+                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
+                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"))
+                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))       
+            
         
     return model
+
+def predict_pridict(test_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, adjustment: str, num_features: int) -> skorch.NeuralNetRegressor:
+    # model name
+    fname = os.path.basename(test_fname)
+    model_name =  fname.split('.')[0]
+    model_name = '-'.join(model_name.split('-')[1:])
+    models = [os.path.join('models', 'trained-models', 'pridict', f'{model_name}-fold-{i}-best.pt') for i in range(1, 6)]
+    # Load the data
+    test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
+    # apply standard scalar
+    scalar = StandardScaler()
+    test_data_all.iloc[:, 2:26] = scalar.fit_transform(test_data_all.iloc[:, 2:26])
+
+    m = Pridict(input_dim=5,
+                hidden_dim=32,
+                z_dim=16,
+                device=device,
+                num_hiddenlayers=1,
+                bidirection=False,
+                dropout=0.5,
+                rnn_class=nn.LSTM,
+                nonlinear_func=nn.ReLU(),
+                fdtype=torch.float32,
+                annot_embed=32,
+                embed_dim=64,
+                feature_dim=24,
+                mlp_embed_factor=2,
+                num_encoder_units=2,
+                num_hidden_layers=2,
+                assemb_opt='stack')
+
+    prediction = {}
+    performance = []
+    
+    fold = 5
+    
+    # device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # Load the models
+    for i, model in enumerate(models):
+        test_data = test_data_all[test_data_all['fold']==i]
+        X_test = test_data.iloc[:, :num_features+2]
+        y_test = test_data.iloc[:, -2]
+        X_test = preprocess_deep_prime(X_test)
+        y_test = y_test.values
+        y_test = y_test.reshape(-1, 1)
+        y_test = torch.tensor(y_test, dtype=torch.float32)
+        dp_model.initialize()
+        if adjustment:
+            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json"))
+        else:
+            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-best.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-best.json"))
+        
+        y_pred = dp_model.predict(X_test)
+        if adjustment == 'log':
+            y_pred = np.expm1(y_pred)
+
+        pearson = np.corrcoef(y_test.T, y_pred.T)[0, 1]
+        spearman = scipy.stats.spearmanr(y_test, y_pred)[0]
+
+        print(f'Fold {i + 1} Pearson: {pearson}, Spearman: {spearman}')
+
+        prediction[i] = y_pred
+        performance.append((pearson, spearman))
+    
+    return prediction, performance

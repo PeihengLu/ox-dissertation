@@ -6,3 +6,7 @@ matplotlib
 scikit-learn
 torch
 ipykernel>=6.9
+django
+skorch
+biopython
+RNA
