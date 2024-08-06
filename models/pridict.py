@@ -615,7 +615,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         X_train = preprocess_pridict(X_train)
         y_train = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
         
-        print("Training DeepPrime model...")
+        print("Training PRIDICT model...")
         
         best_val_loss = np.inf
     
@@ -653,9 +653,9 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
                 callbacks=[
                     skorch.callbacks.EarlyStopping(patience=patience),
                     skorch.callbacks.Checkpoint(monitor='valid_loss_best', 
-                                    f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), 
-                                    f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), 
-                                    f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"),
+                                    f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), 
+                                    f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), 
+                                    f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"),
                                     f_criterion=None),
                     skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1),
                     skorch.callbacks.ProgressBar()
