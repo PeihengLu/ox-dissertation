@@ -21,12 +21,14 @@ def random_forest(X_train, y_train) -> BaseEstimator:
     rf = RandomForestRegressor()
 
     # Define the hyperparameters
-    param_grid = {
-        'n_estimators': [50, 100, 150],
-        'max_depth': [5, 10, 15]
-    }
+    # param_grid = {
+    #     'n_estimators': [50, 100, 150],
+    #     'max_depth': [5, 10, 15]
+    # }
 
-    estimator = grid_search(X_train, y_train, rf, 'Random Forest', param_grid)
+    # estimator = grid_search(X_train, y_train, rf, 'Random Forest', param_grid)
+    
+    estimator = rf.set_params(n_estimators=200, max_depth=10)
 
     return estimator
 
@@ -67,12 +69,14 @@ def xgboost(X_train, y_train) -> BaseEstimator:
     xgb = XGBRegressor()
 
     # Define the hyperparameters
-    param_grid = {
-        'n_estimators': [50, 100, 150, 200],
-        'max_depth': [5, 10, 15, 20]
-    }
+    # param_grid = {
+    #     'n_estimators': [50, 100, 150, 200],
+    #     'max_depth': [5, 10, 15, 20]
+    # }
 
-    corr = grid_search(X_train, y_train, xgb, 'XGBoost', param_grid)
+    # corr = grid_search(X_train, y_train, xgb, 'XGBoost', param_grid)
+    
+    corr = xgb.set_params(n_estimators=200, max_depth=5)
 
     return corr
 
@@ -89,12 +93,14 @@ def ridge_regression(X_train, y_train) -> Tuple[float, float]:
     ridge = Ridge()
 
     # Define the hyperparameters
-    param_grid = {
-        # regularization strength
-        'alpha': np.logspace(-4, 1, 10)
-    }
+    # param_grid = {
+    #     # regularization strength
+    #     'alpha': np.logspace(-4, 1, 10)
+    # }
 
-    corr = grid_search(X_train, y_train, ridge, 'Ridge Regression', param_grid)
+    # corr = grid_search(X_train, y_train, ridge, 'Ridge Regression', param_grid)
+    
+    corr = ridge.set_params(alpha=494.17133613238286)
 
     return corr
 
@@ -111,12 +117,14 @@ def lasso_regression(X_train, y_train) -> BaseEstimator:
     lasso = Lasso()
 
     # Define the hyperparameters
-    param_grid = {
-        # regularization strength
-        'alpha': np.logspace(-4, 4, 20)
-    }
+    # param_grid = {
+    #     # regularization strength
+    #     'alpha': np.logspace(-4, 4, 20)
+    # }
 
-    estimator = grid_search(X_train, y_train, lasso, 'Lasso Regression', param_grid)
+    # estimator = grid_search(X_train, y_train, lasso, 'Lasso Regression', param_grid)
+    
+    estimator = lasso.set_params(alpha=0.006158482110660266)
 
     return estimator
 
@@ -129,6 +137,7 @@ from sklearn.preprocessing import StandardScaler
 class MLP(torch.nn.Module):
     def __init__(self, input_dim=24, hidden_layer_sizes=(100), activation='relu'):
         super(MLP, self).__init__()
+        self.hidden_layer_sizes = hidden_layer_sizes
 
         self.input_layer = torch.nn.Linear(input_dim, hidden_layer_sizes[0])
         for i, hidden_layer_size in enumerate(hidden_layer_sizes[1:]):
@@ -159,28 +168,31 @@ def mlp(X_train, y_train) -> BaseEstimator:
         criterion=torch.nn.MSELoss,
         optimizer=torch.optim.Adam,
         max_epochs=100,
-        lr=0.01,
-        device='cuda' if torch.cuda.is_available() else 'cpu'
+        lr=0.005,
+        device='cuda' if torch.cuda.is_available() else 'cpu',
+        module__hidden_layer_sizes = (64, 64,),
     )
 
-    # Define the hyperparameters
-    param_grid = {
-        'module__hidden_layer_sizes':[(64,), (128,), (256,)],
-        'module__activation': ['relu', 'tanh', 'logistic'],
-        'lr': [0.1, 1, 10]
-    }
+    # # Define the hyperparameters
+    # param_grid = {
+    #     'module__hidden_layer_sizes':[(64,), (128,), (256,)],
+    #     'module__activation': ['relu', 'tanh', 'logistic'],
+    #     'lr': [0.1, 1, 10]
+    # }
 
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    y_train = y_train.reshape(-1, 1)
-    y_train = scaler.fit_transform(y_train)
+    # scaler = StandardScaler()
+    # X_train = scaler.fit_transform(X_train)
+    # y_train = y_train.reshape(-1, 1)
+    # y_train = scaler.fit_transform(y_train)
 
-    # make sure x train and y train are numpy arrays
-    X_train = X_train.astype(np.float32)
-    y_train = y_train.astype(np.float32)
+    # # make sure x train and y train are numpy arrays
+    # X_train = X_train.astype(np.float32)
+    # y_train = y_train.astype(np.float32)
 
-    # Grid search
-    estimator = grid_search(X_train, y_train, mlp, 'MLP', param_grid)
+    # # Grid search
+    # estimator = grid_search(X_train, y_train, mlp, 'MLP', param_grid)
+    
+    estimator = mlp.set_params(module__hidden_layer_sizes=(64,64), module__activation='relu', lr=0.005)
 
     return estimator
 

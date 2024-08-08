@@ -1,4 +1,7 @@
 # ignore the csv content of pridct, deepprime and shap folders
 pridict/*.csv
 deepprime/*.csv
+deepprime-org/*.csv
 shap/*.csv
+conventional-ml/*.csv
+shap/*.npy

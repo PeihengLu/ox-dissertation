@@ -352,13 +352,13 @@ def convert_to_pridict(source: str) -> None:
     
     target = f"pd-{org}-{cell_line}-{editor}.csv"
     
-    if isfile(pjoin('..', 'pridict', target)):
-        return
+    # if isfile(pjoin('..', 'pridict', target)):
+    #     return
     
     # load the data
     data = pd.read_csv(source)
     
-    columns = ['wt-sequence', 'mut-sequence'] + [s+'-length' for s in ['edit', 'pbs', 'rtt', 'rha']] + ['mut-type'] + [f"{s}-melting-temperature" for s in ['edit', 'extension', 'preedit', 'protospacer', 'rha', 'pbs']] + [f"{s}-sequence-zero-length" for s in ['edit', 'preedit']] + ['protospacer-location'] + [f"{s}-location-l-relative-protospacer" for s in ['pbs', 'rtt', 'rha']] + [f"{s}-minimum-free-energy" for s in ['extension', 'extension-scaffold', 'pbs', 'spacer', 'spacer-extension-scaffold', 'spacer-scaffold', 'rtt']] + ['group-id', 'editing-efficiency', 'fold']
+    columns = ['wt-sequence', 'mut-sequence'] + [s+'-length' for s in ['edit', 'pbs', 'rtt', 'rha']] + ['mut-type'] + [f"{s}-sequence-zero-length" for s in ['edit', 'preedit']] + ['protospacer-location'] + [f"{s}-location-l-relative-protospacer" for s in ['pbs', 'rtt', 'rha']] + [f"{s}-melting-temperature" for s in ['edit', 'extension', 'preedit', 'protospacer', 'rha', 'pbs']] + [f"{s}-minimum-free-energy" for s in ['extension', 'extension-scaffold', 'pbs', 'spacer', 'spacer-extension-scaffold', 'spacer-scaffold', 'rtt']] + ['group-id', 'editing-efficiency', 'fold']
     
     scaffold = 'GTTTTAGAGCTAGAAATAGCAAGTTAAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGC'
     # scaffold = 'G'
@@ -413,7 +413,7 @@ def convert_to_pridict(source: str) -> None:
         rtt_minimum_free_energy = get_minimum_free_energy(rtt)
         
         
-        output.append([wt_sequence, mut_sequence, edit_len, len(pbs), len(rtt), len(rha), mut_type, edit_melting_temperature, extension_melting_temperature, preedit_melting_temperature, protosacer_melting_temperature, pbs_melting_temperature, rha_melting_temperature, edit_sequence_zero_length, preedit_sequence_zero_length, protospacer_location_l, pbs_location_l, rtt_location_l, rha_location_l, extension_minimum_free_energy, extension_scaffold_minimum_free_energy, pbs_minimum_free_energy, spacer_minimum_free_energy, spacer_extension_scaffold_minimum_free_energy, spacer_scaffold_minimum_free_energy, rtt_minimum_free_energy, item['group-id'], item['editing-efficiency'], item['fold']])
+        output.append([wt_sequence, mut_sequence, edit_len, len(pbs), len(rtt), len(rha), mut_type, edit_sequence_zero_length, preedit_sequence_zero_length, protospacer_location_l, pbs_location_l, rtt_location_l, rha_location_l, edit_melting_temperature, extension_melting_temperature, preedit_melting_temperature, protosacer_melting_temperature, pbs_melting_temperature, rha_melting_temperature, extension_minimum_free_energy, extension_scaffold_minimum_free_energy, pbs_minimum_free_energy, spacer_minimum_free_energy, spacer_extension_scaffold_minimum_free_energy, spacer_scaffold_minimum_free_energy, rtt_minimum_free_energy, item['group-id'], item['editing-efficiency'], item['fold']])
     
     # save the extracted information
     output_df = pd.DataFrame(output, columns=columns)
@@ -422,6 +422,68 @@ def convert_to_pridict(source: str) -> None:
         if col not in ['wt-sequence', 'mut-sequence']:
             output_df[col] = output_df[col].astype(np.float32)
     output_df.to_csv(pjoin('..', 'pridict', target), index=False)
+    
+    
+# convert to pridict
+def convert_to_pridict_direct(data: pd.DataFrame) -> None:
+    """Convert the data from the pridict format directly to the PRIDICT format
+
+    Args:
+        source (str): the complete path to the source file
+    """
+    # cell lines
+    cell_lines = {'HEKaverageedited': 'hek293t','K562averageedited': 'k562','K562MLH1dnaverageedited': 'k562mlh1dn','AdVaverageedited': 'adv'}
+    
+    columns = ['wt-sequence', 'mut-sequence'] + [s+'-length' for s in ['edit', 'pbs', 'rtt', 'rha']] + ['mut-type'] + [f"{s}-sequence-zero-length" for s in ['edit', 'preedit']] + ['protospacer-location'] + [f"{s}-location-l-relative-protospacer" for s in ['pbs', 'rtt', 'rha']] + [f"{s}-melting-temperature" for s in ['edit', 'extension', 'preedit', 'protospacer', 'rha', 'pbs']] + [f"{s}-minimum-free-energy" for s in ['extension', 'extension-scaffold', 'pbs', 'spacer', 'spacer-extension-scaffold', 'spacer-scaffold', 'rtt']] + ['group-id', 'editing-efficiency']
+    
+
+    for cell in cell_lines:
+        output = []
+    
+        group_prev = -1
+        group_id = -1
+        
+        # extract the important information
+        for ind, item in tqdm.tqdm(data.iterrows(), total=len(data)):
+            if not item[cell]: continue
+            
+            if item['group'] != group_prev:
+                group_id += 1
+                group_prev = item['group']
+            wt_sequence = item['wide_initial_target']
+            mut_sequence = item['wide_mutated_target']
+            
+            if not wt_sequence or not mut_sequence: continue
+            
+            mut_type = item['Correction_Type']
+            if mut_type == 'Deletion':
+                mut_type = 2
+            elif mut_type == 'Insertion':
+                mut_type = 1
+            else:
+                mut_type = 0
+                
+            protospacer_location = item['protospacerlocation_only_initial']
+            protospacer_location = ast.literal_eval(protospacer_location)
+            pbs_location = item['PBSlocation']
+            pbs_location = ast.literal_eval(pbs_location)
+            rt_wt = item['RT_initial_location']
+            rt_wt = ast.literal_eval(rt_wt)     
+            
+            mts = [item['edited_base_mt'], item['extensionmt'], item['original_base_mt'], item['protospacermt'], item['PBSmt'], item['RToverhangmt']]   
+            mfes = [item['MFE_extension'], item['MFE_extension_scaffold'], item['MFE_pbs'], item['MFE_protospacer'], item['MFE_protospacer_extension_scaffold'], item['MFE_protospacer_scaffold'], item['MFE_rt']]
+            
+            output.append([wt_sequence, mut_sequence, item['Correction_Length'], item['PBSlength'], item['RTTlength'], item['RTToverhanglength'], mut_type] + [item['edited_base_mt_nan'], item['original_base_mt_nan'], protospacer_location[0], pbs_location[0] + 1 - protospacer_location[0], rt_wt[0] + 1 - protospacer_location[0], rt_wt[1] - item['RTToverhanglength'] - protospacer_location[0]] + mts + mfes +[group_id, float(item[cell])])
+                    
+        # split the data into folds
+        output_df = pd.DataFrame(output, columns=columns)
+        # all numerical columns should be float32
+        for col in columns:
+            if col not in ['wt-sequence', 'mut-sequence']:
+                output_df[col] = output_df[col].astype(np.float32)
+        output_df = k_fold_cross_validation_split(output_df, 5)
+        output_df.to_csv(pjoin('..', 'pridict', f"pd-pd-{cell_lines[cell]}-pe2.csv"), index=False)
+    
 
 def convert_to_SHAP(source: str) -> None:
     '''
@@ -583,7 +645,16 @@ def convert_to_conventional_ml(source: str) -> None:
     if isfile(pjoin('conventional-ml', target)):
         return
     
-    features = ['gc-count-pbs', 'rha-length', 'melting-temperature-extension', 'pbs-length', 'spcas9-score', 'lha-length', 'maximal-length-of-consecutive-t-sequence', 'edit-type-replacement', 'melting-temperature-pbs', 'g-at-protospacer-position-16', 'pam-disrupted', 'gc-content-rha', 'edit-length', 'gc-content-spacer', 'melting-temperature-rha', 'minimum-free-energy-extension', 't-at-protospacer-position-16', 'a-at-protospacer-position-13', 'a-at-protospacer-position-14', 'c-at-protospacer-position-17', 'gc-content-extension', 'g-at-protospacer-position-15', 'gc-content-pbs', 'maximal-length-of-consecutive-g-sequence']
+    features = ['gc-count-pbs', 'rha-length', 'pbs-length', 'gc-count-extension',
+       'melting-temperature-pbs', 'spcas9-score', 'lha-length',
+       'maximal-length-of-consecutive-t-sequence', 'edit-type-replacement',
+       'g-at-protospacer-position-16', 'gc-content-rha', 'pam-disrupted',
+       'edit-length', 'c-at-protospacer-position-17',
+       'melting-temperature-rha', 'minimum-free-energy-extension',
+       'a-at-protospacer-position-13', 'a-at-protospacer-position-14',
+       't-at-protospacer-position-16', 'gc-content-extension', 'gc-count-rha',
+       'g-at-protospacer-position-15', 'g-at-protospacer-position-19',
+       'gc-content-pbs']
     
     features += ['group-id', 'editing-efficiency']
     
@@ -716,6 +787,8 @@ def convert_to_conventional_ml(source: str) -> None:
     
     # save the extracted information
     output_df = pd.DataFrame(output, columns=features, dtype=np.float32)
+    # add fold column
+    output_df = k_fold_cross_validation_split(output_df, 5)
     # save the data
     output_df.to_csv(pjoin('..', 'conventional-ml', target), index=False)
 

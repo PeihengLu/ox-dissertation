@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict
 import skorch
+import scipy
 
 import os
 from sklearn.preprocessing import StandardScaler
@@ -321,6 +322,7 @@ class MLPDecoder(nn.Module):
 
         # output embedding, returns the mean of the distribution
         self.W_mu = nn.Linear(embed_dim, outp_dim)
+        self.softplus = nn.Softplus()
         
         # # output distribution
         # self.W_sigma = nn.Linear(embed_dim, outp_dim)
@@ -336,33 +338,29 @@ class MLPDecoder(nn.Module):
         out = self.encunit_pipeline(X)
 
         mu = self.W_mu(out)
-        return mu
-    
-        # calculate the distribution
-        # logsigma  = self.W_sigma(out)
-        # sigma = 0.1 + 0.9 * self.softplus(logsigma)
-
-        # return mu, sigma
+        return self.softplus(mu)
 
 class Pridict(nn.Module):
     def __init__(self, 
                  input_dim, 
                  hidden_dim, 
-                 z_dim, 
-                 device,
-                 num_hiddenlayers=1, 
-                 bidirection= False, 
-                 dropout=0.5, 
-                 rnn_class=nn.LSTM, 
+                 z_dim=32, 
+                 device='cuda',
+                 num_hiddenlayers=2, 
+                 bidirection= True, 
+                 dropout=0.15, 
+                 rnn_class=nn.modules.rnn.GRU, 
                  nonlinear_func=nn.ReLU(),
                  fdtype = torch.float32,
-                 annot_embed=32,
-                 embed_dim=64,
+                #   annot_embed=8,
+                #   embed_dim=128,
+                 annot_embed=2,
+                 embed_dim = 4,
                  feature_dim=24,
                  mlp_embed_factor=2,
                  num_encoder_units=2,
                  num_hidden_layers=2,
-                 assemb_opt='add'):
+                 assemb_opt='stack'):
         
         super().__init__()
         self.fdtype = fdtype
@@ -420,10 +418,10 @@ class Pridict(nn.Module):
         # encoder 3
         self.seqlevel_featembeder = MLPEmbedder(input_dim=feature_dim,
                                            embed_dim=z_dim,
-                                           mlp_embed_factor=mlp_embed_factor,
+                                           mlp_embed_factor=1,
                                            nonlin_func=nonlinear_func,
                                            pdropout=dropout, 
-                                           num_encoder_units=num_encoder_units)
+                                           num_encoder_units=1)
 
         # decoder
         self.decoder  = MLPDecoder(5*z_dim,
@@ -450,26 +448,29 @@ class Pridict(nn.Module):
         # process feature embeddings
         wt_embed = self.init_annot_embed(X_nucl, X_proto, X_pbs, X_rt)
         mut_embed = self.mut_annot_embed(X_mut_nucl, X_mut_pbs, X_mut_rt)
-                
+                        
         # rnn encoding
         # sequence lengths record the true length of the sequences without padding
         sequence_lengths = torch.sum(X_nucl != 0, axis=1)
         _, z_wt = self.wt_encoder(wt_embed, sequence_lengths)
         _, z_mut = self.mut_encoder(mut_embed, sequence_lengths)
         
-
         # attention mechanism
         # global attention
         # mask out regions that are part of the padding
         # mask is 1 where the padding is not present
         wt_mask = MaskGenerator.create_content_mask(X_nucl.shape, sequence_lengths)
         mut_mask = MaskGenerator.create_content_mask(X_mut_nucl.shape, sequence_lengths)
-        
+          
         # mask out the regions not part of the rtt using the X_rt tensor
         # X_rt is 0 where the RTT is not present
         # mask is 1 where the RTT is present
         wt_mask_local = X_rt
         mut_mask_local = X_mut_rt
+        
+        # replace 2 with 0
+        # wt_mask_local[wt_mask_local == 2] = 0
+        # mut_mask_local[mut_mask_local == 2] = 0
         
         # move the masks to the device
         wt_mask = wt_mask.to(self.device)
@@ -488,9 +489,10 @@ class Pridict(nn.Module):
         
         # concatenate the features
         z = torch.cat([local_attention_wt, local_attention_mut, global_attention_wt, global_attention_mut, features_embed], axis=1)
-        
+                
         # decoder
-        mu = self.decoder(z)
+        mu_logit = self.decoder(z)
+        mu = torch.exp(mu_logit)
         
         return mu
         
@@ -508,16 +510,19 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     mut_seq = X_train['mut-sequence'].values
     # the rest are the features
     features = X_train.iloc[:, 2:26].values
+        
+    protospacer_location = X_train.loc[:, 'protospacer-location'].values
     
-    protospacer_location = X_train['protospacer-location'].values
-    pbs_start = X_train['pbs-location-l-relative-protospacer'].values + protospacer_location
-    rtt_start = X_train['rtt-location-l-relative-protospacer'].values + protospacer_location
+    pbs_start = X_train.loc[:, 'pbs-location-l-relative-protospacer'].values + protospacer_location
+    rtt_start = X_train.loc[:, 'rtt-location-l-relative-protospacer'].values + protospacer_location
     
-    mut_type = X_train['mut-type'].values
     
-    edit_length = X_train['edit-length'].values
-    pbs_length = X_train['pbs-length'].values
-    rtt_length = X_train['rtt-length'].values
+    mut_type = X_train.loc[:, 'mut-type'].values
+    
+    edit_length = X_train.loc[:, 'edit-length'].values
+    pbs_length = X_train.loc[:, 'pbs-length'].values
+    # rtt length wt
+    rtt_length = X_train.loc[:, 'rtt-length'].values
 
     rtt_length_mut = []
     
@@ -534,6 +539,7 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     X_proto = torch.zeros((len(wt_seq), len(wt_seq[0])))
     X_rtt_mut = torch.zeros((len(wt_seq), len(wt_seq[0])))
     
+    
     for i in range(len(wt_seq)):
         for j in range(int(pbs_start[i]), int(pbs_start[i]+pbs_length[i])):
             X_pbs[i, j] = 1
@@ -541,16 +547,20 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
             X_rtt[i, j] = 1
         for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length_mut[i])):
             X_rtt_mut[i, j] = 1
-        for j in range(int(protospacer_location[i]), int(protospacer_location[i]+len(wt_seq[i]))):
+        for j in range(int(protospacer_location[i]), int(protospacer_location[i]) + 20):
             X_proto[i, j] = 1
         # annotate the padding regions
-        for j in range(len(wt_seq[i])):
-            if wt_seq[i][j] == 'N':
-                X_pbs[i, j] = 2
-                X_rtt[i, j] = 2
-                X_proto[i, j] = 2
-                X_rtt_mut[i, j] = 2
-            
+        # for j in range(len(wt_seq[i])):
+        #     if wt_seq[i][j] == 'N':
+        #         X_pbs[i, j] = 2
+        #         X_rtt[i, j] = 2
+        #         X_proto[i, j] = 2
+        #         X_rtt_mut[i, j] = 2
+        # print(f'X_pbs: {X_pbs[i]}')
+        # print(f'X_rtt: {X_rtt[i]}')
+        # print(f'X_proto: {X_proto[i]}')
+        # print(f'X_rtt_mut: {X_rtt_mut[i]}')
+                            
     nut_to_ix = {'N': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
     X_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in wt_seq])
     X_mut_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in mut_seq])
@@ -576,7 +586,7 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     return result
     
     
-def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, adjustment: str, num_features: int) -> skorch.NeuralNetRegressor:
+def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, adjustment: str = 'None') -> skorch.NeuralNetRegressor:
     """train the pridict model
 
     Args:
@@ -588,12 +598,15 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
     # load a dp dataset
     dp_dataset = pd.read_csv(os.path.join('models', 'data', 'pridict', train_fname))
     
+    # remove rows with nan values
+    dp_dataset = dp_dataset.dropna()
+    
     # TODO read the top 2000 rows only during development
     # dp_dataset = dp_dataset.head(2000)
     
-    # standardize the scalar values at column 2:26
+    # standardize the scalar values at column 7:26
     scalar = StandardScaler()
-    dp_dataset.iloc[:, 2:26] = scalar.fit_transform(dp_dataset.iloc[:, 2:26])
+    dp_dataset.iloc[:, 13:26] = scalar.fit_transform(dp_dataset.iloc[:, 13:26])
     
     # data origin
     data_origin = os.path.basename(train_fname).split('-')[1]
@@ -605,11 +618,14 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
     
     for i in range(fold):
         print(f'Fold {i+1} of {fold}')
+        
+        # if os.path.isfile(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt")):
+        #     continue
+        
         train = dp_dataset[dp_dataset['fold']!=i]
         X_train = train.iloc[:, :num_features+2]
         print(X_train.columns)
         y_train = train.iloc[:, -2]
-        print(y_train)
         
         if adjustment == 'log':
             y_train = np.log1p(y_train)
@@ -624,23 +640,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         for j in range(num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
-            m = Pridict(input_dim=5,
-                        hidden_dim=32,
-                        z_dim=16,
-                        device=device,
-                        num_hiddenlayers=1,
-                        bidirection=False,
-                        dropout=0.5,
-                        rnn_class=nn.LSTM,
-                        nonlinear_func=nn.ReLU(),
-                        fdtype=torch.float32,
-                        annot_embed=32,
-                        embed_dim=64,
-                        feature_dim=24,
-                        mlp_embed_factor=2,
-                        num_encoder_units=2,
-                        num_hidden_layers=2,
-                        assemb_opt='stack')
+            m = Pridict(input_dim=5,hidden_dim=32,)
             
             # skorch model
             model = skorch.NeuralNetRegressor(
@@ -656,60 +656,57 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
                 callbacks=[
                     skorch.callbacks.EarlyStopping(patience=patience),
                     skorch.callbacks.Checkpoint(monitor='valid_loss_best', 
-                                    f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), 
-                                    f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), 
-                                    f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"),
+                                    f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), 
+                                    f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), 
+                                    f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"),
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1),
-                    skorch.callbacks.ProgressBar()
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-3),
+                    # skorch.callbacks.ProgressBar()
                 ]
             )
+            
+            model.initialize()
             
             model.fit(X_train, y_train)
             
             if np.min(model.history[:, 'valid_loss']) < best_val_loss:
+                print(f'Best validation loss: {np.min(model.history[:, "valid_loss"])}')
                 best_val_loss = np.min(model.history[:, 'valid_loss'])
                 # rename the model file to the best model
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-best.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-best.json")) 
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json")) 
             else: # delete the last model
-                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
-                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"))
-                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))       
+                print(f'Validation loss: {np.min(model.history[:, "valid_loss"])} is not better than {best_val_loss}')
+                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"))
+                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"))
+                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"))       
             
         
     return model
 
-def predict_pridict(test_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, adjustment: str, num_features: int) -> skorch.NeuralNetRegressor:
+def predict_pridict(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda') -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
     model_name = '-'.join(model_name.split('-')[1:])
-    models = [os.path.join('models', 'trained-models', 'pridict', f'{model_name}-fold-{i}-best.pt') for i in range(1, 6)]
+    models = [os.path.join('models', 'trained-models', 'pridict', f'{model_name}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
-    test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
+    test_data_all = pd.read_csv(os.path.join('models', 'data', 'pridict', test_fname))    
+    # remove rows with nan values
+    test_data_all = test_data_all.dropna()
     # apply standard scalar
     scalar = StandardScaler()
-    test_data_all.iloc[:, 2:26] = scalar.fit_transform(test_data_all.iloc[:, 2:26])
+    test_data_all.iloc[:, 13:26] = scalar.fit_transform(test_data_all.iloc[:, 13:26])
 
-    m = Pridict(input_dim=5,
-                hidden_dim=32,
-                z_dim=16,
-                device=device,
-                num_hiddenlayers=1,
-                bidirection=False,
-                dropout=0.5,
-                rnn_class=nn.LSTM,
-                nonlinear_func=nn.ReLU(),
-                fdtype=torch.float32,
-                annot_embed=32,
-                embed_dim=64,
-                feature_dim=24,
-                mlp_embed_factor=2,
-                num_encoder_units=2,
-                num_hidden_layers=2,
-                assemb_opt='stack')
+    m = Pridict(input_dim=5,hidden_dim=32,)
+    
+    pd_model = skorch.NeuralNetRegressor(
+        m,
+        criterion=nn.MSELoss,
+        optimizer=torch.optim.AdamW,
+        device=device,
+    )
 
     prediction = {}
     performance = []
@@ -724,17 +721,17 @@ def predict_pridict(test_fname: str, lr: float, batch_size: int, epochs: int, pa
         test_data = test_data_all[test_data_all['fold']==i]
         X_test = test_data.iloc[:, :num_features+2]
         y_test = test_data.iloc[:, -2]
-        X_test = preprocess_deep_prime(X_test)
+        X_test = preprocess_pridict(X_test)
         y_test = y_test.values
         y_test = y_test.reshape(-1, 1)
         y_test = torch.tensor(y_test, dtype=torch.float32)
-        dp_model.initialize()
+        pd_model.initialize()
         if adjustment:
-            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json"))
+            pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json"))
         else:
-            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-best.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-best.json"))
+            pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
         
-        y_pred = dp_model.predict(X_test)
+        y_pred = pd_model.predict(X_test)
         if adjustment == 'log':
             y_pred = np.expm1(y_pred)
 

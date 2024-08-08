@@ -180,7 +180,7 @@ To verify if the adjustments had made any significant different on the model's p
         \includegraphics[width=0.8\textwidth]{adjustment-pd-adv-performance.png}
         \label{fig:pd-adv-adjustment-performance}
     }
-    \caption[MLP model performance comparison after adjustments]{Performance comparison of the MLP model trained on the DeepPrime HEK293T PE2 dataset \textbf{(a)}, the PRIDICT2.0 HEK293T dataset \textbf{(b)}, the PRIDICT2.0 K562 dataset (PD K562\textbf{(c)}), the PRIDICT2.0 K562MLH1d dataset \textbf{(d)}, and the PRIDICT2.0 Adv dataset \textbf{(e)} using the log adjusted (LA), undersampled (US), quantile transformed (QT), and DeepPrime weighted MSE (WMSE) adjustments, in addition to the original dataset and citerion (OG). 
+    \caption[DeepPrime model performance comparison after adjustments]{Performance comparison of the DeepPrime model trained on the DeepPrime HEK293T PE2 dataset \textbf{(a)}, the PRIDICT2.0 HEK293T dataset \textbf{(b)}, the PRIDICT2.0 K562 dataset (PD K562\textbf{(c)}), the PRIDICT2.0 K562MLH1d dataset \textbf{(d)}, and the PRIDICT2.0 Adv dataset \textbf{(e)} using the log adjusted (LA), undersampled (US), quantile transformed (QT), and DeepPrime weighted MSE (WMSE) adjustments, in addition to the original dataset and citerion (OG). 
     The performance of each fold is shown as a strip plot on top of the matching bar.}
     \label{fig:adjustment-performance}
 \end{figure}
@@ -229,28 +229,33 @@ This narrows down the option to log adjustment and undersampling. numpy provides
 
 To further verify the necessity of the adjustments, the DeepPrime model with log adjusted and undersampled target were trained on the five datasets using the optimized hyperparameters reported by Yu et al in their study\cite{yuPredictionEfficienciesDiverse2023}. The performance of the models were then evaluated using Pearson and Spearman correlation and compared to the result trained on the original model, shown in \autoref{fig:deepprime-adjustment-performance}.
 
-As expected the relative performance of the undersampling adjustment took a nosedive when training the DeepPrime model with far more parameters than the simple MLP model. Siginificantly lower performance was observed on all datasets ($p<0.01$) trained with undersampled training data. The log adjustment, on the other hand, showed a significant improvement in terms of Spearman's $\rho$ on the DeepPrime HEK293T dataset ($p<0.001$), the PRIDICT K562 dataset ($p<0.001$), and the PRIDICT Adv dataset ($p<0.01$). Additionally, no siginificant decrease in performance was observed other than the DeepPrime and PRIDICT HEK293T datasets ($p<0.05$). 
+As expected the relative performance of the undersampling adjustment took a nosedive when training the DeepPrime model with far more parameters than the simple MLP model. Siginificantly lower performance was observed on all datasets ($p<0.01$) trained with undersampled training data. The log adjustment, on the other hand, showed a significant improvement in terms of Spearman's $\rho$ on the DeepPrime HEK293T dataset ($p<0.001$), the PRIDICT K562 dataset ($p<0.001$), and the PRIDICT Adv dataset ($p<0.01$). However, at the same time, siginificant decrease in performance was observed in terms of Pearson's R the DeepPrime and PRIDICT HEK293T datasets ($p<0.05$). 
 
-Taking into account the performance of the DeepPrime model, the log adjustment was chosen as the primary method to address the imbalance in the dataset. The log adjustment was applied to the target values of all datasets used in this study from this point on.
+Taking into account the performance of the DeepPrime model, 
 
 Another problem with the dataset is the lack of variety in the PBS length and location in the PRIDICT dataset. For some reason, all PBS sequences start at 4bp downstream of the protospacer start location and have a length of 13bp, ending at the nick site. To help the models trained on PRIDICT datasets work on unseen data supplied by the users, when working with models trained on PRIDICT datasets, the PBS length is fixed at 13bp. 
 
 
 \section{Conventional Machine Learning Models}
+\label{sec:conventional-ml}
 
 Using the top 24 computed features, a number of conventional machine learning models were trained to serve as a baseline for the deep learning models. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron.
 
-Their hyperparameter were optimized on one fold of the DeepPrime HEK293T using sklearn GridSearchCV. The performance of the optimized models were then evaluated using Pearson and Spearman correlation on the DeepPrime and PRIDICT dataset for three different cell types on all 5 folds to provide a more accurate estimation of the models' performance. The MLP model involved the additional Skorch library to allow for the use of scikit-learn's GridSearchCV for hyperparameter optimization on the Pytorch model. The optimized parameters for the models are as follows:
+Their hyperparameter were optimized on one fold of the DeepPrime HEK293T using sklearn's GridSearchCV function. The performance of the optimized models were then evaluated using Pearson and Spearman correlation on the DeepPrime and PRIDICT dataset for three different cell types on all 5 folds to provide a more accurate estimation of the models' performance. The MLP model involved the additional Skorch library to allow for the use of scikit-learn's GridSearchCV for hyperparameter optimization on the Pytorch model. The optimized parameters for the models are as follows:
 
 \begin{itemize}[itemsep=-0mm]
-    \item \textcolor{blue}{Lasso}: \verb|alpha=0006158482110660266| (coefficient for penalty term for L1 regularization)
+    \item \textcolor{blue}{Lasso}: \verb|alpha=0.006158482110660266| (coefficient for penalty term for L1 regularization)
     \item \textcolor{blue}{Ridge}: \verb|alpha=494.17133613238286| (coefficient for penalty term for L2 regularization)
-    \item \textcolor{blue}{Random Forest}: \verb|n_estimators=200| (number of trees to build), \verb|max_depth=20| (maximum depth of the trees)
+    \item \textcolor{blue}{Random Forest}: \verb|n_estimators=200| (number of trees to build), \verb|max_depth=10| (maximum depth of the trees)
     \item \textcolor{blue}{XGBoost}: \verb|n_estimators=200| (number of boosting rounds, similar to number of trees), \verb|max_depth=5| 
-    \item \textcolor{blue}{MLP}: \verb|hidden_layer_sizes=(64, 64)| (two hidden layer with 64 units each), \verb|activation='relu'| (rectified linear unit activation), \verb|solver='adam'| (adaptive moment estimation solver), \verb|lr=0.001| (learning rate)
+    \item \textcolor{blue}{MLP}: \verb|hidden_layer_sizes=(64, 64)| (two hidden layer with 64 units each), \verb|activation='relu'| (rectified linear unit activation), \verb|solver='adam'| (adaptive moment estimation solver), \verb|lr=0.005| (learning rate)
 \end{itemize}
 
-The models' performance were evaluated using Pearson and Spearman correlation between predicted and measured efficiency, and the result of the conventional models on the four datasets were shown in \autoref{fig:conventional_ml_models_performance}. The MLP model has the best overall performance, justifying DeepPrime and PRIDICT's choice of MLP to process extracted features, and prompted me to use a similar design. The XGBoost and Scikit-learn Random Forest trail closely behind, while Lasso and Ridge regression have significantly lower performance. Although similar in accuracy, XGBoost's gradient boosted trees have far superiour efficiency compared to the Random Forest model thanks to its GPU support and optimized implementation ($\sim$300 times faster).
+When training the models, the MLP makes a futher validation set in the training data to prevent overfitting and improve the model's generalization. However, since sklearn does not offer a monitor for validation loss, the other models were fitted using the entire training data and trained until convergence.
+
+The models' performance were evaluated using Pearson and Spearman correlation between predicted and measured efficiency, and the result of the conventional models on the four datasets were shown in \autoref{fig:conventional_ml_models_performance}. 
+
+Although similar in accuracy, XGBoost's gradient boosted trees have far superiour efficiency compared to the Random Forest model thanks to its GPU support and optimized implementation ($\sim$300 times faster).
 
 \begin{figure}
     \centering
@@ -270,25 +275,33 @@ The implementation of the transformer was adopted from Sasha Rush's implementati
 
 The performance of the deep learning models can be further improved by using ensemble learning. The idea behind ensemble learning is to combine multiple models to produce a more accurate prediction than any individual model. 
 
-Most of the models tested in this study so far are already using ensembling learning. The XGBoost model is an ensemble of multiple decision trees using gradient boosting, while DeepPrime, PRIDICT and the Transformer model are effectively an ensemble of a deep learning model and a MLP.
+Most of the models tested in this study so far are already using ensembling learning. Random forrest trains multiple decision trees using a subset of features and samples to alleviates the problem of overfitting. The XGBoost model is anpther ensemble of multiple decision trees using gradient boosting, while DeepPrime, PRIDICT and the Transformer model are effectively an ensemble of a deep learning model and a MLP, using another MLP as a meta learning to combine the representation produced by the two base models.
 
-Thus, in this section, the focus is on combining these models to form a higher level parallel ensemble, where the models are trained independently and in parallel.
+In this study, a number of common supervised ensemble learning methods were evaluated, including weighted averaging, bagging, and adaptive boosting (AdaBoost). Unlike previous sections, the models were trained and tested on the PRIDICT2.0 HEK293T for a balance between dataset size and training time, and the performance of the ensemble models were evaluated using Pearson and Spearman correlation. 
+
+Bagging and  AdaBoost are normally used with estimators of the same type, but in this study, I wanted to utilize the strengths of different models to produce a possibly more accurate prediction. Thus, on top of being an individual ensemble method, weighted averaging is also used as a meta learner to combine the predictions of the bagging and AdaBoost ensembles of different models.
+
+To first test their validity in this task, the models making up the ensemble are the conventional ML methods evaluated in \autoref{sec:conventional-ml}. Methods that achieved siginificant higher performance than the individual models were then tested on the deep learning models.
 
 \subsection{Training DeepPrime and PRIDICT}
 
 For easier identification, the training models stored in `trained-models' directory also follows a uniform naming convention: `model-\{source\}-\{cell-line\}-\{PE-version\}-\{fold\}.pth/pkl/json'. All 5 folds of the models were used during evaluation, and the results were averaged to produce the final prediction. Additionally, PRIDICT and DeepPrime have overlapping datasets, and when a editor-cell line combination is present in both datasets, both models were used to predict the editing efficiency, and the results were averaged again to produce the predicted efficiency.
 
-\subsection{Simple Averaging}
+\subsection{Weighted Averaging}
 
+The simplest ensemble method is averaging, where the predictions of multiple models are averaged to produce the final prediction. 
 
+The averaging was implemented using a single linear layer with relu activation, and the weights were optimized using the Adam optimizer with a learning rate of 0.005. 
 
-\subsection{Stacking}
+For each fold, the linear layer takes the the prediction of the individual models on the training set as input and the measured efficiency as target. Similar to MLP, an additional validation set was created to prevent overfitting. 
 
+\subsection{Bagging}
 
+Bootstrap aggregating, or bagging, is a method that trains multiple models on different subsets of the training data and averages the predictions to produce the final prediction. 
 
-\subsection{Blending}
+\subsection{AdaBoost}
 
-
+Unlike weighted 
 
 \section{Development of pegRNA Design Web Tool}
 

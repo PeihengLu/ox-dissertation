@@ -4,9 +4,8 @@ pandas
 numpy
 matplotlib
 scikit-learn
-torch
+torch==2.3.0
 ipykernel>=6.9
 django
 skorch
 biopython
-RNA

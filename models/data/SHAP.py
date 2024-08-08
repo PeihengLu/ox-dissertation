@@ -92,12 +92,20 @@ def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=
     shap_values is of size (n_samples, n_features)
     '''
     plt.tight_layout()
+
+
     # create a summary plot
     shap.summary_plot(shap_values, features, max_display=max_display, show=False, plot_size=figsize)
     fig, ax = plt.gcf(), plt.gca()
-
+    
+    # change the color palette
+    for fc in fig.get_children():
+        for fcc in fc.get_children():
+            if hasattr(fcc, "set_cmap"):
+                fcc.set_cmap(sns.color_palette("magma", as_cmap=True))
+    
     # adjust the plot size
-    fig.set_size_inches([figsize[0], figsize[1]+5])
+    fig.set_size_inches([figsize[0]-2.5, figsize[1]+2])
 
     # replace melting-temperature with mt, minimum-free-energy with mfe, gc-content with gcc in the y labels
     y_labels = ax.get_yticklabels()
@@ -110,7 +118,7 @@ def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=
     ax.set_yticklabels(y_labels)
     
     if figsize[0] < 10:
-        font_size = 34
+        font_size = 26
         print('Rotating y labels')
         plt.yticks(rotation=20)
         # remove the color bar
@@ -141,8 +149,8 @@ def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=
     return fig
 
 if __name__ == '__main__':
-    reset = True
-    # SHAP_analysis('std/std-dp-hek293t-pe2.csv', 'shap/shap-dp-hek293t-pe2.csv', reset=reset, fig_size=(20, 8), max_display=24)
+    reset = False
+    SHAP_analysis('std/std-dp-hek293t-pe2.csv', 'shap/shap-dp-hek293t-pe2.csv', reset=reset, fig_size=(20, 8), max_display=24)
     # perform SHAP analysis on different data types
     SHAP_analysis('std/std-pd-hek293t-pe2-replace.csv', 'shap/shap-pd-hek293t-pe2-replace.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
     SHAP_analysis('std/std-pd-hek293t-pe2-insert.csv', 'shap/shap-pd-hek293t-pe2-insert.csv', reset=reset, fig_size=(8, 3.5), max_display=10)

@@ -142,7 +142,7 @@ class WeightedLoss(nn.Module):
         return weights
 
 # returns a loaded data loader
-def preprocess_deep_prime(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
+def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp') -> Dict[str, torch.Tensor]:
     '''
     Preprocesses the data for the DeepPrime model
     '''
@@ -156,8 +156,11 @@ def preprocess_deep_prime(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     seqs = []
     for wt, mut in zip(wt_seq, mut_seq):
         seqs.append(wt + mut)
-        
-    nut_to_ix = {'N': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
+    
+    if source != 'org':
+        nut_to_ix = {'N': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
+    else:
+        nut_to_ix = {'x': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
 
     output = {
         'g': torch.tensor([[nut_to_ix[n] for n in seq] for seq in seqs], dtype=torch.float32),
@@ -166,12 +169,15 @@ def preprocess_deep_prime(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     
     return output
 
-def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_features: int, dropout: float, device: str, epochs: int, lr: float, batch_size: int, patience: int, adjustment: str = None, num_runs: int = 3) -> skorch.NeuralNet:
+def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_features: int, dropout: float, device: str, epochs: int, lr: float, batch_size: int, patience: int, adjustment: str = None, num_runs: int = 3, source: str = 'dp') -> skorch.NeuralNet:
     '''
     Trains the DeepPrime model
     '''
     # load a dp dataset
-    dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime', train_fname))
+    if source != 'org':
+        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime', train_fname))
+    else:
+        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', train_fname))
     
     # standardize the scalar values at column 2:26
     scalar = StandardScaler()
@@ -196,14 +202,14 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
             X_train, y_train = undersample(X_train, y_train)
         
 
-        X_train = preprocess_deep_prime(X_train)
+        X_train = preprocess_deep_prime(X_train, source)
         y_train = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
         
         print("Training DeepPrime model...")
         
         best_val_loss = np.inf
 
-        for i in range(num_runs):
+        for j in range(num_runs):
             model = skorch.NeuralNetRegressor(
                 DeepPrime(hidden_size, num_layers, num_features, dropout),
                 criterion=nn.MSELoss,
@@ -217,15 +223,15 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
                 callbacks=[
                     skorch.callbacks.EarlyStopping(patience=patience),
                     skorch.callbacks.Checkpoint(monitor='valid_loss_best', 
-                                    f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt") if not adjustment else os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"), 
-                                    f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt") if not adjustment else os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"), 
-                                    f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json") if not adjustment else os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json"),
+                                    f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt") if not adjustment else os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), 
+                                    f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt") if not adjustment else os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), 
+                                    f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json") if not adjustment else os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"),
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1),
-                    skorch.callbacks.ProgressBar()
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
+                    # skorch.callbacks.ProgressBar()
                 ]
             )
-            print(f'Run {i+1} of {num_runs}')
+            print(f'Run {j+1} of {num_runs}')
             # Train the model
             model.fit(X_train, y_train)
             # check if validation loss is better
@@ -233,19 +239,25 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
             # find the minimum validation loss
             min_valid_loss = min(valid_losses)
             if min_valid_loss < best_val_loss:
+                print(f"Validation loss improved from {best_val_loss} to {min_valid_loss}")
                 best_val_loss = min_valid_loss
                 # rename the save model 
-                os.rename(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-best.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"), os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-best.json"))
-                
+                os.rename(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"), os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json"))
+            else:
+                print(f"Validation loss did not improve from {best_val_loss}")
+                # remove the temporary files
+                os.remove(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"))
+                os.remove(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"))
+                os.remove(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"))
         print("Training done.")
         
         # save the 
 
     return model
 
-def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_features: int, dropout: float, adjustment: str = None) -> Tuple[Dict[int, np.ndarray], np.ndarray]:
+def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_features: int, dropout: float, adjustment: str = None, source: str='dp') -> Tuple[Dict[int, np.ndarray], np.ndarray]:
     """Make predictions using the DeepPrime model
 
     Args:
@@ -259,8 +271,13 @@ def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_f
     model_name = '-'.join(model_name.split('-')[1:])
     models = [os.path.join('models', 'trained-models', 'deepprime', f'{model_name}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
-    test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
+    if source != 'org':
+        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))
+    else:
+        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', test_fname))    
     # apply standard scalar
+    # cast all numeric columns to float
+    test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
     scalar = StandardScaler()
     test_data_all.iloc[:, 2:26] = scalar.fit_transform(test_data_all.iloc[:, 2:26])
 
@@ -279,7 +296,7 @@ def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_f
         test_data = test_data_all[test_data_all['fold']==i]
         X_test = test_data.iloc[:, :num_features+2]
         y_test = test_data.iloc[:, -2]
-        X_test = preprocess_deep_prime(X_test)
+        X_test = preprocess_deep_prime(X_test, source)
         y_test = y_test.values
         y_test = y_test.reshape(-1, 1)
         y_test = torch.tensor(y_test, dtype=torch.float32)
@@ -287,7 +304,7 @@ def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_f
         if adjustment:
             dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json"))
         else:
-            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-best.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-best.json"))
+            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
         
         y_pred = dp_model.predict(X_test)
         if adjustment == 'log':

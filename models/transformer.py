@@ -140,14 +140,12 @@ class MLPDecoder(nn.Module):
         # return mu, sigma
         
 
+# encoder decoder processing th sequence data
 class EncoderDecoder(nn.Module):
-    def __init__(self, encoder, decoder, src_embed, tgt_embed, generator):
+    def __init__(self, encoder, decoder):
         super(EncoderDecoder, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.src_embed = src_embed
-        self.tgt_embed = tgt_embed
-        self.generator = generator
 
     def forward(self, src, tgt, src_mask, tgt_mask):
         "Take in and process masked src and target sequences."
