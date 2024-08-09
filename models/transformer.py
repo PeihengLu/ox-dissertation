@@ -140,48 +140,34 @@ class MLPDecoder(nn.Module):
         # return mu, sigma
         
 
-# encoder decoder processing th sequence data
-class EncoderDecoder(nn.Module):
-    def __init__(self, encoder, decoder):
-        super(EncoderDecoder, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
 
-    def forward(self, src, tgt, src_mask, tgt_mask):
-        "Take in and process masked src and target sequences."
-        return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
-
-    def encode(self, src, src_mask):
-        return self.encoder(self.src_embed(src), src_mask)
-
-    def decode(self, memory, src_mask, tgt, tgt_mask):
-        return self.decoder(self.tgt_embed(tgt), memory, src_mask, tgt_mask)
-    
-class Encoder(nn.Module):
-    def __init__(self, layer, N):
-        super(Encoder, self).__init__()
-        self.layers = clones(layer, N)
-        self.norm = nn.LayerNorm(layer.size)
-        
-    def forward(self, x, mask):
-        for layer in self.layers:
-            x = layer(x, mask)
-        return self.norm(x)
-    
-class SublayerConnection(nn.Module):
+class ResidualConnection(nn.Module):
     """
     A residual connection followed by a layer norm.
     Note for code simplicity the norm is first as opposed to last.
     """
 
     def __init__(self, size, dropout):
-        super(SublayerConnection, self).__init__()
+        super(ResidualConnection, self).__init__()
         self.norm = nn.LayerNorm(size)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x, sublayer):
         "Apply residual connection to any sublayer with the same size."
         return x + self.dropout(sublayer(self.norm(x)))
+    
+class TransformerUnit():
+    def __init__(self, input_dim, num_query_heads, num_key_heads, num_value_heads, query_dim, key_dim, value_dim, dropout: float = 0):
+        super(TransformerUnit, self).__init__()
+        # drop out must be 0 during inference
+        # projection of the input to the query, key and value spaces
+        self.Wq = nn.Linear(input_dim, query_dim)
+        self.Wk = nn.Linear(input_dim, key_dim)
+        self.Wv = nn.Linear(input_dim, value_dim)
+
+    def forward(self, X, X_decoder):
+        
+
     
     
 def preprocess_transformer(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:

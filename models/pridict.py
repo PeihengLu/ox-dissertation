@@ -586,7 +586,7 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     return result
     
     
-def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, adjustment: str = 'None') -> skorch.NeuralNetRegressor:
+def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, adjustment: str = 'None', dropout: float = 0.1) -> skorch.NeuralNetRegressor:
     """train the pridict model
 
     Args:
@@ -685,7 +685,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         
     return model
 
-def predict_pridict(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda') -> skorch.NeuralNetRegressor:
+def predict_pridict(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
@@ -706,6 +706,7 @@ def predict_pridict(test_fname: str, num_features: int, adjustment: str = None, 
         criterion=nn.MSELoss,
         optimizer=torch.optim.AdamW,
         device=device,
+        module__dropout=dropout
     )
 
     prediction = {}
