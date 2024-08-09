@@ -605,8 +605,8 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
     # dp_dataset = dp_dataset.head(2000)
     
     # standardize the scalar values at column 7:26
-    scalar = StandardScaler()
-    dp_dataset.iloc[:, 13:26] = scalar.fit_transform(dp_dataset.iloc[:, 13:26])
+    # scalar = StandardScaler()
+    # dp_dataset.iloc[:, 13:26] = scalar.fit_transform(dp_dataset.iloc[:, 13:26])
     
     # data origin
     data_origin = os.path.basename(train_fname).split('-')[1]
@@ -695,18 +695,16 @@ def predict_pridict(test_fname: str, num_features: int, adjustment: str = None, 
     test_data_all = pd.read_csv(os.path.join('models', 'data', 'pridict', test_fname))    
     # remove rows with nan values
     test_data_all = test_data_all.dropna()
-    # apply standard scalar
-    scalar = StandardScaler()
-    test_data_all.iloc[:, 13:26] = scalar.fit_transform(test_data_all.iloc[:, 13:26])
+    # transform to float
+    test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
 
-    m = Pridict(input_dim=5,hidden_dim=32,)
+    m = Pridict(input_dim=5,hidden_dim=32,dropout=0)
     
     pd_model = skorch.NeuralNetRegressor(
         m,
         criterion=nn.MSELoss,
         optimizer=torch.optim.AdamW,
         device=device,
-        module__dropout=dropout
     )
 
     prediction = {}

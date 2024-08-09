@@ -9,3 +9,4 @@ ipykernel>=6.9
 django
 skorch
 biopython
+flash-attn --no-build-isolation

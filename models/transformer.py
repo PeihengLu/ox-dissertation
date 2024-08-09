@@ -7,6 +7,7 @@ sys.path.append('../')
 from typing import Dict
 
 from utils.ml_utils import clones
+from flash_attn import flash_attn_func
 
 
 class SequenceEmbedder(nn.Module):
@@ -156,18 +157,75 @@ class ResidualConnection(nn.Module):
         "Apply residual connection to any sublayer with the same size."
         return x + self.dropout(sublayer(self.norm(x)))
     
-class TransformerUnit():
-    def __init__(self, input_dim, num_query_heads, num_key_heads, num_value_heads, query_dim, key_dim, value_dim, dropout: float = 0):
-        super(TransformerUnit, self).__init__()
+class Projection(nn.Module):
+    """projecction of the input to the query, key and value spaces
+    """
+    def __init__(self, input_dim, num_heads, attn_dim, dropout: float = 0):
+        super(Projection, self).__init__()
+        # input dim is the sequence length
+        # usually the input dim is the same as the attn_dim
         # drop out must be 0 during inference
         # projection of the input to the query, key and value spaces
-        self.Wq = nn.Linear(input_dim, query_dim)
-        self.Wk = nn.Linear(input_dim, key_dim)
-        self.Wv = nn.Linear(input_dim, value_dim)
+        self.Wqs = clones(nn.Linear(input_dim, attn_dim), num_heads)
+        self.Wks = clones(nn.Linear(input_dim, attn_dim), num_heads)
+        self.Wvs = clones(nn.Linear(input_dim, attn_dim), num_heads)
 
-    def forward(self, X, X_decoder):
+    def forward(self, X: torch.Tensor):
+        """
+        Args:
+            X: tensor, float32, (batch, sequence length, input_dim)
+        """
+        # project the input to the query, key and value spaces
+        # the output is a list of tensors
+        Qs = [Wq(X) for Wq in self.Wqs]
+        Ks = [Wk(X) for Wk in self.Wks]
+        Vs = [Wv(X) for Wv in self.Wvs]
         
-
+        return Qs, Ks, Vs
+    
+class TransformerBlock(nn.Module):
+    """
+    Transformer = FlashAttention + ResidualConnection + LayerNorm + FeedForward + ResidualConnection + LayerNorm
+    """
+    def __init__(self, attn_dim, pdropout, mlp_embed_factor, nonlin_func):
+        super(TransformerBlock, self).__init__()
+        self.pdropout = pdropout
+        self.layer_norm_1 = nn.LayerNorm(attn_dim)
+        self.dropout = nn.Dropout(pdropout)
+        # position wise feed forward
+        self.position_feed_forward = nn.Sequential(
+            nn.Linear(attn_dim, attn_dim*mlp_embed_factor),
+            nonlin_func,
+            nn.Linear(attn_dim*mlp_embed_factor, attn_dim)
+        )
+        self.layer_norm_2 = nn.LayerNorm(attn_dim)
+        
+    def forward(self, Qs, Ks, Vs):
+        """
+        Args:
+            qkv: tensor, float32, (batch, sequence length, input_dim, num_heads, 3)
+        """
+        # apply the attention mechanism
+        attn = flash_attn_func(Qs, Ks, Vs, dropout_p=self.pdropout)
+        
+        # add and norm
+        # apply the residual connection
+        attn = attn + self.dropout(attn)
+        # apply the layer norm
+        attn = self.layer_norm_1(attn)
+        
+        # apply the position wise feed forward
+        attn = self.position_feed_forward(attn)
+        
+        # add and norm
+        # apply the residual connection
+        attn = attn + self.dropout(attn)
+        # apply the layer norm
+        attn = self.layer_norm_2(attn)
+        
+        return attn
+        
+    
     
     
 def preprocess_transformer(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
