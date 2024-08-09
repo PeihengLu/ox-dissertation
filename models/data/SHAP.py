@@ -102,10 +102,10 @@ def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=
     for fc in fig.get_children():
         for fcc in fc.get_children():
             if hasattr(fcc, "set_cmap"):
-                fcc.set_cmap(sns.color_palette("magma", as_cmap=True))
+                fcc.set_cmap(sns.color_palette("vlag", as_cmap=True))
     
     # adjust the plot size
-    fig.set_size_inches([figsize[0]-2.5, figsize[1]+2])
+    fig.set_size_inches([figsize[0]-2.5, figsize[1]+5])
 
     # replace melting-temperature with mt, minimum-free-energy with mfe, gc-content with gcc in the y labels
     y_labels = ax.get_yticklabels()
@@ -152,6 +152,6 @@ if __name__ == '__main__':
     reset = False
     SHAP_analysis('std/std-dp-hek293t-pe2.csv', 'shap/shap-dp-hek293t-pe2.csv', reset=reset, fig_size=(20, 8), max_display=24)
     # perform SHAP analysis on different data types
-    SHAP_analysis('std/std-pd-hek293t-pe2-replace.csv', 'shap/shap-pd-hek293t-pe2-replace.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
-    SHAP_analysis('std/std-pd-hek293t-pe2-insert.csv', 'shap/shap-pd-hek293t-pe2-insert.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
-    SHAP_analysis('std/std-pd-hek293t-pe2-delete.csv', 'shap/shap-pd-hek293t-pe2-delete.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
+    # SHAP_analysis('std/std-pd-hek293t-pe2-replace.csv', 'shap/shap-pd-hek293t-pe2-replace.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
+    # SHAP_analysis('std/std-pd-hek293t-pe2-insert.csv', 'shap/shap-pd-hek293t-pe2-insert.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
+    # SHAP_analysis('std/std-pd-hek293t-pe2-delete.csv', 'shap/shap-pd-hek293t-pe2-delete.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
