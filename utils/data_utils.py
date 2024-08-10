@@ -637,7 +637,7 @@ def convert_to_SHAP(source: str) -> None:
     output_df.to_csv(pjoin('..', 'shap', target), index=False)
 
 
-def convert_to_conventional_ml(source: str) -> None:
+def convert_to_conventional_ml(source: str) -> pd.DataFrame:
     '''
     convert from std format to conventional machine learning format
     '''
@@ -791,6 +791,8 @@ def convert_to_conventional_ml(source: str) -> None:
     output_df = k_fold_cross_validation_split(output_df, 5)
     # save the data
     output_df.to_csv(pjoin('..', 'conventional-ml', target), index=False)
+    
+    return output_df
 
 # =============================================================================
 # Sequence data preprocessing
