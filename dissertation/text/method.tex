@@ -134,7 +134,7 @@ A conspicuous issue with the dataset is the imbalance in target values. Shown in
 \end{figure}
 
 Although the research for imbalanced regression task is relatively limited compared to classification, a number of methods have been proposed\cite{krawczykLearningImbalancedData2016}. The simplest method is to adjust the target values so that better balance can be achived in the projected space. Log transformation is a suitable method for the editing efficiency dataset, as it increases the distance between the lower values while keeping the higher values close (Figure \ref{fig:imbalanced-log}). The numpy \verb|log1p| function was used to prevent the transformation from being undefined when the target value is 0. During inference, the predicted values were transformed back to the original scale using the \verb|expm1| function. Undersampling is also a useful technique, by removing the majority of the lower efficiency pegRNAs, the model can be trained to better predict the higher efficiency pegRNAs\cite{torgoResamplingStrategiesRegression2015}. 
-The undersampling ratio was set to 10:1, with the majority of the pegRNAs with efficiency $<10$ removed (Figure \ref{fig:imbalanced-undersampling}). The ration and threshold was fine tuned in the list of [20:1, 15:1, 10:1, 5:1] and [5, 10, 15] respectively using the first fold of DeepPrime HEK293T PE2 dataset. 
+The undersampling ratio was set to 10:1, with the majority of the pegRNAs with efficiency $<10$ removed (Figure \ref{fig:imbalanced-undersampling}). The ration and threshold was fine tuned in the list of [20:1, 15:1, 10:1, 5:1] and [5, 10, 15] respectively using a XGBoost model trained on the first fold of DeepPrime HEK293T PE2 dataset. 
 SMOTE (Synthetic Minority Over-sampling Technique) was also considered, but the generation of synthetic data is very difficult for the prime editing prediction task, as the pegRNA sequence is highly structured and the synthetic data generated may not be biologically feasible. Additionally, quantile transformation was also tested. However, since it discretizes the data, some precision is expected to be lost during the inverse transformation.
 
 In addition to adjusting the dataset itself, the loss function can also be adjusted to assign different importance to different target values. Sample weights can be used to penalize the model more for mispredicting the higher efficiency pegRNAs. 
@@ -269,33 +269,46 @@ Although similar in accuracy, XGBoost's gradient boosted trees have far superiou
 
 \section{Adoption of LLM Method}
 
-The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences. It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}.
+% TODO: Add more details about the transformer
+The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences. 
 
-The implementation of the transformer was adopted from Sasha Rush's implementation of the transformer model in Pytorch\cite{AnnotatedTransformer}, while the MLP encoder and decoder were implemented according to the design of the PRIDICT model. The overall architecture is heavily inspired by the BE-DICT bystander model, where the transformer model is used to encode the sequence before and after edit and the MLP model is used to encode the features extracted from the sgRNA used by the base editor.
+However, the transformer model is not without its drawbacks. The self-attention mechanism is computationally expensive, and the model's performance is highly dependent on the quality of the training data. The model is also highly sensitive to the hyperparameters, and the training process is difficult to parallelize. 
+
+% Describe flash transformer
+To alleviate the computational cost, flash attention was introduced as a more efficient alternative to the self-attention mechanism. 
+
+It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}.
+
+The implementation of the transformer architecture was adopted from Sasha Rush's implementation of the transformer model in Pytorch\cite{AnnotatedTransformer} and used the flash attention module, while the MLP encoder and decoder were implemented according to the design of the PRIDICT model.
+
+The hyperparameter tuning of the model was performed on a subsect (20\%) of the PRIDICT2.0 HEK293T for a balance between dataset size and training time.
 
 \section{Improving Performance with Ensemble Learning}
 
 The performance of the deep learning models can be further improved by using ensemble learning. The idea behind ensemble learning is to combine multiple models to produce a more accurate prediction than any individual model. 
 
+Ensemble learning is a common practice in machine learning, and is frequently seen in the top performing models in competitions hosted by Kaggle.
 Most of the models tested in this study so far are already using ensembling learning. Random forrest trains multiple decision trees using a subset of features and samples to alleviates the problem of overfitting. The XGBoost model is anpther ensemble of multiple decision trees using gradient boosting, while DeepPrime, PRIDICT and the Transformer model are effectively an ensemble of a deep learning model and a MLP, using another MLP as a meta learning to combine the representation produced by the two base models.
 
-In this study, a number of common supervised ensemble learning methods were evaluated, including weighted averaging, bagging, and adaptive boosting (AdaBoost). Unlike previous sections, the models were trained and tested on the PRIDICT2.0 HEK293T for a balance between dataset size and training time, and the performance of the ensemble models were evaluated using Pearson and Spearman correlation. 
+In this study, a number of common supervised ensemble learning methods were evaluated, including weighted averaging, bagging, and adaptive boosting (AdaBoost). Due to the large number of models used in the ensemble, the initial training and testing were conducted on the same subset of the PRIDICT2.0 HEK293T dataset used for the hyperparameter tuning of the LLM model.
 
-Bagging and  AdaBoost are normally used with estimators of the same type, but in this study, I wanted to utilize the strengths of different models to produce a possibly more accurate prediction. Thus, on top of being an individual ensemble method, weighted averaging is also used as a meta learner to combine the predictions of the bagging and AdaBoost ensembles of different models.
+Bagging and  AdaBoost are normally used with estimators of the same type, but in this study, I wanted to utilize the strengths of different models to produce a possibly more accurate prediction. Thus, an additional meta learner similar to the ones used in the deep learning models was added to the ensemble models. The meta learner takes the prediction of the individual models as well as the 24 extracted features as input and produces the final prediction.
 
-To first test their validity in this task, the models making up the ensemble are the conventional ML methods evaluated in \autoref{sec:conventional-ml}. Methods that achieved siginificant higher performance than the individual models were then tested on the deep learning models.
+To first test their validity in this task before moving on to more sophisticated models, the models making up the ensemble are the conventional ML methods evaluated in \autoref{sec:conventional-ml}. Methods that achieved siginificant higher performance than the individual models were then tested on the deep learning models.
 
 \subsection{Training DeepPrime and PRIDICT}
 
 For easier identification, the training models stored in `trained-models' directory also follows a uniform naming convention: `model-\{source\}-\{cell-line\}-\{PE-version\}-\{fold\}.pth/pkl/json'. All 5 folds of the models were used during evaluation, and the results were averaged to produce the final prediction. Additionally, PRIDICT and DeepPrime have overlapping datasets, and when a editor-cell line combination is present in both datasets, both models were used to predict the editing efficiency, and the results were averaged again to produce the predicted efficiency.
 
+The hyperparameters selected by DeepPrime were listed in their study, while the parameters for PRIDICT were acquired by loading the pickled trained model's configuration. 
+
 \subsection{Weighted Averaging}
 
-The simplest ensemble method is averaging, where the predictions of multiple models are averaged to produce the final prediction. 
+The simplest method of ensembling in a regression task is averaging the predictions of the individual models. The averaging can be weighted to give more importance to the more accurate models. 
 
-The averaging was implemented using a single linear layer with relu activation, and the weights were optimized using the Adam optimizer with a learning rate of 0.1, additionaly adjusted by CosineAnnealingLRWarmRestart scheduler with T\_0 of 10 and T\_mult of 1.  
+A number of methods were common in the literature for determining the weights of the models, including weighted based on model's performance on the training/validation set, or using a grid search to find the optimal weights \cite{anandWeightedAverageEnsemble2023}, or direct optimization of the weights using a meta learner.
 
-For each fold, the linear layer takes the the prediction of the individual models on the training set as input and the measured efficiency as target. Similar to MLP, an additional validation set was created to prevent overfitting. 
+For each fold, the linear layer takes the the prediction of the individual models on the training set as input and the measured efficiency as target. Similar to MLP, an additional validation set was created to prevent overfitting during the optimization. 
 
 \subsection{Bagging}
 
@@ -303,7 +316,7 @@ Bootstrap aggregating, or bagging, is a method that trains multiple models on di
 
 \subsection{AdaBoost}
 
-Unlike weighted 
+Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains multiple models sequentially.
 
 \section{Development of pegRNA Design Web Tool}
 
@@ -313,7 +326,10 @@ User input should be in the PRIDICT format of \{at-lesat-100bp\}-(before-edit/af
 
 The result is returned as a JSON response and is parsed by the front end as a table of pegRNA candidates with their corresponding editing efficiency. The pegRNA's composition with regard to the wild type sequence can also be visualized by selecting a particular result for easier interpretation.
 
-Other than the model itself, an algorithm for suggesting candidate pegRNAs given a desirable edit was also implemented. Supposing the nick is done at 3bp upstream of the PAM, for the edit to be possible, the PAM sequence must be at most 3bp downstream of the edit start location (in which case LHA length is 0). As discussed in \autoref{sec:determinants}, the length of LHA, RHA and PBS all have significant impact on the editing efficiency. To come up with a recommended range for these parameters, a more detailed analysis of the relationship between the lengths and the editing efficiency was conducted.
+Other than the model itself, an algorithm for suggesting candidate pegRNAs given a desirable edit was also implemented. Supposing the nick is done at 3bp upstream of the PAM, for the edit to be possible, the PAM sequence must be at most 3bp downstream of the edit start location (in which case LHA length is 0). 
+
+This requirement has the most significant constraint on the LHA length, as it always starts at the nick site 3bp upstream of the PAM and must be able to reach the edit location. PBS and RHA, on the other hand, are much more flexible in length, as they can be extended to their 3' and 5' ends respectively.
+However, as discussed in \autoref{sec:determinants}, the length of LHA, RHA and PBS all have significant impact on the editing efficiency. To come up with a recommended range for these parameters, a more detailed analysis of the relationship between the lengths and the editing efficiency was conducted.
 
 \begin{figure}
     \includegraphics[width=\textwidth]{lha-rha-pbs-length-requirement.png}
@@ -345,7 +361,7 @@ In summary, unless specified otherwise by the users, the algorithm would only pr
 
 Limited by the scale and funding of this project, the web tool was not deployed to a public server, but instead packaged in a container for local use with Docker. 
 
-It is also accessible using Python with Django and Pytorch installed by executing 
+It is also accessible using Python with Django and Pytorch installed by executing:
 
 \verb|python webtool/manage.py runserver|
 

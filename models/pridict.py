@@ -586,7 +586,7 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     return result
     
     
-def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, adjustment: str = 'None', dropout: float = 0.1) -> skorch.NeuralNetRegressor:
+def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1) -> skorch.NeuralNetRegressor:
     """train the pridict model
 
     Args:
@@ -627,8 +627,8 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         print(X_train.columns)
         y_train = train.iloc[:, -2]
         
-        if adjustment == 'log':
-            y_train = np.log1p(y_train)
+        # if adjustment == 'log':
+        #     y_train = np.log1p(y_train)
 
         X_train = preprocess_pridict(X_train)
         y_train = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
@@ -673,9 +673,9 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
                 print(f'Best validation loss: {np.min(model.history[:, "valid_loss"])}')
                 best_val_loss = np.min(model.history[:, 'valid_loss'])
                 # rename the model file to the best model
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json")) 
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json")) 
             else: # delete the last model
                 print(f'Validation loss: {np.min(model.history[:, "valid_loss"])} is not better than {best_val_loss}')
                 os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"))
@@ -685,7 +685,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         
     return model
 
-def predict_pridict(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
+def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
@@ -725,14 +725,14 @@ def predict_pridict(test_fname: str, num_features: int, adjustment: str = None, 
         y_test = y_test.reshape(-1, 1)
         y_test = torch.tensor(y_test, dtype=torch.float32)
         pd_model.initialize()
-        if adjustment:
-            pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-{adjustment}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-{adjustment}.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-{adjustment}.json"))
-        else:
-            pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
+        # if adjustment:
+        #     pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
+        # else:
+        pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
         
         y_pred = pd_model.predict(X_test)
-        if adjustment == 'log':
-            y_pred = np.expm1(y_pred)
+        # if adjustment == 'log':
+        #     y_pred = np.expm1(y_pred)
 
         pearson = np.corrcoef(y_test.T, y_pred.T)[0, 1]
         spearman = scipy.stats.spearmanr(y_test, y_pred)[0]

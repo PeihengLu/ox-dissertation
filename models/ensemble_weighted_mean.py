@@ -12,10 +12,10 @@ class WeightedMeanModel(torch.nn.Module):
             n_regressors (int): number of regressors in the ensemble
         """
         super(WeightedMeanModel, self).__init__()
-        self.linear = torch.nn.Linear(n_regressors, 1, device='cuda' if torch.cuda.is_available() else 'cpu')
+        self.linear = torch.nn.Parameter(torch.randn(n_regressors, 1))
 
-    def forward(self, x):
-        return self.linear(x)
+    def forward(self, X):
+        return torch.matmul(X, self.linear).squeeze()
     
 class WeightedMeanSkorch():
     def __init__(self, n_regressors: int, save_path: str = None):

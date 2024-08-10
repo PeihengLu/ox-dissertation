@@ -21,8 +21,11 @@ from models.ensemble_weighted_mean import WeightedMeanSkorch
 start = time.time()
 
 data = 'ml-pd-hek293t-pe2.csv'
+# 20% of the data is used
+percentage = 0.2
 
 dataset = pd.read_csv(pjoin('models', 'data', 'conventional-ml', data))
+dataset = dataset.sample(frac=percentage, random_state=42)
 cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
 data_source = '-'.join(data.split('-')[1:]).split('.')[0]
 
