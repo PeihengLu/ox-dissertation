@@ -22,7 +22,7 @@ start = time.time()
 
 data = 'ml-pd-hek293t-pe2.csv'
 # 20% of the data is used
-percentage = 0.2
+percentage = 1
 
 dataset = pd.read_csv(pjoin('models', 'data', 'conventional-ml', data))
 dataset = dataset.sample(frac=percentage, random_state=42)
@@ -37,6 +37,8 @@ target = dataset.iloc[:, -2].values
 
 print('Data loaded in {:.2f} seconds'.format(time.time() - start))
 start = time.time()
+
+performance = collections.defaultdict(list)
 
 for i in range(0, fold):
     print(f'Fold {i+1} of {fold}')
@@ -148,15 +150,21 @@ for i in range(0, fold):
         'mlp': mlp_model.predict(train_features).flatten(),
     }
     ensemble_train = pd.DataFrame(ensemble_train, columns=['lasso', 'ridge', 'xgboost', 'random_forest', 'mlp'], dtype=np.float32)
+    # concatenate the features
     ensemble_train = ensemble_train.values.astype(np.float32)
+    ensemble_target = train_target.reshape(-1, 1)
     
-    ensemble_model = WeightedMeanSkorch(n_regressors=5, save_path=pjoin('models', 'trained-models', 'ensemble', f'ensemble-{data_source}-fold-{i+1}'))
+    save_path = pjoin('models', 'trained-models', 'ensemble', f'ensemble-{data_source}-fold-{i+1}')
+    ensemble_model = WeightedMeanSkorch(n_regressors=5, save_path=save_path)
     ensemble_target = train_target
     
     # fit the ensemble model
     print('Training the ensemble model')
-    print(ensemble_train.dtype)
-    ensemble_model.fit(ensemble_train, ensemble_target)
+    if not isfile(f'{save_path}-params.pkl'):
+        ensemble_model.fit(ensemble_train, ensemble_target)
+    else:
+        ensemble_model.initialize()
+        ensemble_model.load(save_path)
     # print performance metrics
     ensemble_predictions = ensemble_model.predict(ensemble_train)
     ensemble_predictions = ensemble_predictions.flatten()
@@ -165,3 +173,37 @@ for i in range(0, fold):
     
     print(f'Pearson\'s R: {pearson}')
     print(f'Spearman\'s correlation: {spearman}')
+    
+    # test the ensemble model
+    print('Testing the ensemble model')
+    test_features = features[dataset['fold'] == i]
+    test_target = target[dataset['fold'] == i]
+    
+    test_features = test_features.astype(np.float32)
+    
+    ensemble_test = {
+        'lasso': lasso_model.predict(test_features).flatten(),
+        'ridge': ridge_model.predict(test_features).flatten(),
+        'xgboost': xgboost_model.predict(test_features).flatten(),
+        'random_forest': rf_model.predict(test_features).flatten(),
+        'mlp': mlp_model.predict(test_features).flatten(),
+    }
+    
+    ensemble_test = pd.DataFrame(ensemble_test, columns=['lasso', 'ridge', 'xgboost', 'random_forest', 'mlp'], dtype=np.float32)
+    ensemble_test = ensemble_test.values.astype(np.float32)
+    
+    ensemble_test_target = test_target
+    ensemble_test_target = test_target.reshape(-1, 1)
+    
+    print('Testing the ensemble model')
+    print(ensemble_test.dtype)
+    ensemble_predictions = ensemble_model.predict(ensemble_test)
+    ensemble_predictions = ensemble_predictions.flatten()
+    ensemble_target = test_target.flatten()
+    pearson, spearman = get_pearson_and_spearman_correlation(ensemble_target, ensemble_predictions)
+    
+    print(f'Pearson\'s R: {pearson}')
+    print(f'Spearman\'s correlation: {spearman}')
+    
+    
+    

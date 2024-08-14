@@ -59,6 +59,9 @@ for ind, row in summary.iterrows():
 
     data = data.rename(columns={"Edited target sequence (Target 74bps = RT-PBS corresponding region and masked by 'x')": "mut-sequence"})
     data = data.rename(columns={"Edited target sequence\n(Target 74bps = RT-PBS corresponding region and masked by 'x')": "mut-sequence"})
+    
+    # convert the x in the mut-sequence to N
+    data['mut-sequence'] = data['mut-sequence'].apply(lambda x: x.replace('x', 'N'))
         
     print(data.columns)
     # drop columns 'Fold', 'Data set name', 'Trained model'

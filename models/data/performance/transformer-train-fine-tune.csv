@@ -1,0 +1,49 @@
+batch_size,criterion,optimizer__lr,performance
+1012,<class 'torch.nn.modules.loss.MSELoss'>,0.01,"[0.6307871484650553, 0.776365236959413, 0.5098044099657982, 0.5539106537993476, 0.8095778595818862]"
+1012,<class 'torch.nn.modules.loss.MSELoss'>,0.05,"[0.3916447680494234, nan, nan, nan, nan]"
+1012,<class 'torch.nn.modules.loss.MSELoss'>,0.1,"[0.3781175141332737, nan, nan, nan, 0.4039671148150963]"
+1012,<class 'torch.nn.modules.loss.MSELoss'>,0.005,"[0.7946535062788735, 0.7838248998555678, 0.7960337964504822, 0.7895484702220488, 0.7951687861683222]"
+1012,<class 'torch.nn.modules.loss.L1Loss'>,0.01,"[0.7932964868784019, 0.8095217714826843, 0.773966943787804, 0.7980895919254292, 0.7911001941405428]"
+1012,<class 'torch.nn.modules.loss.L1Loss'>,0.05,"[nan, 0.039110104411708334, nan, 0.04540353118387638, 0.01761251799733907]"
+1012,<class 'torch.nn.modules.loss.L1Loss'>,0.1,"[nan, -0.020596996479619562, nan, 0.043483263775735956, 0.0026574128136263547]"
+1012,<class 'torch.nn.modules.loss.L1Loss'>,0.005,"[0.792247862854514, 0.7659405782760443, 0.7908174704126587, 0.7744112625378332, 0.7958209842447529]"
+1012,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.01,"[0.7656919415960125, 0.775627013843475, 0.7716987924518063, 0.6302565448870052, 0.7908365566260581]"
+1012,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.05,"[0.10754461159137417, 0.039934154253984736, nan, 0.11166055218537864, 0.29984036087707805]"
+1012,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.1,"[0.0522229762834867, nan, nan, 0.04438902845858673, 0.007705557772370625]"
+1012,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.005,"[0.7820408818935427, 0.7841568798608057, 0.7558423735574024, 0.7879540407332899, 0.7804344712164346]"
+2048,<class 'torch.nn.modules.loss.MSELoss'>,0.01,"[0.778091206493745, 0.7920728614796612, 0.8001740236568076, 0.7945764293221088, 0.786129874607493]"
+2048,<class 'torch.nn.modules.loss.MSELoss'>,0.05,"[nan, nan, 0.05493616989919132, nan, nan]"
+2048,<class 'torch.nn.modules.loss.MSELoss'>,0.1,"[nan, nan, 0.08331824996136658, nan, 0.14791204238976888]"
+2048,<class 'torch.nn.modules.loss.MSELoss'>,0.005,
+2048,<class 'torch.nn.modules.loss.L1Loss'>,0.01,
+2048,<class 'torch.nn.modules.loss.L1Loss'>,0.05,
+2048,<class 'torch.nn.modules.loss.L1Loss'>,0.1,
+2048,<class 'torch.nn.modules.loss.L1Loss'>,0.005,
+2048,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.01,
+2048,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.05,
+2048,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.1,
+2048,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.005,
+4096,<class 'torch.nn.modules.loss.MSELoss'>,0.01,
+4096,<class 'torch.nn.modules.loss.MSELoss'>,0.05,
+4096,<class 'torch.nn.modules.loss.MSELoss'>,0.1,
+4096,<class 'torch.nn.modules.loss.MSELoss'>,0.005,
+4096,<class 'torch.nn.modules.loss.L1Loss'>,0.01,
+4096,<class 'torch.nn.modules.loss.L1Loss'>,0.05,
+4096,<class 'torch.nn.modules.loss.L1Loss'>,0.1,
+4096,<class 'torch.nn.modules.loss.L1Loss'>,0.005,
+4096,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.01,
+4096,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.05,
+4096,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.1,
+4096,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.005,
+8192,<class 'torch.nn.modules.loss.MSELoss'>,0.01,
+8192,<class 'torch.nn.modules.loss.MSELoss'>,0.05,
+8192,<class 'torch.nn.modules.loss.MSELoss'>,0.1,
+8192,<class 'torch.nn.modules.loss.MSELoss'>,0.005,
+8192,<class 'torch.nn.modules.loss.L1Loss'>,0.01,
+8192,<class 'torch.nn.modules.loss.L1Loss'>,0.05,
+8192,<class 'torch.nn.modules.loss.L1Loss'>,0.1,
+8192,<class 'torch.nn.modules.loss.L1Loss'>,0.005,
+8192,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.01,
+8192,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.05,
+8192,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.1,
+8192,<class 'torch.nn.modules.loss.SmoothL1Loss'>,0.005,

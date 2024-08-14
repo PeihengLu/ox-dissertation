@@ -36,3 +36,16 @@ def clones(module, N):
     Produce N identical layers.
     '''
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+
+class StackedTransformer(nn.Module):
+    def __init__(self, blocks):
+        super(StackedTransformer, self).__init__()
+        self.blocks = blocks
+
+    def forward(self, X_k, X_v, X_q):
+        for block in self.blocks:
+            x = block(X_k, X_v, X_q)
+            X_k = x
+            X_v = x
+            X_q = x
+        return x

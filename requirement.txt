@@ -10,3 +10,4 @@ django
 skorch
 biopython
 flash-attn --no-build-isolation
+accelerate

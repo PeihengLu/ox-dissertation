@@ -54,6 +54,21 @@ for f in glob("*.csv"):
     cols = ml_data.columns.tolist()
     cols = cols[-2:] + cols[:-2]
     ml_data = ml_data[cols]
+    
+    # concatenate positional information
+    positions = ['protospacer-location-l','protospacer-location-r','pbs-location-l','pbs-location-r','rtt-location-wt-l','rtt-location-wt-r','rtt-location-mut-l','rtt-location-mut-r']
+    # load the positional data from std data into the transformer data
+    for pos in positions:
+        ml_data[pos] = df[pos]
+        
+    # move group-id,editing-efficiency,fold to the last columns
+    cols = ml_data.columns.tolist()
+    cols.remove('group-id')
+    cols.remove('editing-efficiency')
+    cols.remove('fold')
+    cols = cols + ['group-id','editing-efficiency','fold']
+    ml_data = ml_data[cols]
+    
 
     # save the data
     ml_data.to_csv(target_fname, index=False)

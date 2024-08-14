@@ -6,3 +6,4 @@ shap/*.csv
 conventional-ml/*.csv
 shap/*.npy#
 transformer/*.csv
+deepprime-transformer-features/*.csv

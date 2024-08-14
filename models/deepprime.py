@@ -174,14 +174,16 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
     Trains the DeepPrime model
     '''
     # load a dp dataset
-    if source != 'org':
-        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime', train_fname))
+    if source == 'org':
+        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', train_fname))
+    elif source == 'transformer':
+        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime-transformer-features', train_fname))
     else:
         dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', train_fname))
     
     # standardize the scalar values at column 2:26
-    scalar = StandardScaler()
-    dp_dataset.iloc[:, 2:26] = scalar.fit_transform(dp_dataset.iloc[:, 2:26])
+    # scalar = StandardScaler()
+    # dp_dataset.iloc[:, 2:26] = scalar.fit_transform(dp_dataset.iloc[:, 2:26])
     
     # data origin
     data_origin = os.path.basename(train_fname).split('-')[1]
@@ -271,15 +273,17 @@ def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_f
     model_name = '-'.join(model_name.split('-')[1:])
     models = [os.path.join('models', 'trained-models', 'deepprime', f'{model_name}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
-    if source != 'org':
-        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))
+    if source == 'org':
+        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', test_fname))
+    elif source == 'transformer':
+        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-transformer-features', test_fname))
     else:
-        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', test_fname))    
+        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
     # apply standard scalar
     # cast all numeric columns to float
     test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
-    scalar = StandardScaler()
-    test_data_all.iloc[:, 2:26] = scalar.fit_transform(test_data_all.iloc[:, 2:26])
+    # scalar = StandardScaler()
+    # test_data_all.iloc[:, 2:26] = scalar.fit_transform(test_data_all.iloc[:, 2:26])
 
     dp_model = skorch.NeuralNetRegressor(
         DeepPrime(hidden_size, num_layers, num_features, dropout),
