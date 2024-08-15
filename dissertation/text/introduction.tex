@@ -98,13 +98,13 @@ DeepPE (\autoref{fig:deeppe}) was one of the earliest attempts at leveraging dee
 \end{figure}
 
 DeepPrime is a further attempt made by the same group to improve the performance and capabilities of DeepPE, leveraging the much bigger dataset as well as an improved architecture design\cite{yuPredictionEfficienciesDiverse2023}.
-Noticing that stacking the additional PBS-RTT sequence did not improve the performance of DeepPE and added further constraint on pegRNA design (CNN only accept fixed length input), DeepPrime only used the wild type and mutated sequences as input to the deep learning model, and added a separate MLP (Multi Layer Perceptron) to process the computed features. The output of the MLP was then concatenated with the output of the CNN (Convolutional Neural Network) that processed the sequence data, and fed into the final MLP to predict the editing efficiency. 
+Noticing that stacking the additional PBS-RTT sequence did not improve the performance of DeepPE and added further constraint on pegRNA design (CNN only accept fixed length input), DeepPrime only used the wild type and mutated sequences as input to the deep learning model, and added a separate MLP (Multi Layer Perceptron) to process the computed features instead of directly concatenated the features onto the CNN output as DeepPE did. The output of the MLP was then concatenated with the output of the CNN (Convolutional Neural Network) that processed the sequence data, and fed into the final MLP to predict the editing efficiency. 
 
 DeepPrime achieved far superior performance to DeepPE, while at the same time, one single model can now predict all types of edits for a cell line and prime editor pair existing in the dataset. This enabled the training process to take advantage of the shared features between different edits (further enhancing performance) and significantly improve the ease of use.
 
 \subsection{PRIDICT 1 and 2 bidirectional GRU}
 
-At around the same time DeepPrime was published, the PRIDICT model was developed by Mathis et al from the Schwank lab at the University of Zurch, and used RNN (Recurrent Neural Network) instead of CNN to process the sequence data\cite{mathisPredictingPrimeEditing2023}. The model used a bidirectional GRU (Gated Recurrent Unit) to process the sequence data, and a separate MLP to process the extracted features (similar to DeepPrime), as shown in \autoref{fig:pridict}. The output of the two models were then concatenated and fed into the final MLP to predict the editing efficiency.
+At around the same time DeepPrime was published, the PRIDICT model was developed by Mathis et al from the Schwank lab at the University of Zurch, and used RNN (Recurrent Neural Network) instead of CNN to process the sequence data\cite{mathisPredictingPrimeEditing2023}. The model uses a bidirectional GRU (Gated Recurrent Unit) to process the sequence data, whose output is pooled by a pair of global (whole sequence) and local (RTT region) attention(\autoref{fig:pridict}). Similar to DeepPrime, the features are encoded using a MLP and the output of the two models are then concatenated and fed into the final MLP to predict the editing efficiency.
 
 \begin{figure}
     \centering
@@ -112,6 +112,8 @@ At around the same time DeepPrime was published, the PRIDICT model was developed
     \caption[PRIDICT architecture]{PRIDICT architecture. The input to the RNN is the one-hot encoded wild type and mutated DNA sequences, stacked with RTT, PBS, Protospacer(only for wild type) annotations. The annotation sequences are boolean sequences that indicate the functionality of each nucleotide in the sequence. The output of the RNN is processed by two attention heads, a global one that process the entire sequence and a local one that masks out all regions other than RTT. }
     \label{fig:pridict}
 \end{figure}
+
+PRIDICT is the only model that incorporates functional annotations of the sequence data into the model. These annotations are boolean sequences that indicate the functionality of each nucleotide in the sequence, and are used to guide the local attention mechanism to focus on the relevant parts of the sequence. 
 
 \section{Study Objective}
 
