@@ -20,23 +20,23 @@ for f in glob("*.csv"):
     # get the sequence data
     wt_seq = df['wt-sequence'].values
     mut_seq = df['mut-sequence'].values
-    
-    # check protospacer location
-    protospacer_location = df['protospacer-location-l'].values[0]
-    
-    if protospacer_location < 10:
-        # padd the sequence data
-        wt_seq = 'N' * (10 - protospacer_location) + wt_seq
-        mut_seq = 'N' * (10 - protospacer_location) + mut_seq
-    else:
-        # remove the extra data
-        wt_seq = wt_seq[protospacer_location - 10:]
-        mut_seq = mut_seq[protospacer_location - 10:]
+
+    # find the edit location
+    edit_loc = df['lha-location-r'].values
         
-    # padd the sequence data if less than 99
-    wt_seq = [s.ljust(99, 'N') for s in wt_seq]
-    mut_seq = [s.ljust(99, 'N') for s in mut_seq]
-    
+    # align the sequence data at 20bp before the edit location
+    wt_seq = [seq[max(0, loc-20):] for seq, loc in zip(wt_seq, edit_loc)]
+    mut_seq = [seq[max(0, loc-20):] for seq, loc in zip(mut_seq, edit_loc)]
+
+    # pad the sequence preedit to 20 if less
+    wt_seq = ['N'*(max(20-loc, 0)) + seq for seq, loc in zip(wt_seq, edit_loc)]
+    mut_seq = ['N'*(max(20-loc, 0)) + seq for seq, loc in zip(mut_seq, edit_loc)]
+
+    # cap the sequence length to 50
+    wt_seq = [seq[:50] for seq in wt_seq]
+    mut_seq = [seq[:50] for seq in mut_seq]
+
+
     # find the ml data
     ml_data_fname = pjoin('..', 'conventional-ml', f"ml-{('-'.join(f.split('-')[1:]))}")
     # read the ml data if exists
@@ -44,7 +44,7 @@ for f in glob("*.csv"):
         ml_data = pd.read_csv(ml_data_fname)
     else:
         # convert the data to conventional ml
-        ml_data = convert_to_conventional_ml(df, wt_seq, mut_seq)
+        ml_data = convert_to_conventional_ml(df)
         
     # concatenate the sequence data with the ml data
     ml_data['wt-sequence'] = wt_seq
