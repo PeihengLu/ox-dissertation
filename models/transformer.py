@@ -23,6 +23,7 @@ from typing import Dict, List, Tuple
 
 from utils.ml_utils import clones, StackedTransformer
 from flash_attn import flash_attn_qkvpacked_func
+from local_attention import LocalAttention
 
 class SequenceEmbedder(nn.Module):
     def __init__(self, embed_dim: int = 4, sequence_length=99, onehot: bool = True, annot: bool = False):
@@ -94,7 +95,7 @@ class SequenceEmbedder(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, num_heads, embed_dim, pdropout, flash: bool = False):
+    def __init__(self, num_heads, embed_dim, pdropout, flash: bool = False, local: bool = False):
         super(MultiHeadAttention, self).__init__()
         # embedding dimension of the sequence must be divisible by the number of heads
         assert embed_dim % num_heads == 0
@@ -102,9 +103,10 @@ class MultiHeadAttention(nn.Module):
         self.num_heads = num_heads
         self.linears = clones(nn.Linear(embed_dim, embed_dim), 4)
         self.dropout = nn.Dropout(pdropout)
-        self.attention = attention
+        self.attention = attention if not local else LocalAttention(window_size=5, causal=False, look_backward=1, look_forward=0, dropout=pdropout)
         self.attn = None
         self.flash = flash
+        self.local = local
     
     def forward(self, query, key, value, mask = None):
         "Implement the scaled dot product attention"
@@ -127,13 +129,22 @@ class MultiHeadAttention(nn.Module):
             # permute the dimensions to (batch, sequence length, 3, num_heads, head_dim)
             qkv = qkv.permute(0, 1, 4, 2, 3)
             
-            # feed the input to the flash attention
-            x = flash_attn_qkvpacked_func(qkv=qkv, dropout_p=self.dropout.p, return_attn_probs=False)
-            
+            if self.local:
+                # feed the input to the flash attention
+                x, softmax_lse, self.attn = flash_attn_qkvpacked_func(qkv=qkv, dropout_p=self.dropout.p, return_attn_probs=True, window_size=(2, 2))
+            else:
+                x, softmax_lse, self.attn = flash_attn_qkvpacked_func(qkv=qkv, dropout_p=self.dropout.p, return_attn_probs=True)
+                
             del qkv
             # del softmax_lse
+        # elif self.attention != attention: 
+        #     # use local attention
         else:
-            x, self.attn = self.attention(query, key, value, mask=None, dropout=self.dropout)
+            if self.local:
+                # no attention probabilities is returned
+                x = self.attention(query, key, value, mask=None)
+            else:
+                x, self.attn = self.attention(query, key, value, mask=None, dropout=self.dropout)
         del query, key, value
 
         # concatenate the output of the attention heads into the same shape as the input
@@ -167,7 +178,7 @@ class ResidualConnection(nn.Module):
 
     def forward(self, x, sublayer):
         "Apply residual connection to any sublayer with the same size."
-        return x + self.dropout(sublayer(self.norm(x).half()))
+        return x + self.dropout(sublayer(self.norm(x)))
     
 
 class Encoder(nn.Module):
@@ -179,7 +190,7 @@ class Encoder(nn.Module):
     def forward(self, x, mask):
         for layer in self.layers:
             x = layer(x, mask)
-        return self.norm(x).half()
+        return self.norm(x)#.half()
     
 class EncoderLayer(nn.Module):
     def __init__(self, size, self_attn, feed_forward, dropout):
@@ -204,7 +215,7 @@ class Decoder(nn.Module):
     def forward(self, x: torch.Tensor, enc_out: torch.Tensor, wt_mask: torch.Tensor, mut_mask: torch.Tensor):
         for layer in self.layers:
             x = layer(x, enc_out, wt_mask, mut_mask)
-        return self.norm(x).half()
+        return self.norm(x)#.half()
 
 class DecoderLayer(nn.Module):
     def __init__(self, size, self_attn, cross_attn, feed_forward, dropout):
@@ -271,11 +282,11 @@ class Transformer(nn.Module):
             mut_embed = self.mut_embed(X_mut, padding_mask = padding_mask_mut) 
         
         # transform to half precision for faster computation
-        wt_embed = wt_embed.half()
-        mut_embed = mut_embed.half()
+        wt_embed = wt_embed#.half()
+        mut_embed = mut_embed#.half()
         
-        padding_mask_wt = padding_mask_wt.half()
-        padding_mask_mut = padding_mask_mut.half()
+        padding_mask_wt = padding_mask_wt#.half()
+        padding_mask_mut = padding_mask_mut#.half()
         
         # print('wt_embed:', wt_embed.dtype)
         
@@ -285,13 +296,14 @@ class Transformer(nn.Module):
         
         return dec_out
 
-def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, onehot=True, annot=False):
+def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, onehot=True, annot=False, flash=False, local=False):
     c = copy.deepcopy
-    attn = MultiHeadAttention(num_heads, embed_dim, pdropout)
+    attn = MultiHeadAttention(num_heads, embed_dim, pdropout, flash=flash)
+    attn_local = MultiHeadAttention(num_heads, embed_dim, pdropout, local=True, flash=flash) if local else attn
     position_ff = PositionwiseFeedForward(embed_dim, mlp_embed_dim, pdropout)
     model = Transformer(
-        encoder=Encoder(EncoderLayer(embed_dim, c(attn), c(position_ff), pdropout), N),
-        decoder=Decoder(DecoderLayer(embed_dim, c(attn), c(attn), c(position_ff), pdropout), N),
+        encoder=Encoder(EncoderLayer(embed_dim, c(attn_local), c(position_ff), pdropout), N),
+        decoder=Decoder(DecoderLayer(embed_dim, c(attn_local), c(attn), c(position_ff), pdropout), N),
         wt_embed=SequenceEmbedder(embed_dim=embed_dim, onehot=onehot, annot=annot),
         mut_embed=SequenceEmbedder(embed_dim=embed_dim, onehot=onehot, annot=annot),
         annot=annot,
@@ -306,7 +318,7 @@ def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, on
     return model
 
 class PrimeDesignTransformer(nn.Module):
-    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=4, pdropout=0.1, mlp_embed_dim=64, nonlin_func=nn.ReLU(), num_encoder_units=2, num_features=24, join_option='concat', stack_dim=1, onehot=True, annot=False):
+    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=4, pdropout=0.1, mlp_embed_dim=64, nonlin_func=nn.ReLU(), num_encoder_units=2, num_features=24, flash=True, onehot=True, annot=False, local=False):
         super(PrimeDesignTransformer, self).__init__()
         self.embed_dim = embed_dim
         self.sequence_length = sequence_length
@@ -316,11 +328,10 @@ class PrimeDesignTransformer(nn.Module):
         self.nonlin_func = nonlin_func
         self.num_encoder_units = num_encoder_units
         self.num_features = num_features
-        self.join_option = join_option
-        self.stack_dim = stack_dim
+        self.flash = flash
         self.onehot = onehot
         
-        self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot)
+        self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
         self.linear_transformer = nn.Linear(embed_dim, 1)
         # self.gru = nn.GRU(input_size=sequence_length, hidden_size=128, num_layers=1, batch_first=True, bidirectional=True)
         
@@ -432,6 +443,12 @@ def preprocess_transformer(X_train: pd.DataFrame, slice: bool=False) -> Dict[str
     X_rtt_mut = torch.zeros(X_nucl.size(0), X_nucl.size(1))
     
     for i, (pbs_l, protospacer_l, rtt_l, rtt_mut_l, pbs_r, protospacer_r, rtt_r, rtt_mut_r) in enumerate(zip(X_train['pbs-location-l'].values, X_train['protospacer-location-l'].values, X_train['rtt-location-wt-l'].values, X_train['rtt-location-mut-l'].values, X_train['pbs-location-r'].values, X_train['protospacer-location-r'].values, X_train['rtt-location-wt-r'].values, X_train['rtt-location-mut-r'].values)):
+        pbs_l = max(0, pbs_l)
+        pbs_r = max(0, pbs_r)
+        protospacer_l = max(0, protospacer_l)
+        protospacer_r = max(0, protospacer_r)
+        rtt_l = max(0, rtt_l)
+        rtt_r = max(0, rtt_r)
         X_pbs[i, pbs_l:pbs_r] = 1
         # X_protospacer[i, protospacer_l:protospacer_r] = 1
         X_rtt[i, rtt_l:rtt_r] = 1
@@ -444,13 +461,13 @@ def preprocess_transformer(X_train: pd.DataFrame, slice: bool=False) -> Dict[str
         # 'X_protospacer': X_protospacer,
         'X_rtt': X_rtt,
         'X_rtt_mut': X_rtt_mut,
-        'features': torch.tensor(features).half()
+        'features': torch.tensor(features).float()#.half()
     }
 
     
     return result
 
-def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, embed_dim: int = 4, stack_dim: int = 1) -> skorch.NeuralNetRegressor:
+def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, annot: bool = True) -> skorch.NeuralNetRegressor:
     """train the transformer model
 
     Args:
@@ -511,44 +528,14 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
         print("Training Transformer model...")
         
         best_val_loss = np.inf
+        
+        embed_dim = 4 if not annot else 6
+        num_heads = 3 if annot else 2
     
         for j in range(num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
-            m = PrimeDesignTransformer(embed_dim=6, sequence_length=99, num_heads=2,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=2, num_features=num_features, join_option='concat', stack_dim=stack_dim, onehot=True, annot=True)
-            
-            # custom callback for prinitng the parameter gradients after each batch
-            class PrintParameterGradients(skorch.callbacks.Callback):
-                def on_batch_begin(self, net, batch=None, training=None, **kwargs):
-                    # check for invalid values in gradients
-                    for name, param in net.module.named_parameters():
-                        print(name, param.data)
-
-                        print("-"*50)
-                    print('Batch start\n\n\n')
-                    return super().on_batch_begin(net, batch, training, **kwargs)
-                def on_batch_end(self, net, batch=None, training=None, **kwargs):
-                    # check for invalid values in gradients
-                    for name, param in net.module.named_parameters():
-                        if param.data != None:
-                            print("param.data",torch.isfinite(param.data).all())
-                            if torch.isfinite(param.data).all() == False:
-                                # print the parameter name
-                                print('Parameter with invalid data:', name)
-                                print('value:', param.data)
-                                # print the gradient if it exists
-                                if param.grad != None:
-                                    print('grad:', param.grad.data)
-                        if param.grad != None:
-                            print("param.grad.data",torch.isfinite(param.grad.data).all)
-                            if torch.isfinite(param.grad.data).all() == False:
-                                # print the parameter name
-                                print('Parameter with invalid grad data:', name)
-                                print('value:', param.grad.data)
-                        
-                        print("-"*50)
-                    print('Batch end\n\n\n')
-                    return super().on_batch_end(net, batch, training, **kwargs)
+            m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=50, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False)
             
             accelerator = Accelerator(mixed_precision='bf16')
             
@@ -570,10 +557,10 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                     skorch.callbacks.EarlyStopping(patience=patience),
                     skorch.callbacks.Checkpoint(monitor='valid_loss_best', 
                                     f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), 
-                                    f_optimizer=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), 
-                                    f_history=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"),
+                                    f_optimizer=None, 
+                                    f_history=None,
                                     f_criterion=None),
-                    # skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-3),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-3),
                     # skorch.callbacks.ProgressBar(),
                     # PrintParameterGradients()
                 ]
@@ -589,18 +576,14 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                 best_val_loss = np.min(model.history[:, 'valid_loss'])
                 # rename the model file to the best model
                 os.rename(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"), os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json")) 
             else: # delete the last model
                 print(f'Validation loss: {np.min(model.history[:, "valid_loss"])} is not better than {best_val_loss}')
                 os.remove(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"))
-                os.remove(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"))
-                os.remove(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"))       
             
         
     return model
 
-def predict_transformer(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, join_option: str='stack', stack_dim:int = 1) -> skorch.NeuralNetRegressor:
+def predict_transformer(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False) -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
@@ -615,8 +598,11 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
     test_data_all = test_data_all.dropna()
     # transform to float
     test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
+    
+    embed_dim = 4 if not annot else 6
+    num_heads = 3 if annot else 2
 
-    m = PrimeDesignTransformer(embed_dim=4, sequence_length=99, num_heads=4,pdropout=0, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, join_option='concat', stack_dim=stack_dim, onehot=True, annot=True)
+    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=50, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False)
     
     accelerator = Accelerator(mixed_precision='bf16')
             
@@ -637,7 +623,7 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
             continue
         
         test_data = test_data_all[test_data_all['fold']==i]
-        X_test = test_data.iloc[:, :num_features+2]
+        X_test = test_data
         y_test = test_data.iloc[:, -2]
         X_test = preprocess_transformer(X_test)
         y_test = y_test.values
@@ -645,9 +631,9 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
         y_test = torch.tensor(y_test, dtype=torch.float32)
         tr_model.initialize()
         if adjustment:
-            tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
+            tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
         else:
-            tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
+            tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
         
         y_pred = tr_model.predict(X_test)
         if adjustment == 'log':

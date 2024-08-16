@@ -113,8 +113,10 @@ At around the same time DeepPrime was published, the PRIDICT model was developed
     \label{fig:pridict}
 \end{figure}
 
-PRIDICT is the only model that incorporates functional annotations of the sequence data into the model. These annotations are boolean sequences that indicate the functionality of each nucleotide in the sequence, and are used to guide the local attention mechanism to focus on the relevant parts of the sequence. 
+On top of the difference in architecture, PRIDICT's input data has additional function annotations denoting the sequence's corresponding section in the pegRNA. These annotations are boolean sequences that indicate the functionality of each nucleotide in the sequence, and are used to guide the local attention mechanism to focus on the relevant parts of the sequence. 
 
 \section{Study Objective}
 
-The development of these models inspired me to further explore the potential of deep learning models in predicting prime editing outcomes. In this study, I aim to develop a deep learning model that is on par or even better than the existing models in predicting prime editing outcomes for a wide range of cell lines and edit types. I will also explore the possibility of using ensemble learning to improve the performance of the models, and investigate the potential of using the model to predict the efficiency of prime editing outcomes for cell lines and edit types that are not present in the training dataset. The trained model would be presented as a web application that can be used by researchers to predict the efficiency of prime editing outcomes for their own cell lines and edit types.
+The development of these models inspired me to further explore the potential of deep learning models in predicting prime editing outcomes. In this study, I aim to develop a deep learning model that is on par or even better than the existing models in predicting prime editing outcomes for a wide range of cell lines and edit types. 
+
+I will also explore the possibility of using ensemble learning to improve the performance of the models, and investigate the potential of using the model to predict the efficiency of prime editing outcomes for cell lines and edit types that are not present in the training dataset. The trained model would be presented as a web application that can be used by researchers to predict the efficiency of prime editing outcomes for their own cell lines and edit types.

@@ -35,6 +35,10 @@ for f in glob("*.csv"):
     # cap the sequence length to 50
     wt_seq = [seq[:50] for seq in wt_seq]
     mut_seq = [seq[:50] for seq in mut_seq]
+    
+    # pad to 50 if less
+    wt_seq = [seq + 'N'*(50-len(seq)) for seq in wt_seq]
+    mut_seq = [seq + 'N'*(50-len(seq)) for seq in mut_seq]
 
 
     # find the ml data
@@ -60,6 +64,10 @@ for f in glob("*.csv"):
     # load the positional data from std data into the transformer data
     for pos in positions:
         ml_data[pos] = df[pos]
+        
+    # align the positions by the edit location
+    for pos in positions:
+        ml_data[pos] = ml_data[pos] - df['lha-location-r'] + 20
         
     # move group-id,editing-efficiency,fold to the last columns
     cols = ml_data.columns.tolist()

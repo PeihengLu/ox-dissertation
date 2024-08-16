@@ -5,6 +5,7 @@ import json
 import torch
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+import pandas as pd
 
 # Define your PyTorch model (replace with your actual model)
 class DummyModel(torch.nn.Module):
@@ -25,6 +26,8 @@ def predict(request):
         pam_table = {
             'pe2': 'NGG',
         }
+        
+        sequence = primesequenceparsing(sequence)
         
         trained_on_pridict_only = ['k562', 'adv']
         
@@ -114,7 +117,7 @@ def primesequenceparsing(sequence: str) -> object:
     if original_base == '-':
         original_seq = five_prime_seq + three_prime_seq
         if edited_base != '-':
-            mutation_type = 'Insertion'
+            mutation_type = 1
             correction_length = len(edited_base)
         else:
             print(sequence)
@@ -122,11 +125,11 @@ def primesequenceparsing(sequence: str) -> object:
     else:
         original_seq = five_prime_seq + original_base + three_prime_seq
         if edited_base == '-':
-            mutation_type = 'Deletion'
+            mutation_type = 2
             correction_length = len(original_base)
         elif len(original_base) == 1 and len(edited_base) == 1:
             if isDNA(original_base) and isDNA(edited_base):  # check if only AGCT is in bases
-                mutation_type = '1bpReplacement'
+                mutation_type = 0
                 correction_length = len(original_base)
             else:
                 print(sequence)
@@ -134,7 +137,7 @@ def primesequenceparsing(sequence: str) -> object:
                 raise ValueError
         elif len(original_base) > 1 or len(edited_base) > 1:
             if isDNA(original_base) and isDNA(edited_base):  # check if only AGCT is in bases
-                mutation_type = 'MultibpReplacement'
+                mutation_type = 0
                 if len(original_base) == len(
                         edited_base):  # only calculate correction length if replacement does not contain insertion/deletion
                     correction_length = len(original_base)
@@ -157,18 +160,48 @@ def primesequenceparsing(sequence: str) -> object:
     else:
         raise ValueError
 
-    basebefore_temp = five_prime_seq[
-                      -1:]  # base before the edit, could be changed with baseafter_temp if Rv strand is targeted (therefore the "temp" attribute)
-    baseafter_temp = three_prime_seq[:1]  # base after the edit
+    # basebefore_temp = five_prime_seq[
+    #                   -1:]  # base before the edit, could be changed with baseafter_temp if Rv strand is targeted (therefore the "temp" attribute)
+    # baseafter_temp = three_prime_seq[:1]  # base after the edit
 
     editposition_left = len(five_prime_seq)
     editposition_right = len(three_prime_seq)
-    return original_base, edited_base, original_seq, edited_seq, editposition_left, editposition_right, mutation_type, correction_length, basebefore_temp, baseafter_temp
+    return original_base, edited_base, original_seq, edited_seq, editposition_left, editposition_right, mutation_type, correction_length#, basebefore_temp, baseafter_temp
 
-def propose_pegrna(dna_sequence: str, pam: str, pridicrt_only: bool) -> str:
-    pbs_len_range = range(8, 18) if not pridicrt_only else [13] 
+def propose_pegrna(wt_sequence: str, edit_position: int, mut_type: int, edit_length: int, pam: str, pridict_only: bool) -> pd.DataFrame:
+    pbs_len_range = range(8, 18) if not pridict_only else [13] 
     lha_len_range = range(0, 13)
     rha_len_range = range(7, 12)
+    
+    # in the range of lha length, scan for PAM sequences
+    # edit must start before 3bp upstream of the PAM
+    edit_to_pam_range = lha_len_range + 3
+    
+    protospacer_location_l = []
+    protospacer_location_r = []
+    pbs_location_l = []
+    pbs_location_r = []
+    lha_location_l = []
+    lha_location_r = []
+    rha_location_wt_l = []
+    rha_location_wt_r = []
+    rha_location_mut_l = []
+    rha_location_mut_r = []
+    rtt_location_wt_l = []
+    rtt_location_wt_r = []
+    rtt_location_mut_l = []
+    rtt_location_mut_r = []
+    sp_cas9_score = []
+    mut_type = []
+    # 99bp sequence starting from 10bp upstream of the protospacer
+    wt_sequence = []
+    mut_sequence = []
+    
+    
+    for distance_to_pam in edit_to_pam_range:
+        pass
+    
+    
     
 
 def index(request):

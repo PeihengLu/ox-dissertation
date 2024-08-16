@@ -279,13 +279,13 @@ It was adopted by the Schwank lab (designers of PRIDICT) in the task of base edi
 
 
 
-However, the transformer model is not without its drawbacks. The self-attention mechanism is very computationally expensive, with a time complexity of $O(n^2)$, where n is the length of the input sequence. This makes the transformer model unsuitable for long sequences, as the memory and time requirements grow quadratically with the sequence length.
+% However, the transformer model is not without its drawbacks. The self-attention mechanism is very computationally expensive, with a time complexity of $O(n^2)$, where n is the length of the input sequence. This makes the transformer model unsuitable for long sequences, as the memory and time requirements grow quadratically with the sequence length.
 
 
 % Describe flash transformer
-To alleviate the computational cost, flash attention was introduced as a more efficient alternative to the self-attention mechanism. 
+% To alleviate the computational cost, flash attention was introduced as a more efficient alternative to the self-attention mechanism. 
 
-Half precision was required by the flash attention to train and test the model. Half precision can siginificantly reduce memory usage and training time, achieving up to 8 times speed up when compared to single precision (float32)\cite{micikeviciusMixedPrecisionTraining2018}. However, certain small-magnitude gradients may fall out of range of half precision and become zero. This results in NaN values in the model's weights and losses, causing training to fail. As a result, the hugging face accelarator module was adopted to prevent the model from diverging during training. 
+% Half precision was required by the flash attention to train and test the model. Half precision can siginificantly reduce memory usage and training time, achieving up to 8 times speed up when compared to single precision (float32)\cite{micikeviciusMixedPrecisionTraining2018}. However, certain small-magnitude gradients may fall out of range of half precision and become zero. This results in NaN values in the model's weights and losses, causing training to fail. As a result, the hugging face accelarator module was adopted to prevent the model from diverging during training. 
 
 \subsection{Model Architecture}
 
@@ -308,16 +308,7 @@ Similar to PRIDICT, the size of the MLP layers were controled using three parame
 
 To reduce the computational cost by testing many parameters at the same times, the tuning was conducted in three stages.
 
-The first stage of tuning is used to determine the optimal training configuration, in particular the loss function, learning rate and batch sizes of the model. 
-
-The second stage of tuning focuses on the a number of design decisions of the model architecture. Since the number of parameters between the designs does not differ significantly, a small network with two hidden layers of size 2*embedding dimension and two attention heads was trained on a subset (20\%) of the dataset to further speedup the tuning process.
-
-% To begin with, the actual embedding of the nucleotide dataset was tested. Although both yu et al and mathis et al reported the usage of one-hot encoding in their publication, the actual implementation were very different. DeepPrime directly inputed the one-hot encoded sequence into the conventional network, while PRIDICT used an embedding layer to convert the one-hot encoded sequence into a dense representation. The dense representation is considered very beneficial in the NLP task as it siginificantly reduces the dimensionality of the input data, and can capture the semantic meaning of the the relationship between the words\cite{goldbergPrimerNeuralNetwork2015}. This can be very helpful in other bioinformatic tasks where a segment of genome sequence is considered as a single word, resulting a large vocabulary\cite{cegliaIdentificationTranscriptionalPrograms2023}. However, since we are working on the nucleotide level of representation, the vocabulary size is very small (4), and the semantic meaning of the nucleotides are not as important as the actual sequence. 
-
-% Additionally, how the output of the attention heads are combined may also influence the model's performance.
-% The common method of combining the output of a number of attention heads is to stack them into a single vector along the attention dimension, thus reshaping the output tensor from \texttt{(batch, sequence length, number of heads, head dimension)} to \texttt{(batch, sequence length, number of heads * head dimension)}. The reshaped tensor is then passed through a linear layer to reduce the dimension to the original head dimension. At the same time, we can also concatenate or take the mean of the output of the attention heads, resulting in a tensor of shape \texttt{(batch, sequence length * number of heads, head dimension)} and \texttt{(batch, sequence length, head dimension)} respectively.
-
-The two embedding method and three attention head combination methods were tested on the subset of the dataset, and the results were compared using the Pearson correlation coefficient. 
+The first stage of tuning focuses on the a number of design decisions of the model architecture. Since we have established that the embedding and 
 
 The last stage focuses on the parameter size of the model. 
 
@@ -332,7 +323,7 @@ In this study, a number of common supervised ensemble learning methods were eval
 
 Bagging and  AdaBoost are normally used with estimators of the same type, but in this study, I wanted to utilize the strengths of different models to produce a possibly more accurate prediction. Thus, an additional meta learner similar to the ones used in the deep learning models was added to the ensemble models. The meta learner takes the prediction of the individual models as well as the 24 extracted features as input and produces the final prediction.
 
-To first test their validity in this task before moving on to more sophisticated models, the models making up the ensemble are the conventional ML methods evaluated in \autoref{sec:conventional-ml}. Methods that achieved siginificant higher performance than the individual models were then tested on the deep learning models.
+To first test their validity in this task before moving on to more sophisticated models, the models making up the ensemble are the conventional ML methods evaluated in \autoref{sec:conventional-ml}. Methods that achieved significantly higher performance than the individual models were then tested on the deep learning models.
 
 \subsection{Training DeepPrime and PRIDICT}
 \label{sec:training-deepprime-pridict}
@@ -340,6 +331,8 @@ To first test their validity in this task before moving on to more sophisticated
 For easier identification, the training models stored in `trained-models' directory also follows a uniform naming convention: `model-\{source\}-\{cell-line\}-\{PE-version\}-\{fold\}.pth/pkl/json'. All 5 folds of the models were used during evaluation, and the results were averaged to produce the final prediction. Additionally, PRIDICT and DeepPrime have overlapping datasets, and when a editor-cell line combination is present in both datasets, both models were used to predict the editing efficiency, and the results were averaged again to produce the predicted efficiency.
 
 The hyperparameters selected by DeepPrime were listed in their study, while the parameters for PRIDICT were acquired by loading the pickled trained model's configuration. 
+
+To verify the correctness of my implementation, I trained the models on their respective datasets and evaluated the performance. The DeepPrime model achieved slightly lower performance than the one reported by Yu et al, with a mean pearson's correlation of 0.75 on the DeepPrime HEK293T PE2 dataset, compared to the 0.77 reported in their study. PRIDICT 
 
 To remove the added variance of feature selection, all models were reconfigured to use the top 24 features extracted from the SHAP analysis. 
 
@@ -367,7 +360,8 @@ Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains
 
 To facilitate the use of the model in the community, a web tool was developed for users to input their target edit and receive the best pegRNA design as per the model's prediction. The web tool was implemented using the Django framework for easier interaction with Python scripts. 
 
-User input should be in the PRIDICT format of \{at-lesat-100bp\}-(before-edit/after-edit)-\{at-lesat-100bp\}. The user response is then handled by the prediction API endpoint, which would parse the input into original and mutated sequence as well as edit location, type and length. A number of pegRNAs would then be propossed accordingly, and the best performing model would be used to produce an estimation of the editing efficiency for each pegRNA candidate. 
+User input should be in the PRIDICT format of \{at-lesat-100bp\}-(before-edit/after-edit)-\{at-lesat-100bp\}. The user response is then handled by the prediction API endpoint, which would parse the input into original and mutated sequence as well as edit location, type and length. A number of pegRNAs would then be proposed accordingly in the standard data format, which is then converted to the suitable formats for the models. The best performing model would then be used to predict the editing efficiency of the candidate pegRNAs. 
+
 
 The result is returned as a JSON response and is parsed by the front end as a table of pegRNA candidates with their corresponding editing efficiency. The pegRNA's composition with regard to the wild type sequence can also be visualized by selecting a particular result for easier interpretation.
 
