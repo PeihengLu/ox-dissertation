@@ -541,14 +541,20 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     
     
     for i in range(len(wt_seq)):
-        for j in range(int(pbs_start[i]), int(pbs_start[i]+pbs_length[i])):
-            X_pbs[i, j] = 1
-        for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length[i])):
-            X_rtt[i, j] = 1
-        for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length_mut[i])):
-            X_rtt_mut[i, j] = 1
-        for j in range(int(protospacer_location[i]), int(protospacer_location[i]) + 20):
-            X_proto[i, j] = 1
+        X_pbs[i, pbs_start[i]:pbs_start[i]+pbs_length[i]] = 1
+        X_rtt[i, rtt_start[i]:rtt_start[i]+rtt_length[i]] = 1
+        X_rtt_mut[i, rtt_start[i]:rtt_start[i]+rtt_length_mut[i]] = 1
+        X_proto[i, protospacer_location[i]:protospacer_location[i]+20] = 1
+        
+        # for j in range(int(pbs_start[i]), int(pbs_start[i]+pbs_length[i])):
+        #     X_pbs[i, j] = 1
+        # for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length[i])):
+        #     X_rtt[i, j] = 1
+        # for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length_mut[i])):
+        #     X_rtt_mut[i, j] = 1
+        # for j in range(int(protospacer_location[i]), int(protospacer_location[i]) + 20):
+        #     X_proto[i, j] = 1
+        
         # annotate the padding regions
         # for j in range(len(wt_seq[i])):
         #     if wt_seq[i][j] == 'N':
@@ -561,7 +567,7 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
         # print(f'X_proto: {X_proto[i]}')
         # print(f'X_rtt_mut: {X_rtt_mut[i]}')
                             
-    nut_to_ix = {'N': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
+    nut_to_ix = {'N': 4, 'A': 0, 'T': 1, 'C': 2, 'G': 3}
     X_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in wt_seq])
     X_mut_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in mut_seq])
     
