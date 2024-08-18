@@ -136,7 +136,7 @@ class AnnotEmbeder_WTSeq(nn.Module):
         self.num_inidc = 2 # padding index for protospacer, PBS and RTT
         self.assemb_opt = assemb_opt
         # wt+mut+protospacer+PBS+RTT
-        self.We = nn.Embedding(self.num_nucl+1, embed_dim, padding_idx=0)
+        self.We = nn.Embedding(self.num_nucl+1, embed_dim, padding_idx=self.num_nucl)
         # protospacer embedding
         self.Wproto = nn.Embedding(self.num_inidc+1, annot_embed_dim, padding_idx=self.num_inidc)
         # PBS embedding
@@ -159,7 +159,7 @@ class AnnotEmbeder_MutSeq(nn.Module):
         self.num_inidc = 2 # padding index
         self.assemb_opt = assemb_opt
         # one hot encoding
-        self.We = nn.Embedding(self.num_nucl+1, embed_dim, padding_idx=0)
+        self.We = nn.Embedding(self.num_nucl+1, embed_dim, padding_idx=self.num_nucl)
         # PBS embedding
         self.Wpbs = nn.Embedding(self.num_inidc+1, annot_embed_dim, padding_idx=self.num_inidc)
         # RTT embedding
@@ -178,7 +178,6 @@ class FeatureEmbAttention(nn.Module):
         Args:
             input_dim: int, size of the input vector (i.e. feature vector)
         '''
-
         super().__init__()
         self.input_dim = input_dim
         # use this as query vector against the transformer outputs
@@ -360,7 +359,8 @@ class Pridict(nn.Module):
                  mlp_embed_factor=2,
                  num_encoder_units=2,
                  num_hidden_layers=2,
-                 assemb_opt='stack'):
+                 assemb_opt='stack',
+                 sequence_length=99):
         
         super().__init__()
         self.fdtype = fdtype
@@ -385,6 +385,8 @@ class Pridict(nn.Module):
             init_embed_dim = embed_dim
             mut_embed_dim = embed_dim
             z_dim = np.min([init_embed_dim, mut_embed_dim])//2 
+            
+        self.sequence_length = sequence_length
 
         # encoder 1
         self.wt_encoder = RNN_Net(input_dim =init_embed_dim,
@@ -416,21 +418,35 @@ class Pridict(nn.Module):
         self.global_featemb_mut_attn = FeatureEmbAttention(z_dim)
 
         # encoder 3
-        self.seqlevel_featembeder = MLPEmbedder(input_dim=feature_dim,
-                                           embed_dim=z_dim,
-                                           mlp_embed_factor=1,
-                                           nonlin_func=nonlinear_func,
-                                           pdropout=dropout, 
-                                           num_encoder_units=1)
+        # self.seqlevel_featembeder = MLPEmbedder(input_dim=feature_dim,
+        #                                    embed_dim=z_dim,
+        #                                    mlp_embed_factor=1,
+        #                                    nonlin_func=nonlinear_func,
+        #                                    pdropout=dropout, 
+        #                                    num_encoder_units=1)
+        self.seqlevel_featembeder = self.d = nn.Sequential(
+                        nn.Linear(24, 96, bias=False),
+                        nn.ReLU(),
+                        nn.Dropout(dropout),
+                        nn.Linear(96, 64, bias=False),
+                        nn.ReLU(),
+                        nn.Dropout(dropout),
+                        nn.Linear(64, 128, bias=False)
+                    )
 
         # decoder
-        self.decoder  = MLPDecoder(5*z_dim,
-                              embed_dim=z_dim,
-                              outp_dim=1, # output is a scalar
-                              mlp_embed_factor=2,
-                              nonlin_func=nonlinear_func, 
-                              pdropout=dropout, 
-                              num_encoder_units=1)
+        # self.decoder  = MLPDecoder(5*z_dim,
+        #                       embed_dim=z_dim,
+        #                       outp_dim=1, # output is a scalar
+        #                       mlp_embed_factor=2,
+        #                       nonlin_func=nonlinear_func, 
+        #                       pdropout=dropout, 
+        #                       num_encoder_units=1)
+        self.decoder = nn.Sequential(
+            nn.BatchNorm1d(16 + 128),
+            nn.Dropout(dropout),
+            nn.Linear(16 + 128, 1, bias=True),
+        )
         
     # skorch should be able to handle batching
     def forward(self, X_nucl, X_proto, X_pbs, X_rt, X_mut_nucl, X_mut_pbs, X_mut_rt, features):
@@ -451,14 +467,17 @@ class Pridict(nn.Module):
                         
         # rnn encoding
         # sequence lengths record the true length of the sequences without padding
-        sequence_lengths = torch.sum(X_nucl != 0, axis=1)
+        sequence_lengths = torch.sum(X_nucl != -1, axis=1)
         _, z_wt = self.wt_encoder(wt_embed, sequence_lengths)
         _, z_mut = self.mut_encoder(mut_embed, sequence_lengths)
+        
+        # print('z_wt', z_wt.shape)
         
         # attention mechanism
         # global attention
         # mask out regions that are part of the padding
         # mask is 1 where the padding is not present
+        # print(X_nucl.shape)
         wt_mask = MaskGenerator.create_content_mask(X_nucl.shape, sequence_lengths)
         mut_mask = MaskGenerator.create_content_mask(X_mut_nucl.shape, sequence_lengths)
           
@@ -492,9 +511,9 @@ class Pridict(nn.Module):
                 
         # decoder
         mu_logit = self.decoder(z)
-        mu = torch.exp(mu_logit)
+        # mu = torch.exp(mu_logit)
         
-        return mu
+        return torch.functional.F.softplus(mu_logit)
         
 def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     """transform the pridict data into a format that can be used by the model
@@ -511,10 +530,10 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     # the rest are the features
     features = X_train.iloc[:, 2:26].values
         
-    protospacer_location = X_train.loc[:, 'protospacer-location'].values
+    protospacer_location = X_train.loc[:, 'protospacer-location-l'].values
     
-    pbs_start = X_train.loc[:, 'pbs-location-l-relative-protospacer'].values + protospacer_location
-    rtt_start = X_train.loc[:, 'rtt-location-l-relative-protospacer'].values + protospacer_location
+    pbs_start = X_train.loc[:, 'pbs-location-l'].values
+    rtt_start = X_train.loc[:, 'rtt-location-l'].values
     
     
     mut_type = X_train.loc[:, 'mut-type'].values
@@ -522,17 +541,10 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     edit_length = X_train.loc[:, 'edit-length'].values
     pbs_length = X_train.loc[:, 'pbs-length'].values
     # rtt length wt
-    rtt_length = X_train.loc[:, 'rtt-length'].values
+    rtt_length = X_train.loc[:, 'rtt-location-r'].values - rtt_start
+    # rtt length mut
+    rtt_length_mut = X_train.loc[:, 'rtt-location-r'].values - rtt_start
 
-    rtt_length_mut = []
-    
-    for i in range(len(wt_seq)):
-        if mut_type[i] == 2:
-            rtt_length_mut.append(rtt_length[i] - edit_length[i])
-        elif mut_type[i] == 1:
-            rtt_length_mut.append(rtt_length[i] + edit_length[i])
-        else:
-            rtt_length_mut.append(rtt_length[i])
         
     X_pbs = torch.zeros((len(wt_seq), len(wt_seq[0])))    
     X_rtt = torch.zeros((len(wt_seq), len(wt_seq[0])))    
@@ -541,21 +553,20 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
     
     
     for i in range(len(wt_seq)):
-        X_pbs[i, pbs_start[i]:pbs_start[i]+pbs_length[i]] = 1
-        X_rtt[i, rtt_start[i]:rtt_start[i]+rtt_length[i]] = 1
-        X_rtt_mut[i, rtt_start[i]:rtt_start[i]+rtt_length_mut[i]] = 1
-        X_proto[i, protospacer_location[i]:protospacer_location[i]+20] = 1
+        # X_pbs[i, pbs_start[i]:pbs_start[i]+pbs_length[i]] = 1
+        # X_rtt[i, rtt_start[i]:rtt_start[i]+rtt_length[i]] = 1
+        # X_rtt_mut[i, rtt_start[i]:rtt_start[i]+rtt_length_mut[i]] = 1
+        # X_proto[i, protospacer_location[i]:protospacer_location[i]+20] = 1
+        for j in range(int(pbs_start[i]), int(pbs_start[i]+pbs_length[i])):
+            X_pbs[i, j] = 1
+        for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length[i])):
+            X_rtt[i, j] = 1
+        for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length_mut[i])):
+            X_rtt_mut[i, j] = 1
+        for j in range(int(protospacer_location[i]), int(protospacer_location[i]) + 20):
+            X_proto[i, j] = 1
         
-        # for j in range(int(pbs_start[i]), int(pbs_start[i]+pbs_length[i])):
-        #     X_pbs[i, j] = 1
-        # for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length[i])):
-        #     X_rtt[i, j] = 1
-        # for j in range(int(rtt_start[i]), int(rtt_start[i]+rtt_length_mut[i])):
-        #     X_rtt_mut[i, j] = 1
-        # for j in range(int(protospacer_location[i]), int(protospacer_location[i]) + 20):
-        #     X_proto[i, j] = 1
-        
-        # annotate the padding regions
+        # # annotate the padding regions
         # for j in range(len(wt_seq[i])):
         #     if wt_seq[i][j] == 'N':
         #         X_pbs[i, j] = 2
@@ -586,7 +597,7 @@ def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
         'X_mut_nucl': X_mut_nucl,
         'X_mut_pbs': X_pbs,
         'X_mut_rt': X_rtt_mut,
-        'features': torch.tensor(features)
+        'features': torch.tensor(features).float()
     }
     
     return result
@@ -617,6 +628,8 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
     # data origin
     data_origin = os.path.basename(train_fname).split('-')[1]
     
+    sequence_length = len(dp_dataset['wt-sequence'].values[0])
+    
     fold = 5
     
     # device
@@ -629,7 +642,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         #     continue
         
         train = dp_dataset[dp_dataset['fold']!=i]
-        X_train = train.iloc[:, :num_features+2]
+        X_train = train
         print(X_train.columns)
         y_train = train.iloc[:, -2]
         
@@ -646,7 +659,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         for j in range(num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
-            m = Pridict(input_dim=5,hidden_dim=32,)
+            m = Pridict(input_dim=5,hidden_dim=32, sequence_length=sequence_length, dropout=dropout)
             
             # skorch model
             model = skorch.NeuralNetRegressor(
@@ -654,6 +667,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
                 criterion=nn.MSELoss,
                 optimizer=torch.optim.AdamW,
                 optimizer__lr=lr,
+                optimizer__weight_decay=1e-5,
                 device=device,
                 batch_size=batch_size,
                 max_epochs=epochs,
@@ -663,10 +677,10 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
                     skorch.callbacks.EarlyStopping(patience=patience),
                     skorch.callbacks.Checkpoint(monitor='valid_loss_best', 
                                     f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), 
-                                    f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), 
-                                    f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"),
+                                    f_optimizer=None, 
+                                    f_history=None,
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-3),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-6),   
                     # skorch.callbacks.ProgressBar()
                 ]
             )
@@ -680,14 +694,10 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
                 best_val_loss = np.min(model.history[:, 'valid_loss'])
                 # rename the model file to the best model
                 os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"))
-                os.rename(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"), os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json")) 
             else: # delete the last model
                 print(f'Validation loss: {np.min(model.history[:, "valid_loss"])} is not better than {best_val_loss}')
                 os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"))
-                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"))
-                os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"))       
-            
+
         
     return model
 
@@ -724,7 +734,7 @@ def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dr
     # Load the models
     for i, model in enumerate(models):
         test_data = test_data_all[test_data_all['fold']==i]
-        X_test = test_data.iloc[:, :num_features+2]
+        X_test = test_data
         y_test = test_data.iloc[:, -2]
         X_test = preprocess_pridict(X_test)
         y_test = y_test.values
@@ -734,7 +744,7 @@ def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dr
         # if adjustment:
         #     pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
         # else:
-        pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
+        pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
         
         y_pred = pd_model.predict(X_test)
         # if adjustment == 'log':
