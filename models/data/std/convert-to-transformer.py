@@ -23,23 +23,6 @@ for f in glob("*.csv"):
 
     # find the edit location
     edit_loc = df['lha-location-r'].values
-        
-    # align the sequence data at 20bp before the edit location
-    wt_seq = [seq[max(0, loc-20):] for seq, loc in zip(wt_seq, edit_loc)]
-    mut_seq = [seq[max(0, loc-20):] for seq, loc in zip(mut_seq, edit_loc)]
-
-    # pad the sequence preedit to 20 if less
-    wt_seq = ['N'*(max(20-loc, 0)) + seq for seq, loc in zip(wt_seq, edit_loc)]
-    mut_seq = ['N'*(max(20-loc, 0)) + seq for seq, loc in zip(mut_seq, edit_loc)]
-
-    # cap the sequence length to 50
-    wt_seq = [seq[:50] for seq in wt_seq]
-    mut_seq = [seq[:50] for seq in mut_seq]
-    
-    # pad to 50 if less
-    wt_seq = [seq + 'N'*(50-len(seq)) for seq in wt_seq]
-    mut_seq = [seq + 'N'*(50-len(seq)) for seq in mut_seq]
-
 
     # find the ml data
     ml_data_fname = pjoin('..', 'conventional-ml', f"ml-{('-'.join(f.split('-')[1:]))}")
@@ -60,14 +43,20 @@ for f in glob("*.csv"):
     ml_data = ml_data[cols]
     
     # concatenate positional information
-    positions = ['protospacer-location-l','protospacer-location-r','pbs-location-l','pbs-location-r','rtt-location-wt-l','rtt-location-wt-r','rtt-location-mut-l','rtt-location-mut-r']
+    positions = ['protospacer-location-l','protospacer-location-r','pbs-location-l','pbs-location-r','rtt-location-l','rtt-location-r','mut-type']
     # load the positional data from std data into the transformer data
     for pos in positions:
         ml_data[pos] = df[pos]
         
+    # mask the mutated sequence's regions outside of the pbs and rtt
+    for i, (pbs_l, pbs_r, rtt_l, rtt_r) in enumerate(zip(df['pbs-location-l'], df['pbs-location-r'], df['rtt-location-l'], df['rtt-location-r'])):
+        mut_seq[i] = 'N' * pbs_l + mut_seq[i][pbs_l:rtt_r] + 'N' * (len(mut_seq[i]) - rtt_r)
+        
+    ml_data['mut-sequence'] = mut_seq
+        
     # align the positions by the edit location
-    for pos in positions:
-        ml_data[pos] = ml_data[pos] - df['lha-location-r'] + 20
+    # for pos in positions:
+    #     ml_data[pos] = ml_data[pos] - df['lha-location-r'] + 20
         
     # move group-id,editing-efficiency,fold to the last columns
     cols = ml_data.columns.tolist()

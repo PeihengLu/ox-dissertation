@@ -17,6 +17,7 @@ model = DummyModel()
 @csrf_exempt
 def predict(request):
     if request.method == 'POST':
+        print('POST request received')
         data = json.loads(request.body)
         sequence: str = data.get('dna_sequence', 0)
         pe_cell_line: str = data.get('pe_cell_line', 0)
@@ -36,10 +37,14 @@ def predict(request):
         
         # load all models trained on the specified cell line and prime editors
         # then takes an average of the predictions
+        
+        # # make dummy prediction
+        # prediction = 
 
         # parse user's input
-        return JsonResponse({'prediction': prediction})
+        return JsonResponse(pegRNAs)
     else:
+        print('Invalid request method')
         return JsonResponse({'error': 'Invalid request method'}, status=400)
     
 def isDNA(sequence: str) -> bool:
@@ -150,9 +155,9 @@ def primesequenceparsing(sequence: str) -> object:
                 print('Non DNA bases found in sequence! Please check your input sequence.')
                 raise ValueError
 
-    if edited_base == '-':
+    if edited_base == '-': # deletion
         edited_seq = five_prime_seq + three_prime_seq
-    else:
+    else: 
         edited_seq = five_prime_seq + edited_base.lower() + three_prime_seq
 
     if isDNA(edited_seq) and isDNA(original_seq):  # check whether sequences only contain AGCT
@@ -164,9 +169,8 @@ def primesequenceparsing(sequence: str) -> object:
     #                   -1:]  # base before the edit, could be changed with baseafter_temp if Rv strand is targeted (therefore the "temp" attribute)
     # baseafter_temp = three_prime_seq[:1]  # base after the edit
 
-    editposition_left = len(five_prime_seq)
-    editposition_right = len(three_prime_seq)
-    return original_base, edited_base, original_seq, edited_seq, editposition_left, editposition_right, mutation_type, correction_length#, basebefore_temp, baseafter_temp
+    editposition = len(five_prime_seq)
+    return original_base, edited_base, original_seq, edited_seq, editposition, mutation_type, correction_length#, basebefore_temp, baseafter_temp
 
 def propose_pegrna(wt_sequence: str, edit_position: int, mut_type: int, edit_length: int, pam: str, pridict_only: bool) -> pd.DataFrame:
     pbs_len_range = range(8, 18) if not pridict_only else [13] 
@@ -201,6 +205,50 @@ def propose_pegrna(wt_sequence: str, edit_position: int, mut_type: int, edit_len
     for distance_to_pam in edit_to_pam_range:
         pass
     
+    # return dummy data
+    for i in range(10):
+        protospacer_location_l.append(10)
+        protospacer_location_r.append(20)
+        pbs_location_l.append(5)
+        pbs_location_r.append(8)
+        lha_location_l.append(0)
+        lha_location_r.append(3)
+        rha_location_wt_l.append(20)
+        rha_location_wt_r.append(25)
+        rha_location_mut_l.append(20)
+        rha_location_mut_r.append(25)
+        rtt_location_wt_l.append(25)
+        rtt_location_wt_r.append(30)
+        rtt_location_mut_l.append(25)
+        rtt_location_mut_r.append(30)
+        sp_cas9_score.append(0.9)
+        mut_type.append(0)
+        wt_sequence.append('wt_sequence')
+        mut_sequence.append('mut_sequence')
+    
+    
+    df = pd.DataFrame({
+        'protospacer_location_l': protospacer_location_l,
+        'protospacer_location_r': protospacer_location_r,
+        'pbs_location_l': pbs_location_l,
+        'pbs_location_r': pbs_location_r,
+        'lha_location_l': lha_location_l,
+        'lha_location_r': lha_location_r,
+        'rha_location_wt_l': rha_location_wt_l,
+        'rha_location_wt_r': rha_location_wt_r,
+        'rha_location_mut_l': rha_location_mut_l,
+        'rha_location_mut_r': rha_location_mut_r,
+        'rtt_location_wt_l': rtt_location_wt_l,
+        'rtt_location_wt_r': rtt_location_wt_r,
+        'rtt_location_mut_l': rtt_location_mut_l,
+        'rtt_location_mut_r': rtt_location_mut_r,
+        'sp_cas9_score': sp_cas9_score,
+        'mut_type': mut_type,
+        'wt_sequence': wt_sequence,
+        'mut_sequence': mut_sequence,
+    })
+    json_data = df.to_json(orient='records')
+    return json_data
     
     
 

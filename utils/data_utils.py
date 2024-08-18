@@ -125,13 +125,15 @@ def convert_from_deepprime_org(data: pd.DataFrame, cell_line: str, editor: str, 
             mut_sequence += wt_sequence[rha_location_wt_r:len(wt_sequence)-edit_len]
         else:
             mut_sequence += wt_sequence[rha_location_wt_r:]
+            
+        wt_sequence, mut_sequence = align_wt_mut_sequences(wt_sequence, mut_sequence, lha_location_r, edit_length=edit_len, edit_type=mut_type)
         
         spcas9_score = item['DeepSpCas9_score']
         editing_efficiency = item['Measured_PE_efficiency']
 
-        # pad the mutated sequence to the same length as the wildtype sequence
-        if len(mut_sequence) < len(wt_sequence):
-            mut_sequence += 'N' * (len(wt_sequence) - len(mut_sequence))
+        # # pad the mutated sequence to the same length as the wildtype sequence
+        # if len(mut_sequence) < len(wt_sequence):
+        #     mut_sequence += 'N' * (len(wt_sequence) - len(mut_sequence))
         
         output.append([cell_line, group_id, mut_type, edit_len, wt_sequence, mut_sequence, protospacer_location_l, protospacer_location_r, pbs_location_l, pbs_location_r, rtt_location_wt_l, rtt_location_wt_r, rtt_location_mut_l, rtt_location_mut_r, lha_location_l, lha_location_r, rha_location_wt_l, rha_location_wt_r, rha_location_mut_l, rha_location_mut_r, spcas9_score, editing_efficiency])
 
@@ -901,6 +903,23 @@ def get_compliment_dna_to_dna(sequence: str) -> str:
         else:
             print(f'Invalid base: {base}')
     return dna_compliment
+
+def align_wt_mut_sequences(wt_sequence: str, mut_sequence: str, edit_position: int, edit_length: int, edit_type: int) -> Tuple[str, str]:
+    '''
+    Align the wild type and mutated sequences
+    '''
+    l = len(wt_sequence)
+    if edit_type == 1: # insertion
+        wt_sequence = wt_sequence[:edit_position] + 'N'*edit_length + wt_sequence[edit_position:]
+    elif edit_type == 2: # deletion
+        mut_sequence = mut_sequence[:edit_position] + 'N'*edit_length + mut_sequence[edit_position:]
+        
+    # make sure the sequences are of the same length
+    wt_sequence = wt_sequence[:l]
+    mut_sequence = mut_sequence[:l]
+    
+    return wt_sequence, mut_sequence
+    
 
 
 # =============================================================================

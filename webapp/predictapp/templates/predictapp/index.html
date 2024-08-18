@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DNA Sequence Prediction</title>
+    <title>Prime Editing Efficiency Prediction</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -26,14 +26,23 @@
         }
         input[type="text"] {
             width: 500px; /* Increased width */
-            height: 50px; /* Increased height */
+            height: 200px; /* Increased height */
             padding: 10px;
             font-size: 16px;
             box-sizing: border-box;
+            /* Wrap text */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            /* align text to top */
+            vertical-align: top;
         }
         input[type="text"]::placeholder {
             vertical-align: top;
             padding-top: 10px;
+            font-size: 16px;
+            word-wrap: break-word;
+            /* align text to top */
+            vertical-align: top;
         }
         .button-group {
             display: flex;
@@ -163,6 +172,7 @@
             // user must make a selection before proceeding
             if (!pe_cell_line) {
                 alert("Please select a Prime Editor and Cell Type before proceeding.");
+                hideLoading();
                 return;
             }
 
@@ -197,7 +207,7 @@
             document.getElementById("resultTable").innerHTML = table;
         }
         function fillTestExample() {
-            document.getElementById("dnaInput").value = "ATCGGTAAGCTT";
+            document.getElementById("dnaInput").value = "GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC";
         }
         function showLoading() {
             document.getElementById("loadingModal").style.display = "flex";
