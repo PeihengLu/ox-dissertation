@@ -21,7 +21,6 @@ from models.ensemble_weighted_mean import WeightedMeanSkorch
 start = time.time()
 
 data = 'ml-pd-hek293t-pe2.csv'
-# 20% of the data is used
 percentage = 1
 
 dataset = pd.read_csv(pjoin('models', 'data', 'conventional-ml', data))
