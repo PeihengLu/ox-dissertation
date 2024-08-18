@@ -13,7 +13,7 @@ from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 
-def random_forest(X_train, y_train) -> BaseEstimator:
+def random_forest() -> BaseEstimator:
     '''
     Random Forest Regressor
     '''
@@ -37,7 +37,7 @@ def random_forest(X_train, y_train) -> BaseEstimator:
 # ================================================
 from sklearn.svm import SVR
 
-def support_vector_machine(X_train, y_train) -> BaseEstimator:
+def support_vector_machine() -> BaseEstimator:
     '''
     Support Vector Machine Regressor
     '''
@@ -61,7 +61,7 @@ def support_vector_machine(X_train, y_train) -> BaseEstimator:
 # ================================================
 from xgboost import XGBRegressor
 
-def xgboost(X_train, y_train) -> BaseEstimator:
+def xgboost() -> BaseEstimator:
     '''
     XGBoost Regressor
     '''
@@ -85,7 +85,7 @@ def xgboost(X_train, y_train) -> BaseEstimator:
 # ================================================
 from sklearn.linear_model import Ridge
 
-def ridge_regression(X_train, y_train) -> Tuple[float, float]:
+def ridge_regression() -> Tuple[float, float]:
     '''
     Ridge Regression
     '''
@@ -109,7 +109,7 @@ def ridge_regression(X_train, y_train) -> Tuple[float, float]:
 # ================================================
 from sklearn.linear_model import Lasso
 
-def lasso_regression(X_train, y_train) -> BaseEstimator:
+def lasso_regression() -> BaseEstimator:
     '''
     Lasso Regression
     '''
@@ -158,7 +158,7 @@ class MLP(torch.nn.Module):
         x = self.output_layer(x)
         return x
 
-def mlp(X_train, y_train) -> BaseEstimator:
+def mlp() -> BaseEstimator:
     '''
     MLP Regressor
     '''
