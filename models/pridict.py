@@ -702,7 +702,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
             torch.cuda.empty_cache()
 
         
-    return model
+    # return model
 
 def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
     # model name
