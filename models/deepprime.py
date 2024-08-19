@@ -147,8 +147,15 @@ def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp') -> Dict[str
     Preprocesses the data for the DeepPrime model
     '''
     # sequence data
-    wt_seq = X_train['wt-sequence']
-    mut_seq = X_train['mut-sequence']
+    wt_seq = X_train['wt-sequence'].values
+    mut_seq = X_train['mut-sequence'].values
+    
+    # crop the sequences to 74bp if longer
+    print(len(wt_seq[0]))
+    if len(wt_seq[0]) > 74:
+        wt_seq = [seq[:74] for seq in wt_seq]
+        mut_seq = [seq[:74] for seq in mut_seq]
+    
     # the rest are the features
     features = X_train.drop(columns=['wt-sequence', 'mut-sequence']).values
     
@@ -174,12 +181,10 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
     Trains the DeepPrime model
     '''
     # load a dp dataset
-    if source == 'org':
+    if source == 'org': # dp features
         dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', train_fname))
-    elif source == 'transformer':
-        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime-transformer-features', train_fname))
     else:
-        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', train_fname))
+        dp_dataset = pd.read_csv(os.path.join('models', 'data', 'deepprime', train_fname))
     
     # standardize the scalar values at column 2:26
     # scalar = StandardScaler()
@@ -229,7 +234,8 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
                                     f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer-tmp.pt"), 
                                     f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"),
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1),
+                    # skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.ReduceLROnPlateau, monitor='valid_loss', factor=0.5, patience=3, min_lr=1e-6),
                     # skorch.callbacks.ProgressBar()
                 ]
             )
@@ -276,7 +282,7 @@ def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_f
     if source == 'org':
         test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', test_fname))
     elif source == 'transformer':
-        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-transformer-features', test_fname))
+        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))
     else:
         test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
     # apply standard scalar

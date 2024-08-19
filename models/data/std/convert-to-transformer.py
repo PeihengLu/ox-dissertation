@@ -49,10 +49,10 @@ for f in glob("*.csv"):
         ml_data[pos] = df[pos]
         
     # mask the mutated sequence's regions outside of the pbs and rtt
-    for i, (pbs_l, pbs_r, rtt_l, rtt_r) in enumerate(zip(df['pbs-location-l'], df['pbs-location-r'], df['rtt-location-l'], df['rtt-location-r'])):
-        mut_seq[i] = 'N' * pbs_l + mut_seq[i][pbs_l:rtt_r] + 'N' * (len(mut_seq[i]) - rtt_r)
+    # for i, (pbs_l, pbs_r, rtt_l, rtt_r) in enumerate(zip(df['pbs-location-l'], df['pbs-location-r'], df['rtt-location-l'], df['rtt-location-r'])):
+    #     mut_seq[i] = 'N' * pbs_l + mut_seq[i][pbs_l:rtt_r] + 'N' * (len(mut_seq[i]) - rtt_r)
         
-    ml_data['mut-sequence'] = mut_seq
+    # ml_data['mut-sequence'] = mut_seq
         
     # align the positions by the edit location
     # for pos in positions:

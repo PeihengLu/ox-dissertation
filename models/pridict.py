@@ -680,7 +680,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
                                     f_optimizer=None, 
                                     f_history=None,
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-6),   
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-6),   
                     # skorch.callbacks.ProgressBar()
                 ]
             )
@@ -697,6 +697,9 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
             else: # delete the last model
                 print(f'Validation loss: {np.min(model.history[:, "valid_loss"])} is not better than {best_val_loss}')
                 os.remove(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"))
+                
+            del model, m
+            torch.cuda.empty_cache()
 
         
     return model

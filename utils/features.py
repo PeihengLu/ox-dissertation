@@ -26,6 +26,10 @@ def get_melting_temperature(sequence: str, table: str, c_seq: str = None) -> flo
     '''
     Returns the melting temperature of a given sequence
     '''
+    # remove the N in the sequence
+    if 'N' in sequence:
+        sequence = sequence.replace('N', '')
+        
     if len(sequence) == 0:
         return 0
     
@@ -38,7 +42,10 @@ def get_melting_temperature(sequence: str, table: str, c_seq: str = None) -> flo
 def get_minimum_free_energy(sequence: str) -> float:
     '''
     Returns the minimum free energy of a given sequence
-    '''
+    '''        
+    if 'N' in sequence:
+        sequence = sequence.replace('N', '')
+        
     if len(sequence) == 0:
         return 0
 
@@ -50,7 +57,10 @@ def get_minimum_free_energy(sequence: str) -> float:
 def get_gc_content_and_count(sequence: str) -> Tuple[int, int]:
     '''
     Returns the GC content and count of a given sequence
-    '''
+    '''   
+    if 'N' in sequence:
+        sequence = sequence.replace('N', '')
+        
     if len(sequence) == 0:
         return 0, 0
 
@@ -67,6 +77,10 @@ def get_consecutive_n_sequences(n: str, sequence: str) -> List[str]:
     '''
     Returns the sequences of poly-n
     '''
+    if 'N' in sequence:
+        # remove the Ns
+        sequence = sequence.replace('N', '')
+        
     poly_n_sequences = []
 
     i = 0
