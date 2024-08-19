@@ -273,12 +273,7 @@ def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_f
     model_name = '-'.join(model_name.split('-')[1:])
     models = [os.path.join('models', 'trained-models', 'deepprime', f'{model_name}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
-    if source == 'org':
-        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-org', test_fname))
-    elif source == 'transformer':
-        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime-transformer-features', test_fname))
-    else:
-        test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
+    test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
     # apply standard scalar
     # cast all numeric columns to float
     test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
