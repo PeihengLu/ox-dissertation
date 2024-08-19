@@ -8,6 +8,7 @@ from os.path import join as pjoin, basename, isfile
 import ast
 import tqdm
 import torch
+from typing import List, Tuple
 
 from utils.features import get_gc_content_and_count, get_melting_temperature, get_minimum_free_energy, get_consecutive_n_sequences
 
@@ -36,7 +37,7 @@ def convert_from_deepprime_org(data: pd.DataFrame, cell_line: str, editor: str, 
     output = []
 
     # result columns
-    result_columns = ['cell-line', 'group-id', 'mut-type', 'edit-len', 'wt-sequence', 'mut-sequence', 'protospacer-location-l', 'protospacer-location-r', 'pbs-location-l', 'pbs-location-r', 'rtt-location-wt-l', 'rtt-location-wt-r', 'rtt-location-mut-l', 'rtt-location-mut-r', 'lha-location-l', 'lha-location-r', 'rha-location-wt-l', 'rha-location-wt-r', 'rha-location-mut-l', 'rha-location-mut-r', 'spcas9-score', 'editing-efficiency']
+    result_columns = ['cell-line', 'group-id', 'mut-type', 'edit-len', 'wt-sequence', 'mut-sequence', 'protospacer-location-l', 'protospacer-location-r', 'pbs-location-l', 'pbs-location-r', 'rtt-location-l', 'rtt-location-r', 'lha-location-l', 'lha-location-r', 'rha-location-l', 'rha-location-r', 'spcas9-score', 'editing-efficiency']
 
     g_id = 0
     prev = ""
@@ -116,6 +117,18 @@ def convert_from_deepprime_org(data: pd.DataFrame, cell_line: str, editor: str, 
         rtt_location_wt_r = rha_location_wt_r
         rtt_location_mut_l = pbs_location_r
         rtt_location_mut_r = rha_location_mut_r
+        
+        rtt_location_l = rtt_location_wt_l
+        if mut_type == 2: # deletion, mut sequence is padded with N
+            rtt_location_r = rtt_location_wt_r
+        else:
+            rtt_location_r = rtt_location_mut_r
+            
+        rha_location_l = rha_location_wt_l
+        if mut_type == 2: # deletion, mut sequence is padded with N
+            rha_location_r = rha_location_wt_r
+        else:
+            rha_location_r = rha_location_mut_r
 
         # remove the mask of the mutated sequence
         mut_sequence = ''
@@ -135,7 +148,7 @@ def convert_from_deepprime_org(data: pd.DataFrame, cell_line: str, editor: str, 
         # if len(mut_sequence) < len(wt_sequence):
         #     mut_sequence += 'N' * (len(wt_sequence) - len(mut_sequence))
         
-        output.append([cell_line, group_id, mut_type, edit_len, wt_sequence, mut_sequence, protospacer_location_l, protospacer_location_r, pbs_location_l, pbs_location_r, rtt_location_wt_l, rtt_location_wt_r, rtt_location_mut_l, rtt_location_mut_r, lha_location_l, lha_location_r, rha_location_wt_l, rha_location_wt_r, rha_location_mut_l, rha_location_mut_r, spcas9_score, editing_efficiency])
+        output.append([cell_line, group_id, mut_type, edit_len, wt_sequence, mut_sequence, protospacer_location_l, protospacer_location_r, pbs_location_l, pbs_location_r, rtt_location_l, rtt_location_r, lha_location_l, lha_location_r, rha_location_l, rha_location_r, spcas9_score, editing_efficiency])
 
     # save the extracted information
     output_df = pd.DataFrame(output, columns=result_columns, index=None)
@@ -220,6 +233,7 @@ def convert_to_deepprime(source: str) -> None:
         # edit type
         edit_type = [0, 0, 0]
         edit_type[item['mut-type']] = 1
+        
 
         # melting temperature
         pbs_melting_temperature = get_melting_temperature(pbs, 'R_DNA_NN1')
@@ -262,12 +276,15 @@ def convert_from_pridict2_org(data: pd.DataFrame) -> None:
     Convert the data from PRIDICT2 format to the standard format
     '''
     output = []
+    
+    # drop the rows where wt-sequence or mut-sequence is empty
+    data = data.dropna(subset=['wide_initial_target', 'wide_mutated_target'])
 
     # cell lines
     cell_lines = {'HEKaverageedited': 'hek293t','K562averageedited': 'k562','K562MLH1dnaverageedited': 'k562mlh1dn','AdVaverageedited': 'adv'}
 
     # result columns
-    result_columns = ['cell-line', 'group-id', 'mut-type', 'edit-len', 'wt-sequence', 'mut-sequence', 'protospacer-location-l', 'protospacer-location-r', 'pbs-location-l', 'pbs-location-r', 'rtt-location-wt-l', 'rtt-location-wt-r', 'rtt-location-mut-l', 'rtt-location-mut-r', 'lha-location-l', 'lha-location-r', 'rha-location-wt-l', 'rha-location-wt-r', 'rha-location-mut-l', 'rha-location-mut-r', 'spcas9-score', 'editing-efficiency']
+    result_columns = ['cell-line', 'group-id', 'mut-type', 'edit-len', 'wt-sequence', 'mut-sequence', 'protospacer-location-l', 'protospacer-location-r', 'pbs-location-l', 'pbs-location-r', 'rtt-location-l', 'rtt-location-r', 'lha-location-l', 'lha-location-r', 'rha-location-l', 'rha-location-r', 'spcas9-score', 'editing-efficiency']
 
     # enum of mutation types
     mutation_types = ['1bpReplacement', 'MultibpReplacement', 'Insertion', 'Deletion']
@@ -282,6 +299,7 @@ def convert_from_pridict2_org(data: pd.DataFrame) -> None:
             group_prev = item['group']
         wt_sequence = item['wide_initial_target']
         mut_sequence = item['wide_mutated_target']
+        
         protospacer_location = ast.literal_eval(item['protospacerlocation_only_initial'])
         pbs_location = ast.literal_eval(item['PBSlocation'])
         rtt_location_wt = ast.literal_eval(item['RT_initial_location'])
@@ -324,12 +342,26 @@ def convert_from_pridict2_org(data: pd.DataFrame) -> None:
             rha_location_mut_l = rtt_location_mut_r - rha_length
             rha_location_mut_r = rtt_location_mut_r
         spcas9_score = float(item['deepcas9'])
+        
+        wt_sequence, mut_sequence = align_wt_mut_sequences(wt_sequence, mut_sequence, lha_location_r, edit_length=edit_length, edit_type=mut_type)
+        
+        rtt_location_l = rtt_location_wt_l
+        if mut_type == 2: # deletion, mut sequence is padded with N
+            rtt_location_r = rtt_location_wt_r
+        else:
+            rtt_location_r = rtt_location_mut_r
+            
+        rha_location_l = rha_location_wt_l
+        if mut_type == 2: # deletion, mut sequence is padded with N
+            rha_location_r = rha_location_wt_r
+        else:
+            rha_location_r = rha_location_mut_r
 
         item_nan = item.isna()
 
         for cell_line in cell_lines:
             if not item_nan[cell_line]:
-                output.append([cell_lines[cell_line], group_id, mut_type, edit_length, wt_sequence, mut_sequence, protospacer_location_l, protospacer_location_r, pbs_location_l, pbs_location_r, rtt_location_wt_l, rtt_location_wt_r, rtt_location_mut_l, rtt_location_mut_r, lha_location_l, lha_location_r, rha_location_wt_l, rha_location_wt_r, rha_location_mut_l, rha_location_mut_r, spcas9_score, item[cell_line]])
+                output.append([cell_lines[cell_line], group_id, mut_type, edit_length, wt_sequence, mut_sequence, protospacer_location_l, protospacer_location_r, pbs_location_l, pbs_location_r, rtt_location_l, rtt_location_r, lha_location_l, lha_location_r, rha_location_l, rha_location_r, spcas9_score, item[cell_line]])
 
 
     # save the extracted information
@@ -438,6 +470,8 @@ def convert_to_pridict_direct(data: pd.DataFrame) -> None:
     
     columns = ['wt-sequence', 'mut-sequence'] + [s+'-length' for s in ['edit', 'pbs', 'rtt', 'rha']] + ['mut-type'] + [f"{s}-sequence-zero-length" for s in ['edit', 'preedit']] + ['protospacer-location'] + [f"{s}-location-l-relative-protospacer" for s in ['pbs', 'rtt', 'rha']] + [f"{s}-melting-temperature" for s in ['edit', 'extension', 'preedit', 'protospacer', 'rha', 'pbs']] + [f"{s}-minimum-free-energy" for s in ['extension', 'extension-scaffold', 'pbs', 'spacer', 'spacer-extension-scaffold', 'spacer-scaffold', 'rtt']] + ['group-id', 'editing-efficiency']
     
+    data = data.dropna(subset=['wide_initial_target', 'wide_mutated_target'])
+    
 
     for cell in cell_lines:
         output = []
@@ -455,7 +489,9 @@ def convert_to_pridict_direct(data: pd.DataFrame) -> None:
             wt_sequence = item['wide_initial_target']
             mut_sequence = item['wide_mutated_target']
             
-            if not wt_sequence or not mut_sequence: continue
+            # skip if wt-sequence or mut-sequence is empty
+            if not wt_sequence or not mut_sequence:
+                continue
             
             mut_type = item['Correction_Type']
             if mut_type == 'Deletion':
@@ -475,6 +511,8 @@ def convert_to_pridict_direct(data: pd.DataFrame) -> None:
             mts = [item['edited_base_mt'], item['extensionmt'], item['original_base_mt'], item['protospacermt'], item['PBSmt'], item['RToverhangmt']]   
             mfes = [item['MFE_extension'], item['MFE_extension_scaffold'], item['MFE_pbs'], item['MFE_protospacer'], item['MFE_protospacer_extension_scaffold'], item['MFE_protospacer_scaffold'], item['MFE_rt']]
             
+            wt_sequence, mut_sequence = align_wt_mut_sequences(wt_sequence, mut_sequence, rt_wt[1], edit_length=item['Correction_Length'], edit_type=mut_type)
+            
             output.append([wt_sequence, mut_sequence, item['Correction_Length'], item['PBSlength'], item['RTTlength'], item['RTToverhanglength'], mut_type] + [item['edited_base_mt_nan'], item['original_base_mt_nan'], protospacer_location[0], pbs_location[0] + 1 - protospacer_location[0], rt_wt[0] + 1 - protospacer_location[0], rt_wt[1] - item['RTToverhanglength'] - protospacer_location[0]] + mts + mfes +[group_id, float(item[cell])])
                     
         # split the data into folds
@@ -484,7 +522,7 @@ def convert_to_pridict_direct(data: pd.DataFrame) -> None:
             if col not in ['wt-sequence', 'mut-sequence']:
                 output_df[col] = output_df[col].astype(np.float32)
         output_df = k_fold_cross_validation_split(output_df, 5)
-        output_df.to_csv(pjoin('..', 'pridict', f"pd-pd-{cell_lines[cell]}-pe2.csv"), index=False)
+        output_df.to_csv(pjoin( f"pd-pd-{cell_lines[cell]}-pe2.csv"), index=False)
     
 
 def convert_to_SHAP(source: str) -> None:
@@ -526,16 +564,16 @@ def convert_to_SHAP(source: str) -> None:
         pbs = get_compliment_dna_to_rna(pbs)
         protospacer = wt_sequence[item['protospacer-location-l']:item['protospacer-location-r']]
         spacer = get_compliment_dna_to_rna(protospacer)
-        extension = wt_sequence[item['pbs-location-r']:item['rtt-location-mut-r']]
+        extension = wt_sequence[item['pbs-location-r']:item['rtt-location-r']]
         extension = get_compliment_dna_to_dna(extension)
         extension = get_compliment_dna_to_rna(extension)
-        rha = wt_sequence[item['rha-location-wt-l']:item['rha-location-wt-r']]
+        rha = wt_sequence[item['rha-location-l']:item['rha-location-r']]
         rha = get_compliment_dna_to_dna(rha)
         rha = get_compliment_dna_to_rna(rha)
         lha = wt_sequence[item['lha-location-l']:item['lha-location-r']]
         lha = get_compliment_dna_to_dna(lha)
         lha = get_compliment_dna_to_rna(lha)
-        cDNA = mut_sequence[item['pbs-location-l']:item['rtt-location-mut-r']]
+        cDNA = mut_sequence[item['pbs-location-l']:item['rtt-location-r']]
         cDNA = get_compliment_dna_to_dna(cDNA)
 
 
@@ -592,13 +630,13 @@ def convert_to_SHAP(source: str) -> None:
         elif wt_sequence[item['lha-location-r']] == 'C':
             c_before_edit_position = 1
 
-        if wt_sequence[item['rha-location-wt-l']] == 'A':
+        if wt_sequence[item['rha-location-l']] == 'A':
             a_after_edit_position = 1
-        elif wt_sequence[item['rha-location-wt-l']] == 'G':
+        elif wt_sequence[item['rha-location-l']] == 'G':
             g_after_edit_position = 1
-        elif wt_sequence[item['rha-location-wt-l']] == 'T':
+        elif wt_sequence[item['rha-location-l']] == 'T':
             t_after_edit_position = 1
-        elif wt_sequence[item['rha-location-wt-l']] == 'C':
+        elif wt_sequence[item['rha-location-l']] == 'C':
             c_after_edit_position = 1
 
         # length of the sequences
@@ -674,16 +712,16 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
         pbs = get_compliment_dna_to_rna(pbs)
         protospacer = wt_sequence[item['protospacer-location-l']:item['protospacer-location-r']]
         spacer = get_compliment_dna_to_rna(protospacer)
-        extension = wt_sequence[item['pbs-location-r']:item['rtt-location-mut-r']]
+        extension = wt_sequence[item['pbs-location-r']:item['rtt-location-r']]
         extension = get_compliment_dna_to_dna(extension)
         extension = get_compliment_dna_to_rna(extension)
-        rha = wt_sequence[item['rha-location-wt-l']:item['rha-location-wt-r']]
+        rha = wt_sequence[item['rha-location-l']:item['rha-location-r']]
         rha = get_compliment_dna_to_dna(rha)
         rha = get_compliment_dna_to_rna(rha)
         lha = wt_sequence[item['lha-location-l']:item['lha-location-r']]
         lha = get_compliment_dna_to_dna(lha)
         lha = get_compliment_dna_to_rna(lha)
-        cDNA = mut_sequence[item['pbs-location-l']:item['rtt-location-mut-r']]
+        cDNA = mut_sequence[item['pbs-location-l']:item['rtt-location-r']]
         cDNA = get_compliment_dna_to_dna(cDNA)
         
         # gc content and count
@@ -726,33 +764,6 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
             elif protospacer[i] == 'C':
                 c_at_protospacer_position[i] = 1
 
-        # nucleotide before and after edit position
-        a_before_edit_position = 0
-        g_before_edit_position = 0
-        t_before_edit_position = 0
-        c_before_edit_position = 0
-        a_after_edit_position = 0
-        g_after_edit_position = 0
-        t_after_edit_position = 0
-        c_after_edit_position = 0
-
-        if wt_sequence[item['lha-location-r']] == 'A':
-            a_before_edit_position = 1
-        elif wt_sequence[item['lha-location-r']] == 'G':
-            g_before_edit_position = 1
-        elif wt_sequence[item['lha-location-r']] == 'T':
-            t_before_edit_position = 1
-        elif wt_sequence[item['lha-location-r']] == 'C':
-            c_before_edit_position = 1
-
-        if wt_sequence[item['rha-location-wt-l']] == 'A':
-            a_after_edit_position = 1
-        elif wt_sequence[item['rha-location-wt-l']] == 'G':
-            g_after_edit_position = 1
-        elif wt_sequence[item['rha-location-wt-l']] == 'T':
-            t_after_edit_position = 1
-        elif wt_sequence[item['rha-location-wt-l']] == 'C':
-            c_after_edit_position = 1
 
         # length of the sequences
         edit_type = item['mut-type']
@@ -765,27 +776,15 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
         pam_disrupted = not (wt_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3] == mut_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3])
 
         # maximal length of consecutive nucleotide sequence
-        if len(get_consecutive_n_sequences('A', cDNA) + get_consecutive_n_sequences('A', protospacer)) > 1:
-            a_max_length = max([len(seq) for seq in get_consecutive_n_sequences('A', cDNA) + get_consecutive_n_sequences('A', protospacer)])
-        else:
-            a_max_length = 0
-        if len(get_consecutive_n_sequences('G', cDNA) + get_consecutive_n_sequences('G', protospacer)) > 1:
-            g_max_length = max([len(seq) for seq in get_consecutive_n_sequences('G', cDNA) + get_consecutive_n_sequences('G', protospacer)])
-        else:
-            g_max_length = 0
         if len(get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)) > 1:
             t_max_length = max([len(seq) for seq in get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)])
         else:
             t_max_length = 0
-        if len(get_consecutive_n_sequences('C', cDNA) + get_consecutive_n_sequences('C', protospacer)) > 1:
-            c_max_length = max([len(seq) for seq in get_consecutive_n_sequences('C', cDNA) + get_consecutive_n_sequences('C', protospacer)])
-        else:
-            c_max_length = 0
         
         spcas9_score = item['spcas9-score']
         editing_efficiency = item['editing-efficiency']
 
-        output.append([gc_count_pbs, rha_len, melting_temperature_extension, pbs_len, spcas9_score, lha_len, t_max_length, edit_type == 0, melting_temperature_pbs, g_at_protospacer_position[15], pam_disrupted, gc_content_rha, edit_len, gc_content_spacer, melting_temperature_rha, minimum_free_energy_extension, t_at_protospacer_position[15], a_at_protospacer_position[12], a_at_protospacer_position[13], c_at_protospacer_position[16], gc_content_extension, g_at_protospacer_position[14], gc_content_pbs, g_max_length, item['group-id'], editing_efficiency])
+        output.append([gc_count_pbs, rha_len, pbs_len, gc_count_extension, melting_temperature_pbs, spcas9_score, lha_len, t_max_length, edit_type == 0, g_at_protospacer_position[15], gc_content_rha, pam_disrupted, edit_len, c_at_protospacer_position[16], melting_temperature_rha, minimum_free_energy_extension, a_at_protospacer_position[12], a_at_protospacer_position[13], t_at_protospacer_position[15], gc_content_extension, gc_count_rha, g_at_protospacer_position[14], g_at_protospacer_position[18], gc_content_pbs, item['group-id'], editing_efficiency])
     
     # save the extracted information
     output_df = pd.DataFrame(output, columns=features, dtype=np.float32)
@@ -851,6 +850,9 @@ def get_compliment_dna_to_rna(sequence: str) -> str:
     '''
     Returns the RNA compliment of a given DNA sequence
     '''
+    # remove Ns
+    if 'N' in sequence:
+        sequence = sequence.replace('N', '')
     sequence = sequence.upper()
     rna_compliment = ''
     for base in sequence:
@@ -870,6 +872,9 @@ def get_compliment_rna_to_dna(sequence: str) -> str:
     '''
     Returns the DNA compliment of a given RNA sequence
     '''
+    # remove Ns
+    if 'N' in sequence:
+        sequence = sequence.replace('N', '')
     sequence = sequence.upper()
     dna_compliment = ''
     for base in sequence:
@@ -889,6 +894,9 @@ def get_compliment_dna_to_dna(sequence: str) -> str:
     '''
     Returns the DNA compliment of a given DNA sequence
     '''
+    # remove Ns
+    if 'N' in sequence:
+        sequence = sequence.replace('N', '')
     sequence = sequence.upper()
     dna_compliment = ''
     for base in sequence:

@@ -318,7 +318,7 @@ def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, on
     return model
 
 class PrimeDesignTransformer(nn.Module):
-    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=4, pdropout=0.1, mlp_embed_dim=64, nonlin_func=nn.ReLU(), num_encoder_units=2, num_features=24, flash=True, onehot=True, annot=False, local=False):
+    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=4, pdropout=0.1, mlp_embed_dim=64, nonlin_func=nn.ReLU(), num_encoder_units=2, num_features=24, flash=False, onehot=True, annot=False, local=False):
         super(PrimeDesignTransformer, self).__init__()
         self.embed_dim = embed_dim
         self.sequence_length = sequence_length
@@ -398,7 +398,7 @@ class PrimeDesignTransformer(nn.Module):
         # print('output shape:', output.shape)
         # print('output:', output)
         
-        return output
+        return F.softplus(output)
     
     
 class AcceleratedNet(AccelerateMixin, skorch.NeuralNetRegressor):
@@ -442,7 +442,7 @@ def preprocess_transformer(X_train: pd.DataFrame, slice: bool=False) -> Dict[str
     X_rtt = torch.zeros(X_nucl.size(0), X_nucl.size(1))
     X_rtt_mut = torch.zeros(X_nucl.size(0), X_nucl.size(1))
     
-    for i, (pbs_l, protospacer_l, rtt_l, rtt_mut_l, pbs_r, protospacer_r, rtt_r, rtt_mut_r) in enumerate(zip(X_train['pbs-location-l'].values, X_train['protospacer-location-l'].values, X_train['rtt-location-wt-l'].values, X_train['rtt-location-mut-l'].values, X_train['pbs-location-r'].values, X_train['protospacer-location-r'].values, X_train['rtt-location-wt-r'].values, X_train['rtt-location-mut-r'].values)):
+    for i, (pbs_l, protospacer_l, rtt_l, rtt_mut_l, pbs_r, protospacer_r, rtt_r, rtt_mut_r) in enumerate(zip(X_train['pbs-location-l'].values, X_train['protospacer-location-l'].values, X_train['rtt-location-l'].values, X_train['rtt-location-l'].values, X_train['pbs-location-r'].values, X_train['protospacer-location-r'].values, X_train['rtt-location-r'].values, X_train['rtt-location-r'].values)):
         pbs_l = max(0, pbs_l)
         pbs_r = max(0, pbs_r)
         protospacer_l = max(0, protospacer_l)
@@ -491,6 +491,8 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
     # remove rows with nan values
     dp_dataset = dp_dataset.dropna()
     
+    sequence_length = len(dp_dataset['wt-sequence'].values[0])
+    
     # if percentage is less than 1, then use a subset of the data
     if percentage < 1:
         dp_dataset = dp_dataset.sample(frac=percentage, random_state=42)
@@ -535,7 +537,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
         for j in range(num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
-            m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=50, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False)
+            m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
             
             accelerator = Accelerator(mixed_precision='bf16')
             
@@ -560,8 +562,9 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                                     f_optimizer=None, 
                                     f_history=None,
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-3),
+                    # skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-3),
                     # skorch.callbacks.ProgressBar(),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.ReduceLROnPlateau, monitor='valid_loss', factor=0.5, patience=3, min_lr=1e-6),
                     # PrintParameterGradients()
                 ]
             )
