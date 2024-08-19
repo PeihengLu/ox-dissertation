@@ -265,7 +265,7 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
 
     return model
 
-def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_features: int, dropout: float, adjustment: str = None, source: str='dp') -> Tuple[Dict[int, np.ndarray], np.ndarray]:
+def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_features: int = 24, dropout: float = 0, adjustment: str = None, source: str='dp') -> Tuple[Dict[int, np.ndarray], np.ndarray]:
     """Make predictions using the DeepPrime model
 
     Args:
@@ -307,9 +307,9 @@ def predict_deep_prime(test_fname: str, hidden_size: int, num_layers: int, num_f
         y_test = torch.tensor(y_test, dtype=torch.float32)
         dp_model.initialize()
         if adjustment:
-            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
+            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
         else:
-            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
+            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
         
         y_pred = dp_model.predict(X_test)
         if adjustment == 'log':
