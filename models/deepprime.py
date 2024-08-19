@@ -261,9 +261,10 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
                 os.remove(os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history-tmp.json"))
         print("Training done.")
         
-        # save the 
+        del model
+        torch.cuda.empty_cache()
 
-    return model
+    # return model
 
 def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_features: int = 24, dropout: float = 0, adjustment: str = None, source: str='dp') -> Tuple[Dict[int, np.ndarray], np.ndarray]:
     """Make predictions using the DeepPrime model
