@@ -6,6 +6,10 @@ import torch
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import pandas as pd
+import numpy as np
+
+import logging
+log = logging.getLogger(__name__)
 
 # Define your PyTorch model (replace with your actual model)
 class DummyModel(torch.nn.Module):
@@ -16,8 +20,9 @@ model = DummyModel()
 
 @csrf_exempt
 def predict(request):
+    log.info('Predict request received')
     if request.method == 'POST':
-        print('POST request received')
+        log.info('POST request received')
         data = json.loads(request.body)
         sequence: str = data.get('dna_sequence', 0)
         pe_cell_line: str = data.get('pe_cell_line', 0)
@@ -28,12 +33,12 @@ def predict(request):
             'pe2': 'NGG',
         }
         
-        sequence = primesequenceparsing(sequence)
+        # sequence = primesequenceparsing(sequence)
         
         trained_on_pridict_only = ['k562', 'adv']
         
         # return the pegRNA design in std format
-        pegRNAs = propose_pegrna(sequence, pam_table[pe], cellline in trained_on_pridict_only)
+        pegRNAs = propose_pegrna(sequence, pam_table[pe], cellline in trained_on_pridict_only, edit_length=1, pam=pam_table[pe], pridict_only=cellline in trained_on_pridict_only)
         
         # load all models trained on the specified cell line and prime editors
         # then takes an average of the predictions
@@ -44,7 +49,7 @@ def predict(request):
         # parse user's input
         return JsonResponse(pegRNAs)
     else:
-        print('Invalid request method')
+        log.error('Invalid request method')
         return JsonResponse({'error': 'Invalid request method'}, status=400)
     
 def isDNA(sequence: str) -> bool:
@@ -160,6 +165,8 @@ def primesequenceparsing(sequence: str) -> object:
     else: 
         edited_seq = five_prime_seq + edited_base.lower() + three_prime_seq
 
+    
+
     if isDNA(edited_seq) and isDNA(original_seq):  # check whether sequences only contain AGCT
         pass
     else:
@@ -173,7 +180,7 @@ def primesequenceparsing(sequence: str) -> object:
     return original_base, edited_base, original_seq, edited_seq, editposition, mutation_type, correction_length#, basebefore_temp, baseafter_temp
 
 def propose_pegrna(wt_sequence: str, edit_position: int, mut_type: int, edit_length: int, pam: str, pridict_only: bool) -> pd.DataFrame:
-    pbs_len_range = range(8, 18) if not pridict_only else [13] 
+    pbs_len_range = np.range(8, 18) if not pridict_only else [13] 
     lha_len_range = range(0, 13)
     rha_len_range = range(7, 12)
     
@@ -253,4 +260,5 @@ def propose_pegrna(wt_sequence: str, edit_position: int, mut_type: int, edit_len
     
 
 def index(request):
+    log.info('Index request received')
     return render(request, 'predictapp/index.html')

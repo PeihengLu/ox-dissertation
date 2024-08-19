@@ -24,25 +24,24 @@
         .input-group {
             margin: 20px 0;
         }
-        input[type="text"] {
-            width: 500px; /* Increased width */
-            height: 200px; /* Increased height */
+        textarea {
+            width: 500px; /* Width of the textarea */
+            height: 200px; /* Height of the textarea */
             padding: 10px;
             font-size: 16px;
             box-sizing: border-box;
-            /* Wrap text */
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            /* align text to top */
-            vertical-align: top;
+            resize: none; /* Prevent resizing */
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
+            word-wrap: break-word; /* Ensure words break correctly */
+            line-height: 1.5; /* Adjust line height for better readability */
         }
-        input[type="text"]::placeholder {
-            vertical-align: top;
-            padding-top: 10px;
+
+        textarea::placeholder {
             font-size: 16px;
-            word-wrap: break-word;
-            /* align text to top */
-            vertical-align: top;
+            line-height: 1.5; /* Match the line height of the input text */
+            white-space: pre-wrap; /* Wrap placeholder text */
+            word-wrap: break-word; /* Ensure placeholder words break correctly */
+            color: #999; /* Light gray color */
         }
         .button-group {
             display: flex;
@@ -136,14 +135,15 @@
         <div class="input-group">
             <select id="editorCellType">
                 <option value="" disabled selected>Select Prime Editor and Cell Type</option>
-                <option value="pe2-hek293t">Prime Editor 1 - Cell Type 1</option>
-                <option value="pe2-k562">Prime Editor 2 - Cell Type 2</option>
-                <option value="pe2-adv">Prime Editor 3 - Cell Type 3</option>
+                <option value="pe2-hek293t">PE2 - HEK293T</option>
+                <option value="pe2-k562">PE2 - K562</option>
+                <option value="pe2-adv">PE2 - Adv</option>
                 <!-- Add more options as needed -->
             </select>
         </div>
         <div class="input-group">
-            <input type="text" id="dnaInput" placeholder="e.g. GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC" onfocus="this.placeholder=''" onblur="this.placeholder='e.g. GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC'">
+            <textarea id="dnaInput" placeholder="e.g. GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC">
+            </textarea>
         </div>
         <!-- Flex box to keep the two buttons side by side -->
         <div class="button-group">
@@ -176,24 +176,23 @@
                 return;
             }
 
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            setTimeout(function() {
-                const response = fetch('/predict/', {
+            // const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            const response = await fetch('/predict/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken,
+                    // 'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     dna_sequence: userInput,
-                    pe_cellline: pe_cell_line
+                    pe_cell_line: pe_cell_line
                 })
-                });
-                const data = response.json();
-                displayResult(data);
-                hideLoading();
-            }, 1000);
-            
+            });
+
+            const data = await response.json();
+            displayResult(data);
+            hideLoading();
         }
         function displayResult(data) {
             // TODO: example only, replace with the actual result display
