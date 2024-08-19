@@ -3,11 +3,10 @@ seaborn
 pandas
 numpy
 matplotlib
-scikit-learn
+scikit-learn==1.5.1
 torch==2.3.0
 ipykernel>=6.9
 django
 skorch
 biopython
-flash-attn --no-build-isolation
 accelerate
