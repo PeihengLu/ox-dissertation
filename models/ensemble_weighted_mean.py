@@ -4,6 +4,13 @@ Weighted mean implemented using a single layer neural network.
 import torch
 import skorch
 
+from typing import List
+from conventional_ml_models import mlp, ridge_regression, lasso_regression, xgboost, random_forest
+import pickle
+import pandas as pd
+
+from os.path import isfile, join as pjoin
+
 class WeightedMeanModel(torch.nn.Module):
     def __init__(self, n_regressors: int):
         """initialize the model
@@ -56,3 +63,61 @@ class WeightedMeanSkorch():
         
     def initialize(self):
         self.model.initialize()
+
+class EnsembleWeightedMean:
+    def __init__(self):
+        self.mlp = mlp()
+        self.ridge = ridge_regression()
+        self.lasso = lasso_regression()
+        self.xgboost = xgboost()
+        self.random_forest = random_forest()
+        self.models = [self.mlp, self.ridge, self.lasso, self.xgboost, self.random_forest]
+        self.ensemble = WeightedMeanSkorch(n_regressors=5)
+
+    # fit would load the models if trained, if not, it would train the models
+    def fit(self, data: str):
+        dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+        # dataset = dataset.sample(frac=percentage, random_state=42)
+        cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
+        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+
+        for i in range(5):
+            features = dataset.iloc[:, 2:26].values
+            target = dataset.iloc[:, -2].values
+            # load or train the base models
+            if not isfile(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'lasso-{data_source}-fold-{i+1}.pkl')):
+                print('Training Lasso')
+                self.lasso.fit(data_source, fold=i+1)
+            else:
+                with open(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'lasso-{data_source}-fold-{i+1}.pkl'), 'rb') as f:
+                    self.lasso = pickle.load(f)
+            
+            if not isfile(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'ridge-{data_source}-fold-{i+1}.pkl')):
+                print('Training Ridge')
+                self.ridge.fit(data_source, fold=i+1)
+            else:
+                with open(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'ridge-{data_source}-fold-{i+1}.pkl'), 'rb') as f:
+                    self.ridge = pickle.load(f)
+
+            if not isfile(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'xgboost-{data_source}-fold-{i+1}.pkl')):
+                print('Training XGBoost')
+                self.xgboost.fit(data_source, fold=i+1)
+            else:
+                with open(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'xgboost-{data_source}-fold-{i+1}.pkl'), 'rb') as f:
+                    self.xgboost = pickle.load(f)
+
+            if not isfile(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'random-forest-{data_source}-fold-{i+1}.pkl')):
+                print('Training Random Forest')
+                self.random_forest.fit(data_source, fold=i+1)
+            else:
+                with open(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'random-forest-{data_source}-fold-{i+1}.pkl'), 'rb') as f:
+                    self.random_forest = pickle.load(f)
+
+            if not isfile(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'mlp-{data_source}-fold-{i+1}.pkl')):
+                print('Training MLP')
+                # preprocess the training data
+                
+                self.mlp.fit(data_source, fold=i+1)
+            else:
+                with open(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'mlp-{data_source}-fold-{i+1}.pkl'), 'rb') as f:
+                    self.mlp = pickle.load(f)

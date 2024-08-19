@@ -1166,3 +1166,56 @@
   pmcid = {PMC3224126},
   file = {C:\Users\13954\Zotero\storage\44RZBCL2\Kavsan et al. - 2011 - Immortalized cells and one oncogene in malignant transformation old insights on new explanation.pdf}
 }
+
+@online{daoFlashAttention2FasterAttention2023,
+  title = {{{FlashAttention-2}}: {{Faster Attention}} with {{Better Parallelism}} and {{Work Partitioning}}},
+  shorttitle = {{{FlashAttention-2}}},
+  author = {Dao, Tri},
+  date = {2023-07-17},
+  eprint = {2307.08691},
+  eprinttype = {arXiv},
+  eprintclass = {cs},
+  doi = {10.48550/arXiv.2307.08691},
+  url = {http://arxiv.org/abs/2307.08691},
+  urldate = {2024-08-16},
+  abstract = {Scaling Transformers to longer sequence lengths has been a major problem in the last several years, promising to improve performance in language modeling and high-resolution image understanding, as well as to unlock new applications in code, audio, and video generation. The attention layer is the main bottleneck in scaling to longer sequences, as its runtime and memory increase quadratically in the sequence length. FlashAttention exploits the asymmetric GPU memory hierarchy to bring significant memory saving (linear instead of quadratic) and runtime speedup (2-4\$\textbackslash times\$ compared to optimized baselines), with no approximation. However, FlashAttention is still not nearly as fast as optimized matrix-multiply (GEMM) operations, reaching only 25-40\textbackslash\% of the theoretical maximum FLOPs/s. We observe that the inefficiency is due to suboptimal work partitioning between different thread blocks and warps on the GPU, causing either low-occupancy or unnecessary shared memory reads/writes. We propose FlashAttention-2, with better work partitioning to address these issues. In particular, we (1) tweak the algorithm to reduce the number of non-matmul FLOPs (2) parallelize the attention computation, even for a single head, across different thread blocks to increase occupancy, and (3) within each thread block, distribute the work between warps to reduce communication through shared memory. These yield around 2\$\textbackslash times\$ speedup compared to FlashAttention, reaching 50-73\textbackslash\% of the theoretical maximum FLOPs/s on A100 and getting close to the efficiency of GEMM operations. We empirically validate that when used end-to-end to train GPT-style models, FlashAttention-2 reaches training speed of up to 225 TFLOPs/s per A100 GPU (72\textbackslash\% model FLOPs utilization).},
+  pubstate = {prepublished},
+  keywords = {Computer Science - Machine Learning},
+  file = {C\:\\Users\\13954\\Zotero\\storage\\729KCZHW\\Dao - 2023 - FlashAttention-2 Faster Attention with Better Parallelism and Work Partitioning.pdf;C\:\\Users\\13954\\Zotero\\storage\\WW3FFPHL\\2307.html}
+}
+
+@inproceedings{raeTransformersNeedDeep2020,
+  title = {Do {{Transformers Need Deep Long-Range Memory}}?},
+  booktitle = {Proceedings of the 58th {{Annual Meeting}} of the {{Association}} for {{Computational Linguistics}}},
+  author = {Rae, Jack and Razavi, Ali},
+  editor = {Jurafsky, Dan and Chai, Joyce and Schluter, Natalie and Tetreault, Joel},
+  date = {2020-07},
+  pages = {7524--7529},
+  publisher = {Association for Computational Linguistics},
+  location = {Online},
+  doi = {10.18653/v1/2020.acl-main.672},
+  url = {https://aclanthology.org/2020.acl-main.672},
+  urldate = {2024-08-16},
+  abstract = {Deep attention models have advanced the modelling of sequential data across many domains. For language modelling in particular, the Transformer-XL — a Transformer augmented with a long-range memory of past activations — has been shown to be state-of-the-art across a variety of well-studied benchmarks. The Transformer-XL incorporates a long-range memory at every layer of the network, which renders its state to be thousands of times larger than RNN predecessors. However it is unclear whether this is necessary. We perform a set of interventions to show that comparable performance can be obtained with 6X fewer long range memories and better performance can be obtained by limiting the range of attention in lower layers of the network.},
+  eventtitle = {{{ACL}} 2020},
+  file = {C:\Users\13954\Zotero\storage\NEFC8W2C\Rae and Razavi - 2020 - Do Transformers Need Deep Long-Range Memory.pdf}
+}
+
+@article{fathiImprovingPrecipitationForecasts2019,
+  title = {Improving Precipitation Forecasts over {{Iran}} Using a Weighted Average Ensemble Technique},
+  author = {Fathi, Maede and Azadi, Majid and Kamali, Gholamali and Meshkatee, Amir Hussain},
+  date = {2019-05-13},
+  journaltitle = {Journal of Earth System Science},
+  shortjournal = {J Earth Syst Sci},
+  volume = {128},
+  number = {5},
+  pages = {133},
+  issn = {0973-774X},
+  doi = {10.1007/s12040-019-1145-2},
+  url = {https://doi.org/10.1007/s12040-019-1145-2},
+  urldate = {2024-08-18},
+  abstract = {In this paper, the ensemble-weighted mean (ENSWM) technique is experimented for improving 24- to 72-hr precipitation forecasts over Iran during autumn and winter 2011 and 2012. The ensemble prediction system (EPS), used in this research, consists of nine different configurations of the weather research and forecasting model. In this technique, weights for each ensemble member at each grid point are assigned on the basis of the correlation coefficient (CC) between ensemble members and observed daily rainfall during a training period. Apart from ENSWM, precipitation forecasts using the simple ensemble mean (ENSM) are also generated and compared. Results showed that, in general, the forecast errors are relatively high along the coasts of the Caspian Sea in northern and at the Zagros mountainous areas located in western Iran. The skill of the rainfall forecasts of the ENSWM is examined against ENSM and individual members of the ensemble. The 24- to 72-hr forecasts are evaluated using common statistical scores including root mean-squared error (RMSE), and anomaly CC (ACC) for continuous forecasts and probability of detection (POD) score and threat score for categorical forecasts. The comparison reveals that the ENSWM is able to provide more accurate forecast of rainfall over Iran by taking the strength of each constituent member of the ensemble. It has been further found that the precipitation forecast skill of ENSWM is higher than ENSM and each ensemble member in the short-range time scale over Iran. The rainfall prediction skill over Iran was improved significantly using the weighted ENSWM technique. Results clearly show the advantage of using an EPS for the prediction of precipitation over the country vs. a single deterministic forecast for operational purposes. The RMSE of 24-, 48- and 72-hr forecasts in ENSWM relative to ENSM is reduced by 2, 2 and 5\%, respectively. The CC increased by 15\% in the ENSWM relative to ENSM.},
+  langid = {english},
+  keywords = {ensemble forecast,ensemble-weighted mean (ENSWM) forecasting,Numerical weather prediction,rainfall prediction skill,simple ensemble mean (ENSM),WRF model},
+  file = {C:\Users\13954\Zotero\storage\SG2EMPGY\Fathi et al. - 2019 - Improving precipitation forecasts over Iran using a weighted average ensemble technique.pdf}
+}
