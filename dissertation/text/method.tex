@@ -445,9 +445,7 @@ However, as discussed in \autoref{sec:determinants}, the length of LHA, RHA and 
 
 Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths of LHA, RHA and PBS and the editing efficiency was analyzed using the all data in the DeepPime and PRIDICT datasets. Consistent with Yu et al, 2023's finding, editing editing efficiency plateaued with RHA length of 7-12bp, and is steadily high with a number of peaks until 20bp long, when the efficiency starts to decrease as the RHA grows.  As for LHA, the efficiency was shown to decrease with longer LHA length, with an elbow point at around 13bp, where the decrease in performance with regard to the lha length speeded up. Thus, the recommended distance between the nick and the edit location is set to 0-13bp, and this is only extended if no suitable PAM is found within the range. Last but not least, as expected, PBS length's impact on the editing efficiency is roughly normally distributed, with the highest efficiency at around 12bp. Decent performance can be observed from 8bp all the way up to the highest recorded value of 17bp, which covers the entire range of the protospacer upstream of the nick site. Thus, although the SHAP analysis showed that long PBS can be detrimental to the editing efficiency, the range of PBS length was still set to 8-17bp.
 
-In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}. The recommending range would result in a maximum of 585 pegRNAs (true number is usually much smaller as LHA location is heavily constrained), which would then be processed and evaluated by the model to produce the estimated editing efficiency.
-
-\begin{table}[h]
+\begin{table}[ht]
     \centering
     \begin{tabular}{c|c|c}
         % \hline
@@ -461,6 +459,10 @@ In summary, unless specified otherwise by the users, the algorithm would only pr
     \caption{Recommended range for LHA, RHA and PBS length}
     \label{tab:recommended-range}
 \end{table}
+
+In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}. The recommending range would result in a maximum of 585 pegRNAs (true number is usually much smaller as LHA location is heavily constrained), which would then be processed and evaluated by the model to produce the estimated editing efficiency.
+
+
 
 
 Limited by the scale and funding of this project, the web tool was not deployed to a public server, but instead packaged in a container for local use with Docker. 
@@ -482,7 +484,7 @@ The user can supply their target edit in the correct format in the input box, an
 
 \begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{webapp-table.png}
+    \includegraphics[width=0.6\textwidth]{webapp-table.png}
     \caption[pegRNA Design Web Tool Output]{Output of the pegRNA Design Web Tool. The output contains the position of the protospacer, RTT and PBS, as well as the predicted editing efficiency. For each pegRNA, the user can click on the `Visualize Sequence' button to see the composition of the pegRNA with regard to the wild type sequence.}
     \label{fig:webtool-output}
 \end{figure}
