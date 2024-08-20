@@ -9,6 +9,34 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
+            display: flex;
+        }
+        .side-banner {
+            background-color: #f0f0f0; /* Light gray color */
+            width: auto;
+            height: 100vh; /* Full height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .left-banner {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+        }
+        .right-banner {
+            position: fixed;
+            right: 0;
+            top: 0;
+            bottom: 0;
+        }
+        .content {
+            margin: 0 auto;
+            padding: 0;
+            width: calc(100% - 200px); /* Adjust width to account for side banners */
+            display: flex;
+            flex-direction: column;
         }
         .top-banner {
             background-color: #4CAF50;
@@ -22,26 +50,24 @@
             text-align: center;
         }
         .input-group {
-            margin: 20px 0;
+            margin: 10px 0;
         }
         textarea {
-            width: 500px; /* Width of the textarea */
-            height: 200px; /* Height of the textarea */
+            width: 500px;
+            height: 200px;
             padding: 10px;
             font-size: 16px;
             box-sizing: border-box;
-            resize: none; /* Prevent resizing */
-            white-space: pre-wrap; /* Preserve whitespace and wrap text */
-            word-wrap: break-word; /* Ensure words break correctly */
-            line-height: 1.5; /* Adjust line height for better readability */
+            resize: none;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
         }
 
         textarea::placeholder {
             font-size: 16px;
-            line-height: 1.5; /* Match the line height of the input text */
-            white-space: pre-wrap; /* Wrap placeholder text */
-            word-wrap: break-word; /* Ensure placeholder words break correctly */
-            color: #999; /* Light gray color */
+            line-height: 1.5;
+            color: #999;
         }
         .button-group {
             display: flex;
@@ -75,16 +101,16 @@
         }
         /* Loading Modal Styles */
         .modal {
-            display: none; /* Hidden by default */
-            position: fixed; /* Stay in place */
-            z-index: 1; /* Sit on top */
+            display: none;
+            position: fixed;
+            z-index: 1;
             left: 0;
             top: 0;
-            width: 100%; /* Full width */
-            height: 100%; /* Full height */
-            overflow: auto; /* Enable scroll if needed */
-            background-color: rgb(0,0,0); /* Fallback color */
-            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
             align-items: center;
             justify-content: center;
         }
@@ -113,53 +139,66 @@
             100% { transform: rotate(360deg); }
         }
         select {
-            width: 500px; /* Same width as input box */
-            height: 50px; /* Match height of input box */
+            width: 500px;
+            height: 50px;
             padding: 10px;
-            font-size: 18px; /* Match font size of input box */
+            font-size: 18px;
             box-sizing: border-box;
             margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <!-- Top banner  -->
-    <div class="top-banner">
-        <!-- <img src="logo.png" alt="Logo" style="height: 40px; vertical-align: middle;"> -->
-        Prime Prediction
+    <!-- Left Banner -->
+    <div class="side-banner left-banner">
+        
     </div>
 
-    <p style="text-align: center; margin: 20px 0;">Enter a DNA sequence including the desired edit and select the Prime Editor and Cell Type to get recommended guide designs. </p>
+    <div class="content">
+        <!-- Top banner  -->
+        <div class="top-banner">
+            Prime Prediction
+        </div>
 
-    <div class="container">
-        <div class="input-group">
-            <select id="editorCellType">
-                <option value="" disabled selected>Select Prime Editor and Cell Type</option>
-                <option value="pe2-hek293t">PE2 - HEK293T</option>
-                <option value="pe2-k562">PE2 - K562</option>
-                <option value="pe2-adv">PE2 - Adv</option>
-                <!-- Add more options as needed -->
-            </select>
+        <p class="container" style="margin-top: 20px; width: 80%; margin-left: auto; margin-right: auto; text-align: left;">
+            Enter a DNA sequence including the desired edit and select the Prime Editor and Cell Type to get recommended guide designs. 
+            The input should be in the format of {at least 100 bp}-{(preedit/postedit)}-{at least 100 bp}. For example, a deletion would be represented as <strong>(ATG/---)</strong>, an insertion would be represented as <strong>(---/ATG)</strong>, and a substitution would be represented as <strong>(ATG/GAT)</strong>.
+            An example input is shown in the text area below. Click the "Fill Test Example" button to populate the text area with the example input.
+        </p>
+
+        <div class="container">
+            <div class="input-group">
+                <select id="editorCellType">
+                    <option value="" disabled selected>Select Prime Editor and Cell Type</option>
+                    <option value="pe2-hek293t">PE2 - HEK293T</option>
+                    <option value="pe2-k562">PE2 - K562</option>
+                    <option value="pe2-adv">PE2 - Adv</option>
+                    <!-- Add more options as needed -->
+                </select>
+            </div>
+            <div class="input-group">
+                <textarea id="dnaInput" placeholder="e.g. GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC"></textarea>
+            </div>
+            <!-- Flex box to keep the two buttons side by side -->
+            <div class="button-group">
+                <button onclick="getPrediction()">Predict</button>
+                <button onclick="fillTestExample()">Fill Test Example</button>
+            </div>
         </div>
-        <div class="input-group">
-            <textarea id="dnaInput" placeholder="e.g. GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC">
-            </textarea>
-        </div>
-        <!-- Flex box to keep the two buttons side by side -->
-        <div class="button-group">
-            <button onclick="getPrediction()">Predict</button>
-            <button onclick="fillTestExample()">Fill Test Example</button>
+
+        <div id="resultTable" style="margin-top: 20px;"></div>
+
+         <!-- Loading Modal -->
+         <div id="loadingModal" class="modal">
+            <div class="modal-content">
+                <div class="loader"></div>
+                <p>Loading, please wait...</p>
+            </div>
         </div>
     </div>
 
-    <div id="resultTable" style="margin-top: 20px;"></div>
-
-     <!-- Loading Modal -->
-     <div id="loadingModal" class="modal">
-        <div class="modal-content">
-            <div class="loader"></div>
-            <p>Loading, please wait...</p>
-        </div>
+    <!-- Right Banner -->
+    <div class="side-banner right-banner">
     </div>
 
     <script>
@@ -176,13 +215,10 @@
                 return;
             }
 
-            // const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
             const response = await fetch('/predict/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // 'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     dna_sequence: userInput,
@@ -194,8 +230,8 @@
             displayResult(data);
             hideLoading();
         }
+
         function displayResult(data) {
-            // TODO: example only, replace with the actual result display
             var table = "<table><tr><th>Key</th><th>Value</th></tr>";
             for (var key in data) {
                 if (data.hasOwnProperty(key)) {
@@ -205,9 +241,11 @@
             table += "</table>";
             document.getElementById("resultTable").innerHTML = table;
         }
+
         function fillTestExample() {
             document.getElementById("dnaInput").value = "GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC";
         }
+
         function showLoading() {
             document.getElementById("loadingModal").style.display = "flex";
         }

@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from typing import Tuple
 
 # Create your views here.
 import json
@@ -33,153 +34,54 @@ def predict(request):
             'pe2': 'NGG',
         }
         
-        # sequence = primesequenceparsing(sequence)
         
         trained_on_pridict_only = ['k562', 'adv']
-        
+
+        wt_sequence, mut_sequence, edit_position, mut_type, edit_length = prime_sequence_parsing(sequence)
+
         # return the pegRNA design in std format
-        pegRNAs = propose_pegrna(sequence, pam_table[pe], cellline in trained_on_pridict_only, edit_length=1, pam=pam_table[pe], pridict_only=cellline in trained_on_pridict_only)
+        pegRNAs = propose_pegrna(sequence, mut_sequence, cellline in trained_on_pridict_only, edit_length=1, pam=pam_table[pe], pridict_only=cellline in trained_on_pridict_only)
         
         # load all models trained on the specified cell line and prime editors
         # then takes an average of the predictions
-        
-        # # make dummy prediction
-        # prediction = 
 
-        # parse user's input
         return JsonResponse(pegRNAs)
     else:
         log.error('Invalid request method')
         return JsonResponse({'error': 'Invalid request method'}, status=400)
     
-def isDNA(sequence: str) -> bool:
+def prime_sequence_parsing(sequence: str) -> Tuple[str, str, int, int, int]:
     """
-    Function to check whether a given sequence only contains AGCT.
+    Parse the sequence to extract the prime editing information
 
-    Parameters
-    ----------
-    sequence : str
-        Sequence to be checked.
+    Args:
+        sequence (str): DNA sequence inputted by the user
 
-    Returns
-    -------
-    bool
-        True if only AGCT, False otherwise.
-
+    Returns:
+        Tuple[str, str, int, int, int]: Tuple containing the wild type and mutated DNA sequence, edit position, mutation type, and edit length
     """
-    return set(sequence).issubset('AGCT')
+    pre_edit_sequence = sequence.split('(')[0]
+    post_edit_sequence = sequence.split(')')[1]
+    edit_position = len(pre_edit_sequence)
+    wt_edit = sequence[edit_position+1:]
+    wt_edit = wt_edit.split('/')[0]
+    edit_length = len(wt_edit)
+    mut_edit = sequence.split('/')[1][:edit_length]
+    if '-' in mut_edit: # deletion
+        mut_type = 2
+    elif '-' in wt_edit: # insertion
+        mut_type = 1
+    else: # substitution
+        mut_type = 0
+
+    wt_sequence = pre_edit_sequence + wt_edit + post_edit_sequence
+    mut_sequence = pre_edit_sequence + mut_edit + post_edit_sequence
+
+    return wt_sequence, mut_sequence, edit_position, mut_type, edit_length
 
 
-def primesequenceparsing(sequence: str) -> object:
-    """
-    Function which takes target sequence with desired edit as input and 
-    editing characteristics as output. Edit within brackets () and original
-    equence separated by backslash from edited sequence: (A/G) == A to G mutation.
-    Placeholder for deletions and insertions is '-'.
 
-    Parameters
-    ----------
-    sequence : str
-        Target sequence with desired edit in brackets ().
-
-    Returns
-    -------
-    five_prime_seq: str
-    three_prime_seq: str
-    original_seq: str
-    edited_seq: str
-    original_base: str
-    edited_base: str
-    editposition: int
-        DESCRIPTION.
-
-    """
-    
-    sequence = sequence.replace('\n','')  # remove any spaces or linebreaks in input
-    sequence = sequence.replace(' ','')
-    sequence = sequence.upper()
-    if sequence.count('(') != 1:
-        print(sequence)
-        print('More or less than one bracket found in sequence! Please check your input sequence.')
-        raise ValueError
-
-    five_prime_seq = sequence.split('(')[0]
-    three_prime_seq = sequence.split(')')[1]
-
-    sequence_set = set(sequence)
-    if '/' in sequence_set:
-        original_base = sequence.split('/')[0].split('(')[1]
-        edited_base = sequence.split('/')[1].split(')')[0]
-
-        # edit flanking bases should *not* be included in the brackets
-        if (original_base[0] == edited_base[0]) or (original_base[-1] == edited_base[-1]):
-            print(sequence)
-            print('Flanking bases should not be included in brackets! Please check your input sequence.')
-            raise ValueError
-    elif '+' in sequence_set:  #insertion
-        original_base = '-'
-        edited_base = sequence.split('+')[1].split(')')[0]
-    elif '-' in sequence_set:  #deletion
-        original_base = sequence.split('-')[1].split(')')[0]
-        edited_base = '-'
-
-    # ignore "-" in final sequences (deletions or insertions)
-    if original_base == '-':
-        original_seq = five_prime_seq + three_prime_seq
-        if edited_base != '-':
-            mutation_type = 1
-            correction_length = len(edited_base)
-        else:
-            print(sequence)
-            raise ValueError
-    else:
-        original_seq = five_prime_seq + original_base + three_prime_seq
-        if edited_base == '-':
-            mutation_type = 2
-            correction_length = len(original_base)
-        elif len(original_base) == 1 and len(edited_base) == 1:
-            if isDNA(original_base) and isDNA(edited_base):  # check if only AGCT is in bases
-                mutation_type = 0
-                correction_length = len(original_base)
-            else:
-                print(sequence)
-                print('Non DNA bases found in sequence! Please check your input sequence.')
-                raise ValueError
-        elif len(original_base) > 1 or len(edited_base) > 1:
-            if isDNA(original_base) and isDNA(edited_base):  # check if only AGCT is in bases
-                mutation_type = 0
-                if len(original_base) == len(
-                        edited_base):  # only calculate correction length if replacement does not contain insertion/deletion
-                    correction_length = len(original_base)
-                else:
-                    print(sequence)
-                    print('Only 1bp replacements or replacements of equal length (before edit/after edit) are supported! Please check your input sequence.')
-                    raise ValueError
-            else:
-                print(sequence)
-                print('Non DNA bases found in sequence! Please check your input sequence.')
-                raise ValueError
-
-    if edited_base == '-': # deletion
-        edited_seq = five_prime_seq + three_prime_seq
-    else: 
-        edited_seq = five_prime_seq + edited_base.lower() + three_prime_seq
-
-    
-
-    if isDNA(edited_seq) and isDNA(original_seq):  # check whether sequences only contain AGCT
-        pass
-    else:
-        raise ValueError
-
-    # basebefore_temp = five_prime_seq[
-    #                   -1:]  # base before the edit, could be changed with baseafter_temp if Rv strand is targeted (therefore the "temp" attribute)
-    # baseafter_temp = three_prime_seq[:1]  # base after the edit
-
-    editposition = len(five_prime_seq)
-    return original_base, edited_base, original_seq, edited_seq, editposition, mutation_type, correction_length#, basebefore_temp, baseafter_temp
-
-def propose_pegrna(wt_sequence: str, edit_position: int, mut_type: int, edit_length: int, pam: str, pridict_only: bool) -> pd.DataFrame:
+def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_type: int, edit_length: int, pam: str, pridict_only: bool) -> pd.DataFrame:
     pbs_len_range = np.range(8, 18) if not pridict_only else [13] 
     lha_len_range = range(0, 13)
     rha_len_range = range(7, 12)
