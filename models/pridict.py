@@ -635,7 +635,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
     # device
     device = torch.device('cuda')
     
-    for i in range(3, fold):
+    for i in range(fold):
         print(f'Fold {i+1} of {fold}')
         
         # if os.path.isfile(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt")):
@@ -656,7 +656,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         
         best_val_loss = np.inf
     
-        for j in range(num_runs):
+        for j in range(2, num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
             m = Pridict(input_dim=5,hidden_dim=32, sequence_length=sequence_length, dropout=dropout)
