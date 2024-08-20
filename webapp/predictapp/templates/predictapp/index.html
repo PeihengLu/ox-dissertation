@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,34 +11,54 @@
             margin: 0;
             padding: 0;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            /* Ensure the body takes full viewport height */
         }
+
         .side-banner {
-            background-color: #f0f0f0; /* Light gray color */
+            background-color: #f0f0f0;
+            /* Light gray color */
             width: auto;
-            height: 100vh; /* Full height */
+            height: 100vh;
+            /* Full height */
             display: flex;
             align-items: center;
             justify-content: center;
         }
+
         .left-banner {
             position: fixed;
             left: 0;
             top: 0;
             bottom: 0;
         }
+
         .right-banner {
             position: fixed;
             right: 0;
             top: 0;
             bottom: 0;
         }
+
         .content {
-            margin: 0 auto;
-            padding: 0;
-            width: calc(100% - 200px); /* Adjust width to account for side banners */
+            width: 80%;
+            /* Responsive width */
+            max-width: 1000px;
+            /* Maximum width for larger screens */
+            margin: auto;
+            /* Center horizontally */
+            padding: 20px;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            background-color: #fff;
+            /* Optional: Add a background color to content */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            /* Optional: Add a slight shadow for better visibility */
         }
+
         .top-banner {
             background-color: #4CAF50;
             color: white;
@@ -45,13 +66,16 @@
             padding: 10px 0;
             font-size: 24px;
         }
+
         .container {
             padding: 20px;
             text-align: center;
         }
+
         .input-group {
             margin: 10px 0;
         }
+
         textarea {
             width: 500px;
             height: 200px;
@@ -69,12 +93,14 @@
             line-height: 1.5;
             color: #999;
         }
+
         .button-group {
             display: flex;
             justify-content: center;
             gap: 10px;
             margin-top: 20px;
         }
+
         button {
             background-color: #4CAF50;
             color: white;
@@ -83,22 +109,62 @@
             font-size: 16px;
             cursor: pointer;
         }
+
         button:hover {
             background-color: #45a049;
         }
+
         table {
             margin: 20px auto;
             border-collapse: collapse;
-            width: 80%;
+            width: 70%;
+            max-height: 400px;
+            overflow-x: auto;
+            /* Horizontal scroll */
+            overflow-y: auto;
+            /* Enable vertical scrolling */
+            display: block;
+            /* Required for horizontal scrolling */
         }
-        table, th, td {
+
+        table th,
+        table td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 4px 8px;
+            /* Reduce padding to make cells smaller */
+            white-space: nowrap;
+            text-align: center;
+            /* Center the text horizontally */
+            vertical-align: middle;
+            /* Center the text vertically */
+            font-size: 14px;
+            /* Optional: Smaller font size for more compact cells */
         }
+
         th {
             background-color: #4CAF50;
             color: white;
+            cursor: pointer;
+            /* Show pointer cursor on headers */
         }
+
+        th.sortable:hover {
+            background-color: #45a049;
+            /* Highlight on hover */
+        }
+
+        .visualize-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .visualize-btn:hover {
+            background-color: #1976D2;
+        }
+
         /* Loading Modal Styles */
         .modal {
             display: none;
@@ -109,11 +175,12 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgb(0,0,0);
-            background-color: rgba(0,0,0,0.4);
+            background-color: rgb(0, 0, 0);
+            background-color: rgba(0, 0, 0, 0.4);
             align-items: center;
             justify-content: center;
         }
+
         /* waiting prompt */
         .modal-content {
             background-color: white;
@@ -125,6 +192,7 @@
             text-align: center;
             position: relative;
         }
+
         .loader {
             border: 16px solid #f3f3f3;
             border-radius: 50%;
@@ -134,10 +202,17 @@
             animation: spin 2s linear infinite;
             margin: auto;
         }
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
+
         select {
             width: 500px;
             height: 50px;
@@ -146,13 +221,88 @@
             box-sizing: border-box;
             margin-top: 10px;
         }
+
+        /*  Visualization Styles */
+        .visualization-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-top: 20px;
+            width: 100%;
+            /* Ensure it takes up the full width */
+            overflow-x: auto;
+            /* Enable horizontal scrolling */
+        }
+
+        .dna-sequence {
+            display: flex;
+            /* Align items in a row */
+            gap: 2px;
+            margin: 10px 0;
+            overflow-x: auto;
+            /* Enable horizontal scrolling */
+            white-space: nowrap;
+            /* Prevent wrapping */
+        }
+
+        .dna-sequence .nucleotide {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            font-size: 12px;
+            font-family: monospace;
+            box-sizing: border-box;
+            /* Ensure padding and border are included in width/height */
+        }
+
+        .region-label {
+            margin: 5px 0;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+        }
+
+        .bracket-row {
+            position: relative;
+            height: 15px;
+            margin-top: 5px;
+            /* Increased margin to add space between bracket rows */
+        }
+
+        .bracket-region {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 0;
+            border-top: 2px solid #FF5733;
+            /* Red line for bracket */
+            width: 100%;
+        }
+
+        .bracket-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            /* Optional: background to cover line under text */
+            padding: 0 2px;
+            /* Optional: spacing around the label */
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+            /* Prevents the label from interfering with clicks */
+        }
     </style>
 </head>
+
 <body>
-    <!-- Left Banner -->
+    <!-- Left Banner
     <div class="side-banner left-banner">
-        
-    </div>
+    </div> -->
 
     <div class="content">
         <!-- Top banner  -->
@@ -160,10 +310,15 @@
             Prime Prediction
         </div>
 
-        <p class="container" style="margin-top: 20px; width: 80%; margin-left: auto; margin-right: auto; text-align: left;">
-            Enter a DNA sequence including the desired edit and select the Prime Editor and Cell Type to get recommended guide designs. 
-            The input should be in the format of {at least 100 bp}-{(preedit/postedit)}-{at least 100 bp}. For example, a deletion would be represented as <strong>(ATG/---)</strong>, an insertion would be represented as <strong>(---/ATG)</strong>, and a substitution would be represented as <strong>(ATG/GAT)</strong>.
-            An example input is shown in the text area below. Click the "Fill Test Example" button to populate the text area with the example input.
+        <p class="container"
+            style="margin-top: 20px; width: 80%; margin-left: auto; margin-right: auto; text-align: left;">
+            Enter a DNA sequence including the desired edit and select the Prime Editor and Cell Type to get recommended
+            guide designs.
+            The input should be in the format of {at least 100 bp}-{(preedit/postedit)}-{at least 100 bp}. For example,
+            a deletion would be represented as <strong>(ATG/---)</strong>, an insertion would be represented as
+            <strong>(---/ATG)</strong>, and a substitution would be represented as <strong>(ATG/GAT)</strong>.
+            An example input is shown in the text area below. Click the "Fill Test Example" button to populate the text
+            area with the example input.
         </p>
 
         <div class="container">
@@ -177,7 +332,8 @@
                 </select>
             </div>
             <div class="input-group">
-                <textarea id="dnaInput" placeholder="e.g. GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC"></textarea>
+                <textarea id="dnaInput"
+                    placeholder="e.g. GCCTGGAGGTGTCTGGGTCCCTCCCCCACCCGACTACTTCACTCTCTGTCCTCTCTGCCCAGGAGCCCAGGATGTGCGAGTTCAAGTGGCTACGGCCGA(GTG/CAA)GTGCGAGGCCAGCTCGGGGGCACCGTGGAGCTGCCGTGCCACCTGCTGCCACCTGTTCCTGGACTGTACATCTCCCTGGTGACCTGGCAGCGCCCAGATGCACCTGCGAACCACCAGAATGTGGCCGC"></textarea>
             </div>
             <!-- Flex box to keep the two buttons side by side -->
             <div class="button-group">
@@ -188,26 +344,31 @@
 
         <div id="resultTable" style="margin-top: 20px;"></div>
 
-         <!-- Loading Modal -->
-         <div id="loadingModal" class="modal">
+        <!-- Loading Modal -->
+        <div id="loadingModal" class="modal">
             <div class="modal-content">
                 <div class="loader"></div>
                 <p>Loading, please wait...</p>
             </div>
         </div>
+        <div id="visualizationContainer"
+            style="margin-top: 20px; text-align: left; width: 80%; margin-left: auto; margin-right: auto;"></div>
     </div>
 
     <!-- Right Banner -->
-    <div class="side-banner right-banner">
-    </div>
+    <!-- <div class="side-banner right-banner">
+    </div> -->
 
     <script>
+        let globalData = [];
+        let fullSequence = "";
+
         async function getPrediction() {
             showLoading();
             const userInput = document.getElementById('dnaInput').value;
             // Get the selected Prime Editor and Cell Type
             const pe_cell_line = document.getElementById('editorCellType').value;
-            
+
             // user must make a selection before proceeding
             if (!pe_cell_line) {
                 alert("Please select a Prime Editor and Cell Type before proceeding.");
@@ -215,31 +376,148 @@
                 return;
             }
 
-            const response = await fetch('/predict/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    dna_sequence: userInput,
-                    pe_cell_line: pe_cell_line
-                })
-            });
+            if (!userInput) {
+                alert("Please enter a DNA sequence before proceeding.");
+                hideLoading();
+                return;
+            }
 
-            const data = await response.json();
-            displayResult(data);
-            hideLoading();
+            try {
+                const response = await fetch('/predict/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        dna_sequence: userInput,
+                        pe_cell_line: pe_cell_line
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                fullSequence = data['full_sequence'];
+                const pegRNA = data['pegRNAs'];
+
+                // Ensure pegRNA is correctly retrieved and parsed
+                if (Array.isArray(pegRNA)) {
+                    globalData = pegRNA.map((row) => ({
+                        ...row,
+                        wt_sequence: row.wt_sequence || '',
+                        mut_sequence: row.mut_sequence || '',
+                        mut_type: row.mut_type || '',
+                    }));
+                    // Removing wt_sequence and mut_sequence for table display
+                    const displayData = globalData.map(({ wt_sequence, mut_sequence, mut_type, ...rest }) => rest);
+                    displayResult(displayData);
+                } else {
+                    alert("No pegRNA data found.");
+                }
+            } catch (error) {
+                alert("An error occurred: " + error.message);
+            } finally {
+                hideLoading();
+            }
         }
 
         function displayResult(data) {
-            var table = "<table><tr><th>Key</th><th>Value</th></tr>";
-            for (var key in data) {
-                if (data.hasOwnProperty(key)) {
-                    table += "<tr><td>" + key + "</td><td>" + data[key] + "</td></tr>";
+            if (Array.isArray(data) && data.length > 0) {
+                var table = "<table><tr>";
+
+                table += "<th>S. No.</th>";
+
+                // Add table headers
+                for (var key in data[0]) {
+                    if (data[0].hasOwnProperty(key)) {
+                        table += "<th>" + key + "</th>";
+                    }
                 }
+                table += "<th>Actions</th>"; // Add an Actions column
+                table += "</tr>";
+
+                // Add rows with data and a button
+                data.forEach(function (row, index) {
+                    // add index as the first column
+                    table += "<tr>";
+                    table += "<td>" + (index + 1) + "</td>";
+                    for (var key in row) {
+                        if (row.hasOwnProperty(key)) {
+                            table += "<td>" + row[key] + "</td>";
+                        }
+                    }
+                    // Add the visualize button
+                    table += `<td><button class="visualize-btn" onclick="visualizeSequence(${index})">Visualize Sequence</button></td>`;
+                    table += "</tr>";
+                });
+
+                table += "</table>";
+                document.getElementById("resultTable").innerHTML = table;
+            } else {
+                document.getElementById("resultTable").innerHTML = "<p>No data available</p>";
             }
-            table += "</table>";
-            document.getElementById("resultTable").innerHTML = table;
+        }
+
+        // Function to visualize the sequence
+        function visualizeSequence(rowIndex) {
+            if (!globalData || globalData.length === 0) {
+                alert("No data available for visualization.");
+                return;
+            }
+
+            const rowData = globalData[rowIndex];
+
+            if (!rowData) {
+                alert("Invalid data for visualization.");
+                return;
+            }
+
+            const wtSequence = JSON.parse(JSON.stringify(fullSequence)).split('');
+            const protospacerStart = rowData.protospacer_location_l;
+            const protospacerEnd = rowData.protospacer_location_r - 1;
+            const pbsStart = rowData.pbs_location_l;
+            const pbsEnd = rowData.pbs_location_r - 1;
+            const rttStart = rowData.rtt_location_l;
+            const rttEnd = rowData.rtt_location_r - 1;
+
+            // Generate the nucleotide sequence as a series of divs
+            let dnaSequenceHtml = wtSequence.map((nucleotide, index) => {
+                return `<div class="nucleotide">${nucleotide}</div>`;
+            }).join('');
+
+            // Create separate rows for each bracket
+            const protospacerBracket = `
+                <div class="bracket-row" style="width: ${(protospacerEnd - protospacerStart + 1) * 22}px; left: ${protospacerStart * 22}px;">
+                    <div class="bracket-region"></div>
+                    <div class="bracket-label">Protospacer</div>
+                </div>`;
+            const pbsBracket = `
+                <div class="bracket-row" style="width: ${(pbsEnd - pbsStart + 1) * 22}px; left: ${pbsStart * 22}px;">
+                    <div class="bracket-region"></div>
+                    <div class="bracket-label">PBS</div>
+                </div>`;
+            const rttBracket = `
+                <div class="bracket-row" style="width: ${(rttEnd - rttStart + 1) * 22}px; left: ${rttStart * 22}px;">
+                    <div class="bracket-region"></div>
+                    <div class="bracket-label">RTT</div>
+                </div>`;
+
+            const visualization = `
+                <h3>Sequence Visualization for pegRNA ${rowIndex + 1}</h3>
+                <div class="visualization-container">
+                    <div class="region-label">Wild-Type Sequence</div>
+                    <div class="dna-sequence">${dnaSequenceHtml}</div>
+                    <div style="position: relative; width: ${wtSequence.length * 22}px;">
+                        ${protospacerBracket}
+                        ${pbsBracket}
+                        ${rttBracket}
+                    </div>
+                </div>`;
+
+            document.getElementById('visualizationContainer').innerHTML = visualization;
+            document.getElementById('visualizationContainer').scrollIntoView();
         }
 
         function fillTestExample() {
@@ -255,4 +533,5 @@
         }
     </script>
 </body>
+
 </html>

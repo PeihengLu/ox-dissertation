@@ -29,6 +29,8 @@ def predict(request):
         pe_cell_line: str = data.get('pe_cell_line', 0)
         
         pe, cellline = pe_cell_line.split('-')
+        pe = pe.lower()
+        cellline = cellline.lower()
         
         pam_table = {
             'pe2': 'NGG',
@@ -40,12 +42,21 @@ def predict(request):
         wt_sequence, mut_sequence, edit_position, mut_type, edit_length = prime_sequence_parsing(sequence)
 
         # return the pegRNA design in std format
-        pegRNAs = propose_pegrna(sequence, mut_sequence, cellline in trained_on_pridict_only, edit_length=1, pam=pam_table[pe], pridict_only=cellline in trained_on_pridict_only)
+        pegRNAs = propose_pegrna(wt_sequence=wt_sequence, mut_sequence=mut_sequence, edit_position=edit_position, mut_type=mut_type, edit_length=edit_length, pam=pam_table[pe], pridict_only=cellline in trained_on_pridict_only)
         
         # load all models trained on the specified cell line and prime editors
         # then takes an average of the predictions
+        # TODO implement the model loading and prediction
+        # TODO realign the locations to starting from 10 bp upstream of the protospacer
+        pegRNAs['editing_efficiency'] = [0.1 for _ in range(len(pegRNAs))]
 
-        return JsonResponse(pegRNAs)
+        # return the pegRNAs as well as the original sequence
+        response = {
+            'pegRNAs': pegRNAs.to_dict(orient='records'),
+            'full_sequence': wt_sequence,
+        }
+
+        return JsonResponse(response, safe=False)
     else:
         log.error('Invalid request method')
         return JsonResponse({'error': 'Invalid request method'}, status=400)
@@ -80,11 +91,10 @@ def prime_sequence_parsing(sequence: str) -> Tuple[str, str, int, int, int]:
     return wt_sequence, mut_sequence, edit_position, mut_type, edit_length
 
 
-
 def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_type: int, edit_length: int, pam: str, pridict_only: bool) -> pd.DataFrame:
-    pbs_len_range = np.range(8, 18) if not pridict_only else [13] 
-    lha_len_range = range(0, 13)
-    rha_len_range = range(7, 12)
+    pbs_len_range = np.arange(8, 18) if not pridict_only else [13] 
+    lha_len_range = np.arange(0, 13)
+    rha_len_range = np.arange(7, 20)
     
     # in the range of lha length, scan for PAM sequences
     # edit must start before 3bp upstream of the PAM
@@ -96,69 +106,79 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
     pbs_location_r = []
     lha_location_l = []
     lha_location_r = []
-    rha_location_wt_l = []
-    rha_location_wt_r = []
-    rha_location_mut_l = []
-    rha_location_mut_r = []
-    rtt_location_wt_l = []
-    rtt_location_wt_r = []
-    rtt_location_mut_l = []
-    rtt_location_mut_r = []
+    rha_location_l = []
+    rha_location_r = []
+    rtt_location_l = []
+    rtt_location_r = []
     sp_cas9_score = []
-    mut_type = []
+    mut_types = []
     # 99bp sequence starting from 10bp upstream of the protospacer
-    wt_sequence = []
-    mut_sequence = []
+    wt_sequences = []
+    mut_sequences = []
     
-    
-    for distance_to_pam in edit_to_pam_range:
-        pass
-    
-    # return dummy data
-    for i in range(10):
-        protospacer_location_l.append(10)
-        protospacer_location_r.append(20)
-        pbs_location_l.append(5)
-        pbs_location_r.append(8)
-        lha_location_l.append(0)
-        lha_location_r.append(3)
-        rha_location_wt_l.append(20)
-        rha_location_wt_r.append(25)
-        rha_location_mut_l.append(20)
-        rha_location_mut_r.append(25)
-        rtt_location_wt_l.append(25)
-        rtt_location_wt_r.append(30)
-        rtt_location_mut_l.append(25)
-        rtt_location_mut_r.append(30)
-        sp_cas9_score.append(0.9)
-        mut_type.append(0)
-        wt_sequence.append('wt_sequence')
-        mut_sequence.append('mut_sequence')
-    
+    for pam_distance_to_edit in edit_to_pam_range:
+        # no valid PAM sequence
+        # PAM is 3bp downstream of nicking site
+        # nicking site is the end of PBS and start of LHA
+        pam_position = edit_position - pam_distance_to_edit
+        if not match_pam(wt_sequence[edit_position - pam_position: edit_position - pam_position + len(pam)] , pam):
+            continue
+        nicking_site = pam_position - 3
+        for pbs_len in pbs_len_range:
+            for rha_len in rha_len_range:
+                # logging.info(f'PAM position: {pam_position}, PBS length: {pbs_len}, RHA length: {rha_len}')
+                pbs_location_l.append(nicking_site - pbs_len)
+                pbs_location_r.append(nicking_site)
+                lha_location_l.append(nicking_site)
+                lha_location_r.append(edit_position)
+                rha_location_l.append(edit_position + edit_length)
+                rha_location_r.append(edit_position + edit_length + rha_len)
+                protospacer_location_l.append(pam_position - 20)
+                protospacer_location_r.append(pam_position)
+                wt_sequences.append(wt_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
+                mut_sequences.append(mut_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
+                # TODO figure out deepspcas9 score
+                sp_cas9_score.append(0.5)
+                rtt_location_l.append(lha_location_l[-1])
+                rtt_location_r.append(rha_location_r[-1])
+                mut_types.append(mut_type)
+
     
     df = pd.DataFrame({
-        'protospacer_location_l': protospacer_location_l,
-        'protospacer_location_r': protospacer_location_r,
         'pbs_location_l': pbs_location_l,
         'pbs_location_r': pbs_location_r,
         'lha_location_l': lha_location_l,
         'lha_location_r': lha_location_r,
-        'rha_location_wt_l': rha_location_wt_l,
-        'rha_location_wt_r': rha_location_wt_r,
-        'rha_location_mut_l': rha_location_mut_l,
-        'rha_location_mut_r': rha_location_mut_r,
-        'rtt_location_wt_l': rtt_location_wt_l,
-        'rtt_location_wt_r': rtt_location_wt_r,
-        'rtt_location_mut_l': rtt_location_mut_l,
-        'rtt_location_mut_r': rtt_location_mut_r,
+        'rha_location_l': rha_location_l,
+        'rha_location_r': rha_location_r,
+        'protospacer_location_l': protospacer_location_l,
+        'protospacer_location_r': protospacer_location_r,
+        'rtt_location_l': rtt_location_l,
+        'rtt_location_r': rtt_location_r,
         'sp_cas9_score': sp_cas9_score,
-        'mut_type': mut_type,
-        'wt_sequence': wt_sequence,
-        'mut_sequence': mut_sequence,
+        'mut_type': mut_types,
+        'wt_sequence': wt_sequences,
+        'mut_sequence': mut_sequences
     })
-    json_data = df.to_json(orient='records')
-    return json_data
+
+    return df
     
+def match_pam(sequence: str, pam: str) -> bool:
+    """
+    Check if the sequence is a valid PAM sequence
+
+    Args:
+        sequence (str): DNA sequence
+        pam (str): PAM sequence
+    
+    Returns:
+        bool: True if the sequence is a valid PAM sequence, False otherwise
+    """
+    # N refers to any nucleotide
+    for i in range(len(pam)):
+        if pam[i] != 'N' and sequence[i] != pam[i]:
+            return False
+    return True
     
 
 def index(request):

@@ -734,6 +734,9 @@ def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dr
     # device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    print(f'Predicting PRIDICT model...')
+    print(f'Using device: {device}')
+
     # Load the models
     for i, model in enumerate(models):
         test_data = test_data_all[test_data_all['fold']==i]
@@ -741,19 +744,21 @@ def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dr
         y_test = test_data.iloc[:, -2]
         X_test = preprocess_pridict(X_test)
         y_test = y_test.values
-        y_test = y_test.reshape(-1, 1)
-        y_test = torch.tensor(y_test, dtype=torch.float32)
         pd_model.initialize()
         # if adjustment:
         #     pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
         # else:
         pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
+
+        print(f'Predicting fold {i+1}...')
         
-        y_pred = pd_model.predict(X_test)
+        y_pred = pd_model.predict(X_test).flatten()
         # if adjustment == 'log':
         #     y_pred = np.expm1(y_pred)
 
-        pearson = np.corrcoef(y_test.T, y_pred.T)[0, 1]
+        print(f'Fold {i + 1} RMSE: {np.sqrt(np.mean((y_test - y_pred)**2))}')
+
+        pearson = np.corrcoef(y_test, y_pred)[0, 1]
         spearman = scipy.stats.spearmanr(y_test, y_pred)[0]
 
         print(f'Fold {i + 1} Pearson: {pearson}, Spearman: {spearman}')
@@ -761,4 +766,7 @@ def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dr
         prediction[i] = y_pred
         performance.append((pearson, spearman))
     
+    del pd_model, m
+    torch.cuda.empty_cache()
+
     return prediction, performance

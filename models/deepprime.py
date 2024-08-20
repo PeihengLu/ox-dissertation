@@ -323,5 +323,8 @@ def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int 
 
         prediction[i] = y_pred
         performance.append((pearson, spearman))
+
+    del dp_model    
+    torch.cuda.empty_cache()
     
     return prediction, performance

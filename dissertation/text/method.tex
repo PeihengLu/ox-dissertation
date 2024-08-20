@@ -331,11 +331,13 @@ To get an understanding of the suitability of the ensemble learning and establis
         % \caption{Spearman Correlation of the Error of the Individual Models}
         \label{fig:spearman-correlation}
     }
-    \caption[Error Analysis of the Individual Models]{Error Analysis of the Individual Models on the PRIDICT HEK293T dataset. \textbf{(a)} The distribution of the error of the individual models. \textbf{(b)} The Pearson correlation of the error of the individual models. \textbf{(c)} The Spearman correlation of the error of the individual models.}
+    \caption[Error Analysis of the Individual Models]{Error Analysis of the Individual Models on the DeepPrime HEK293T dataset. \textbf{(a)} The distribution of the error of the individual models at each example, smoothened using a  \textbf{(b)} The Pearson correlation of the error of the individual models. \textbf{(c)} The Spearman correlation of the error of the individual models.}
     \label{fig:error-analysis}
 \end{figure}
 
-Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$). 
+Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$ for all model pairs, and $R>0.5$ for all pairs except Ridge and Lasso regressions with other models). Spearman's correlation was more informative in this case, as the low target values of majority of the DeepPrime HEK293T dataset could easily result in a high Pearson correlation, and we care more about the ranking of the predicted efficiencies in this task when comparing different pegRNA designs.
+
+The ridge and lasso regression models had 100\% correlation, as they are essentially the same model with different penalty terms. This ruled out the necessity of using both models in the ensemble, and only the ridge regression was preserved due to its superior stability, as lasso regression's L1 regularization can result in zeros in coefficients and cause abrupt changes in the prediction. 
 
 \subsection{Ensemble Using Weighted Averaging}
 
@@ -364,7 +366,7 @@ The transformer architecture was a ground breaking innovation in the field of NL
 
 It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}. In their task, the transformer model was used to predict the bystander editing efficiency of the base editors given a protospacer location. The bystander editing refers to the phenomenon where the base editor induces unintended edits in the DNA sequence by modifying other targetable nucleotides in the vicinity of the activity window. A number of possible edits result and its corresponding efficiency were inputted into the model during training, and the model can output the efficiency of all possible outcome during inference, even if the outcome was not observed during training. Although having slightly lower performance when compared to other models focusing on predicting the intended edits, the transformer model was able to predict the bystander editing efficiency with far superior accuracy.
 
-The success of BE-DICT in predicting the bystander editing efficiency suggests that the transformer model is more than capable of capturing the complex relationship between the wild type and edited sequences. This prompted me to utilize the transformer model in the task of prime editing efficiency prediction.
+The success of BE-DICT in predicting the bystander editing efficiency suggests that the transformer model may be capable of capturing the complex relationship between the wild type and edited sequences. This prompted me to utilize this architecture in the task of prime editing efficiency prediction, which involves a similar targeting mechanism as base editing.
 
 
 \subsection{Model Architecture}
@@ -376,8 +378,6 @@ To help the transformer model better understand the difference between wild type
 
 The wild type sequence is then inputted into the transformer encoder, composed of a self-attention layer and a feed forward layer. The self-attention layer is used to capture the relationship between the nucleotides in the sequence, while the positional feed forward layer further transforms the representation and introduces non-linearity with the activation function. Similarly, the mutated sequence is inputted into the transformer decoder, starting with the same self
 attention layer and positional feed forward layer. The output of the encoder and decoder are then processed by the cross attention layer, using the output of the encoder as the query and the output of the decoder as the key and value. After the cross attention layer, the output is processed by another positional feed forward layer, and then flattened with a linear layer to produce the final embedding. Residual connections and layer normalization were also used after each multi-head attention and positional feed forward layer to stabilize the training process.
-
-
 
 \begin{figure}
     \centering
@@ -480,4 +480,18 @@ suppose that the user is in the root directory of the project. The web tool can 
 
 The user can supply their target edit in the correct format in the input box, and can also uses the test example by clicking the `Use Test Example' button. The PE and Cell Line should also be selected from the dropdown menu above the text box before running the prediction, shown in \autoref{fig:webtool}. Any errors in the input would be communicated to the users with browser notifications. 
 
-After the user submits the input, the web tool would process the input and return the a number of proposed pegRNAs in a table format. The output contains the position of the protospacer, RTT and PBS, as well as the predicted editing efficiency.
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{webapp-table.png}
+    \caption[pegRNA Design Web Tool Output]{Output of the pegRNA Design Web Tool. The output contains the position of the protospacer, RTT and PBS, as well as the predicted editing efficiency. For each pegRNA, the user can click on the `Visualize Sequence' button to see the composition of the pegRNA with regard to the wild type sequence.}
+    \label{fig:webtool-output}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{webapp-visualization.png}
+    \caption[pegRNA Design Web Tool Visualization]{Visualization of the pegRNA Design Web Tool. The composition of the pegRNA with regard to the wild type sequence is shown, with the brackets indicating the position of the protospacer, RTT and PBS.}
+    \label{fig:webtool-visualize}
+\end{figure}
+
+After the user submits the input, the web tool would process the input and return the a number of proposed pegRNAs in a table format. The output contains the position of the protospacer, RTT and PBS, as well as the predicted editing efficiency. For each pegRNA, the user can click on the `Visualize Sequence' button to see the composition of the pegRNA with regard to the wild type sequence.
