@@ -9,6 +9,9 @@ For a more thorough comparison, the trained models were also fine tuned on the s
 \section{Benchmarking}
 
 % TODO: add references to the section and appendix after including the results
-Although both PRIDICT and DeepPrime uses different features, as seen in the ensemble section as well as appendix, for a more direct comparison of the architecture, both models were retrained using the features selected from this study. Since all models use the same number of features, the data is hot swapped between the models, and can thus be used on other feature sets if desired in the future. 
+As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime uses different features, for a more direct comparison of the architecture, both models were retrained using the features selected from this study. Since all models use the same number of features, the data is hot swappable between the models, allowing for easier retraining if a more optimal feature set is found.
 
 \section{Attention Analysis}
+\label{sec:attention_analysis}
+
+To interpret the transformer model's decision making process, the attention weights of the cross attention layer were visualized. 

@@ -206,7 +206,7 @@ To help the models trained on PRIDICT datasets work on unseen data supplied by t
     \subfigure[Replacement]{
         \includegraphics[width=0.3\textwidth]{shap-pd-hek293t-pe2-replace.png}
     }
-    \caption[SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line.]{SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line: \textbf{(a)} Top 15 determinants from SHAP analysis using all of DeepPrime HEK293T Datasets. \textbf{(b-d)} Top 10 determinants from SHAP analysis using PRIDICT2.0 HEK293T data for each individual editing types. The colour of the individual data point shows their normalized values from high (red) to low (blue). The binary values have 1 (True) for high and 0 (False) for low. A number of shorthands have been used to improve the clarity of the illustrations. gcc for GC Content (different from GC count); et for editing type; tm for melting temperature; mfe for minimum free energy; n ap \# for base n at protospacer position \#; max cns for the length of maximum consecutive sequence of base n.} 
+    \caption[SHAP analysis for DeepPrime and PRIDICT2.0 datasets]{SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line: \textbf{(a)} Top 15 determinants from SHAP analysis using all of DeepPrime HEK293T Datasets. \textbf{(b-d)} Top 10 determinants from SHAP analysis using PRIDICT2.0 HEK293T data for each individual editing types. The colour of the individual data point shows their normalized values from high (red) to low (blue). The binary values have 1 (True) for high and 0 (False) for low. A number of shorthands have been used to improve the clarity of the illustrations. gcc for GC Content (different from GC count); et for editing type; tm for melting temperature; mfe for minimum free energy; n ap \# for base n at protospacer position \#; max cns for the length of maximum consecutive sequence of base n.} 
     \label{fig:shap}
 \end{figure}
 
@@ -248,14 +248,14 @@ as HAP1(derived from a chronic myelogenous leukemia patient)\cite{mathisPredicti
 \section{Conventional Machine Learning Models}
 \label{sec:conventional-ml}
 
-Using the top 24 computed features, a number of conventional machine learning models were trained to serve as a baseline for the deep learning models. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron.
+Using the top 24 extracted features, a number of conventional machine learning models were trained to serve as a baseline for the deep learning models. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron.
 
 Their hyperparameter were optimized on one fold of the DeepPrime HEK293T using sklearn's GridSearchCV function, following the protocol used by PRIDICT. The performance of the optimized models were then evaluated using Pearson and Spearman correlation on the DeepPrime and PRIDICT dataset for three different cell types on all 5 folds to provide a more accurate estimation of the models' performance. The MLP model involved the additional Skorch library to allow for the use of scikit-learn's GridSearchCV for hyperparameter optimization on the Pytorch model. The optimized parameters for the models are as follows:
 
 \begin{itemize}[itemsep=-0mm]
     \item \textcolor{blue}{Lasso}: \verb|alpha=0.006158482110660266| (coefficient for penalty term for L1 regularization)
     \item \textcolor{blue}{Ridge}: \verb|alpha=494.17133613238286| (coefficient for penalty term for L2 regularization)
-    \item \textcolor{blue}{Random Forest}: \verb|n_estimators=200| (number of trees to build), \verb|max_depth=5| (maximum depth of the trees)
+    \item \textcolor{blue}{Random Forest}: \verb|n_estimators=200| (number of trees to build), \verb|max_depth=10| (maximum depth of the trees)
     \item \textcolor{blue}{XGBoost}: \verb|n_estimators=200| (number of boosting rounds, similar to number of trees), \verb|max_depth=5| 
     \item \textcolor{blue}{MLP}: \verb|hidden_layer_sizes=(64, 64)| (two hidden layer with 64 units each), \verb|activation='relu'| (rectified linear unit activation), \verb|solver='adam'| (adaptive moment estimation solver), \verb|lr=0.005| (learning rate)
 \end{itemize}
@@ -300,7 +300,7 @@ After verifying the correctness of the model implementation, to remove the added
 
 On top of the difference in architecture, another significant difference between DeepPrime and PRIDICT is the handling of the input sequence data. Although both yu et al and mathis et al reported the usage of one-hot encoding in their publication, the actual implementations were very different. DeepPrime directly inputted the one-hot encoded sequence into the convolutional network, while PRIDICT used an embedding layer to convert the one-hot encoded sequence into a dense representation. The dense representation is considered very beneficial in the NLP task as it significantly reduces the dimensionality of the input data, and can capture the semantic meaning of the the relationship between the words\cite{goldbergPrimerNeuralNetwork2015}. This can be very helpful in other bioinformatic tasks where a segment of genome sequence is considered as a single word, resulting a large vocabulary\cite{cegliaIdentificationTranscriptionalPrograms2023}. However, since we are working on the nucleotide level of representation, the vocabulary size is very small (4), and the semantic meaning of the nucleotides are not as important as the actual sequence. 
 
-To determine the necessity of the PRIDCT embedding, the DeepPrime model was reconfigured to use the same architecture as the PRIDICT model, with the one-hot encoded sequence being inputted into an embedding layer before being fed into the convolutional network, using an embed size of 4 to match the original input size. The model was then trained and evaluated on the DeepPrime HEK293T PE2 dataset, with no significant differences across five folds (0.74 vs 0.75 for using and not using embedding, respectively, p > 0.1, paired t-test). This suggests that as expected, the embedding layer is not necessary for the task of prime editing efficiency prediction.
+To determine the necessity of the PRIDCT embedding, the DeepPrime model was reconfigured to use the same architecture as the PRIDICT model, with the one-hot encoded sequence being inputted into an embedding layer before being fed into the convolutional network, using an embed size of 4 to match the original input size. The model was then trained and evaluated on the DeepPrime HEK293T PE2 dataset, with no significant differences across five folds (0.74 vs 0.75 for using and not using embedding, respectively, p > 0.1, paired t-test). This suggests that as expected, the embedding layer is not necessary for this task.
 
 Additionally, PRIDICT's input data has additional function annotations denoting the sequence's corresponding section in the pegRNA. These annotations are boolean sequences that indicate the functionality of each nucleotide in the sequence, and are used to guide the local attention mechanism to focus on the relevant parts of the sequence. However, to quantitatively test the annotation would result in significant rewrite of DeepPrime model's architecture. Limited by the time and resources, I decided to perform this comparison on the transformer model to be developed in this study. The transformer model would have a more flexible structure that allows for easy modification of different parts of the model. 
 
@@ -309,7 +309,33 @@ For easier identification, the training models stored in `trained-models' direct
 
 \subsection{Error Analysis}
 
-To get an understanding of the suitability of the ensemble learning and establish an expectation of how helpful would ensemble learning be with the given set of models, the error distribution of the individual models were analyzed using the PRIDICT HEK293T dataset. The prediction of the five folds were combined to form the final prediction of the full dataset.
+To get an understanding of the suitability of the ensemble learning and establish an expectation of how helpful would ensemble learning be with the given set of models, the error distribution of the individual models were analyzed using the PRIDICT HEK293T dataset after they have fully converged. The prediction of the five folds were combined to form the final prediction of the full dataset.
+
+\begin{figure}
+    \centering
+    \subfigure[][Error Distribution]{
+        \centering
+        \includegraphics[width=\textwidth]{error_comparison.png}
+        % \caption{Error Distribution of the Individual Models}
+        \label{fig:error-distribution}
+    }
+    \subfigure[][Pearson Correlation]{
+        \centering
+        \includegraphics[width=0.45\textwidth]{error_correlation_pearson.png}
+        % \caption{Pearson Correlation of the Error of the Individual Models}
+        \label{fig:pearson-correlation}
+    }
+    \subfigure[][Spearman Correlation]{
+        \centering
+        \includegraphics[width=0.45\textwidth]{error_correlation_spearman.png}
+        % \caption{Spearman Correlation of the Error of the Individual Models}
+        \label{fig:spearman-correlation}
+    }
+    \caption[Error Analysis of the Individual Models]{Error Analysis of the Individual Models on the PRIDICT HEK293T dataset. \textbf{(a)} The distribution of the error of the individual models. \textbf{(b)} The Pearson correlation of the error of the individual models. \textbf{(c)} The Spearman correlation of the error of the individual models.}
+    \label{fig:error-analysis}
+\end{figure}
+
+Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$). 
 
 \subsection{Ensemble Using Weighted Averaging}
 
@@ -317,7 +343,7 @@ The simplest method of ensembling in a regression task is averaging the predicti
 
 A number of methods were common in the literature for determining the weights of the models, including weighted based on model's performance on the training/validation set\cite{fathiImprovingPrecipitationForecasts2019}, using a grid search to find the optimal weights \cite{anandWeightedAverageEnsemble2023}, or direct optimization of the weights using a meta learner. Due to the similarity of the grid search and direct optimization models, only the direct optimization and weighted according to the model's performance were tested in this study. For each fold, the meta learner takes the the prediction of the individual models on the training set as input and the measured efficiency as target. Similar to MLP, an additional validation set was created to prevent overfitting during the optimization. At the same time, the weights for each model during testing were determined by the model's performance according to Pearson's correlation on the training set.
 
-Additionally, to provide context to the meta learning, weighted averaging was also tested with extended input data. In addition to the prediction of the individual models, the 24 extracted features were also inputted into the meta learner. 
+Additionally, to provide context to the meta learning, weighted averaging was also tested with extended input data. In addition to the prediction of the individual models, the 24 extracted features were inputted into the meta learner. 
 
 This resulted in three different ensemble models: weighted averaging with only the prediction of the individual models, weighted averaging with the 24 extracted features, and weighted averaging using performance on the training set.
 
@@ -327,7 +353,7 @@ Bootstrap aggregating, or bagging, is a method that trains multiple models on di
 
 \subsection{Ensemble with AdaBoost}
 
-Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains multiple models sequentially.
+Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains multiple models sequentially. It trains a model on the training data, calculates the error of the model, and then trains another model on the same data with the error of the previous model as the weight of the data. This process is repeated until the desired number of regressors are trained
 
 The idea is similar to what DeepPrime did when training on their dataset, but applicable to all dataset without needing to carefully tweaking the weight adjustment functions for each editor and cell line.
 
@@ -338,21 +364,25 @@ The transformer architecture was a ground breaking innovation in the field of NL
 
 It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}. In their task, the transformer model was used to predict the bystander editing efficiency of the base editors given a protospacer location. The bystander editing refers to the phenomenon where the base editor induces unintended edits in the DNA sequence by modifying other targetable nucleotides in the vicinity of the activity window. A number of possible edits result and its corresponding efficiency were inputted into the model during training, and the model can output the efficiency of all possible outcome during inference, even if the outcome was not observed during training. Although having slightly lower performance when compared to other models focusing on predicting the intended edits, the transformer model was able to predict the bystander editing efficiency with far superior accuracy.
 
-The success of BE-DICT in predicting the bystander editing efficiency suggests that the transformer model is more than capable of capturing the complex relationship between the wild type and edited sequences. This prompted me to adopt the transformer model in the task of prime editing efficiency prediction.
+The success of BE-DICT in predicting the bystander editing efficiency suggests that the transformer model is more than capable of capturing the complex relationship between the wild type and edited sequences. This prompted me to utilize the transformer model in the task of prime editing efficiency prediction.
 
 
 \subsection{Model Architecture}
 
-The implementation of the transformer architecture was adopted from Sasha Rush's implementation of the transformer model in Pytorch\cite{AnnotatedTransformer}, while the MLP encoder and decoder were implemented according to the cleaner design of the DeepPrime model.
+The implementation of the transformer architecture was adopted from Sasha Rush's implementation of the transformer model in Pytorch\cite{AnnotatedTransformer}, while the MLP encoder and decoder were implemented according to the cleaner design of the DeepPrime model\cite{yuPredictionEfficienciesDiverse2023}.
 
-The transformer positional encoding with \verb|sine| and \verb|cosine| waves for even and odd dimensions were applied to assign positional information to the input sequences, as attention mechanism does not have any inherent understanding of the order of the input data. 
+The transformer model was used to encode both the wild type and mutated sequence, which is slightly unconventional when compared to its usage in other NLP tasks. Starting with positional encoding, the \verb|sine| and \verb|cosine| waves for even and odd dimensions were first applied to the one hot encoded sequence to assign positional information to the input sequences, as attention mechanism does not have any inherent understanding of the order of the input data. 
+To help the transformer model better understand the difference between wild type and edited sequences, the two sequences were aligned so that the non edited part of the sequence has matching positional encoding. The missing regions in the edited sequence for deletion and in the wild type sequence for insertion were filled with padding values, and the positional encoding was set to 0 for these regions.
 
-To help the transformer model better understand the difference between wild type and edited sequences, the two sequences were aligned so that the non edited part of the sequence has matching positional encoding. 
+The wild type sequence is then inputted into the transformer encoder, composed of a self-attention layer and a feed forward layer. The self-attention layer is used to capture the relationship between the nucleotides in the sequence, while the positional feed forward layer further transforms the representation and introduces non-linearity with the activation function. Similarly, the mutated sequence is inputted into the transformer decoder, starting with the same self
+attention layer and positional feed forward layer. The output of the encoder and decoder are then processed by the cross attention layer, using the output of the encoder as the query and the output of the decoder as the key and value. After the cross attention layer, the output is processed by another positional feed forward layer, and then flattened with a linear layer to produce the final embedding. Residual connections and layer normalization were also used after each multi-head attention and positional feed forward layer to stabilize the training process.
+
+
 
 \begin{figure}
     \centering
     \includegraphics[width=0.8\textwidth]{transformer-architecture.png}
-    \caption[Transformer Model Architecture]{Transformer Prime Editing Efficiency Prediction Model Architecture}
+    \caption[Transformer Model Architecture]{Transformer Prime Editing Efficiency Prediction Model Architecture. The sequence data is one hot encoded and fed into the transformer model, whose cross attention layer is used to capture the relationship between the wild type and edited sequences and outputs an encoding of both sequences. The encoding is then fed into the MLP header alongside the encoded features to produce the final prediction.}
     \label{fig:transformer-model}
 \end{figure}
 
@@ -373,7 +403,9 @@ Half precision was required by the flash attention to train and test the model. 
 Additionally, global attention is not always necessary for lower level of the transformer model\cite{raeTransformersNeedDeep2020}, thus another 
 possible improvement to the model is to use local attention for self-attention layers. The local attention only allows the model to attend to a fixed number of tokens within a certain window, reducing the computational cost of the attention mechanism and maybe improving the model's performance by focusing on the most relevant tokens.
 
-However, during testing, neither the flash attention nor the local attention showed any significant improvement in the model's performance. Even with the hugging face's accelerator module, the mixed precision training still causes around 1 out of 20 training runs to fail due to NaN values in the model's weights and losses, especially in model configurations with poor performances. Additionally, no significant improvement in either training time or performance was observed when using flash attention when training on the network with 1 encoder and decoder layer using 2 attention heads (one head works on CG representation, the other works on AT representation, performance comparison with pearson's $r$ of 0.79 vs 0.79 across 5 repeated runs, $p>0.1$, paired t-test) compared to scalar product attention. On the same configuration of 1 encoder and 1 decoder, the local attention mechanism also did not show any significant improvement in the model's performance (pearson's $r$ of 0.78 vs 0.79 for with and without local attention respectively, $p>0.1$, paired t-test).
+However, during testing, neither the flash attention nor the local attention showed any significant improvement in the model's performance.
+
+Even with the hugging face's accelerator module, the mixed precision training still causes around 1 out of 20 training runs to fail due to NaN values in the model's weights and losses, especially in model configurations with poor performances. Additionally, no significant improvement in either training time or performance was observed when using flash attention when training on the network with 1 encoder and decoder layer using 2 attention heads (one head works on CG representation, the other works on AT representation, performance comparison with pearson's $r$ of 0.79 vs 0.79 across 5 repeated runs, $p>0.1$, paired t-test) compared to scalar product attention. On the same configuration of 1 encoder and 1 decoder, the local attention mechanism also did not show any significant improvement in the model's performance (pearson's $r$ of 0.78 vs 0.79 for with and without local attention respectively, $p>0.1$, paired t-test).
 
 Additionally, although having previously established that the usage of embedding does not significantly improve the DeepPrime and PRIDICT models' performance, the influence of using PRIDICT's functional annotation still needs to be investigated. Using the same configuration with local attention enabled, again no significant improvement was observed in the model's performance (3 heads used for annotated representation, with 2 heads processing ATGC representation as before, and 1 extra head processing the PBS and RTT representation, pearson's $r$ of 0.79 vs 0.79, $p>0.1$, paired t-test).
 
@@ -387,7 +419,7 @@ The next stage focuses on the parameter size of the model. Since the MLP modules
     \item \textcolor{blue}{Dropout Rate}: 0.1, 0.3, 0.5
 \end{itemize}
 
-The full list of performance of the models using each configuration can be found in \autoref{appendix:transformer-hyperparameter-tuning}. Overall, the best configuration for the transformer model was the simplest 1 encoder and 1 decoder layer with 2 attention heads, using a low dropout rate of 0.1. Stacking and increasing the number of hidden units in the positional feedforward layers significantly increased the model's training time and memory usage, while decreasing the overall performance (Pearson's $r$ of 0.78 vs 0.81, stacking with 3 encoder and decoder units while increasing the number of hidden units to 200 vs the base configuration with 1 encoder decoder unit and 100 hidden units), possibly due to overfitting.
+The full list of performance of the models using each configuration can be found in \autoref{appendix:transformer-hyperparameter-tuning}. Overall, the best configuration for the transformer model was the simplest 1 encoder and 1 decoder layer with 2 attention heads, using a low dropout rate of 0.1. Stacking and increasing the number of hidden units in the positional feedforward layers significantly increased the model's training time and memory usage without any significant improvement in the model's performance. However, when reviewing the attention map of the cross attention layer, it was observed that at early layers, the attention map was dominated by the positional encoding, suggesting that the model with no stacking was not able to capture the relationship between the wild type and edited sequences. With stacking, on the other head, the attention map of higher layers showed a more interpretable patterns (details of attention maps will be shown in \autoref{sec:attention_analysis}). As a result, stacking of 3 encoder/decoder units was preserved in the final model.
 
 \section{Development of pegRNA Design Web Tool}
 
@@ -411,7 +443,7 @@ However, as discussed in \autoref{sec:determinants}, the length of LHA, RHA and 
 \end{figure}
 
 
-Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths of LHA, RHA and PBS and the editing efficiency was analyzed using the all data in the DeepPime and PRIDICT datasets. Consistent with Yu et al, 2023's finding, editing editing efficiency plateaued with RHA length of 7-12bp. Since RHA is the component with the greatest flexibility in length as it does not depend on target location, I decided to only use the 7-12bp range where the corresponding efficiency is the highest so that the resulting search space can be smaller.  As for LHA, the efficiency was shown to decrease with longer LHA length, with an elbow point at around 13bp, where the decrease in performance with regard to the lha length speeded up. Thus, the recommended distance between the nick and the edit location is set to 0-13bp, and this is only extended if no suitable PAM is found within the range. Last but not least, as expected, PBS length's impact on the editing efficiency is roughly normally distributed, with the highest efficiency at around 12bp. Decent performance can be observed from 8bp all the way up to the highest recorded value of 17bp, which covers the entire range of the protospacer upstream of the nick site. Thus, although the SHAP analysis showed that long PBS can be detrimental to the editing efficiency, the range of PBS length was still set to 8-17bp.
+Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths of LHA, RHA and PBS and the editing efficiency was analyzed using the all data in the DeepPime and PRIDICT datasets. Consistent with Yu et al, 2023's finding, editing editing efficiency plateaued with RHA length of 7-12bp, and is steadily high with a number of peaks until 20bp long, when the efficiency starts to decrease as the RHA grows.  As for LHA, the efficiency was shown to decrease with longer LHA length, with an elbow point at around 13bp, where the decrease in performance with regard to the lha length speeded up. Thus, the recommended distance between the nick and the edit location is set to 0-13bp, and this is only extended if no suitable PAM is found within the range. Last but not least, as expected, PBS length's impact on the editing efficiency is roughly normally distributed, with the highest efficiency at around 12bp. Decent performance can be observed from 8bp all the way up to the highest recorded value of 17bp, which covers the entire range of the protospacer upstream of the nick site. Thus, although the SHAP analysis showed that long PBS can be detrimental to the editing efficiency, the range of PBS length was still set to 8-17bp.
 
 In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}. The recommending range would result in a maximum of 585 pegRNAs (true number is usually much smaller as LHA location is heavily constrained), which would then be processed and evaluated by the model to produce the estimated editing efficiency.
 
@@ -422,7 +454,7 @@ In summary, unless specified otherwise by the users, the algorithm would only pr
         \textbf{Component} & \textbf{Min Length} & \textbf{Max Length} \\
         \hline
         LHA & 0 & 13 \\
-        RHA & 7 & 12 \\
+        RHA & 7 & 20 \\
         PBS & 8 & 17 \\
         % \hline
     \end{tabular}
@@ -438,3 +470,14 @@ It is also accessible using Python with Django and Pytorch installed by executin
 \verb|python webtool/manage.py runserver|
 
 suppose that the user is in the root directory of the project. The web tool can then be accessed by visiting \verb|http://127.0.0.1:8000/|.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{webapp-interface.png}
+    \caption[pegRNA Design Web Tool]{Interface of the pegRNA Design Web Tool. A dropdown menu is provided for the user to select the PE version and cell line, and the user can input their target edit in the correct format in the input box.}
+    \label{fig:webtool}
+\end{figure}
+
+The user can supply their target edit in the correct format in the input box, and can also uses the test example by clicking the `Use Test Example' button. The PE and Cell Line should also be selected from the dropdown menu above the text box before running the prediction, shown in \autoref{fig:webtool}. Any errors in the input would be communicated to the users with browser notifications. 
+
+After the user submits the input, the web tool would process the input and return the a number of proposed pegRNAs in a table format. The output contains the position of the protospacer, RTT and PBS, as well as the predicted editing efficiency.
