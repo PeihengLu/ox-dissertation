@@ -15,14 +15,16 @@ from sklearn.model_selection import ParameterGrid
 import time
 import torch.nn.functional as F
 import copy
-
+import tqdm
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 import sys
 sys.path.append('../')
 from typing import Dict, List, Tuple
 
 from utils.ml_utils import clones, StackedTransformer
-from flash_attn import flash_attn_qkvpacked_func
+# from flash_attn import flash_attn_qkvpacked_func
 from local_attention import LocalAttention
 
 class SequenceEmbedder(nn.Module):
@@ -83,7 +85,7 @@ class SequenceEmbedder(nn.Module):
         #     x = self.We(X_nucl)
         
         # position embedding for non padding sequence using sinusoidal function
-        x = x + self.position_encoding[:, :x.size(1)]
+        x = x + self.position_encoding[:, :x.size(1)].requires_grad_(False)
         
         if padding_mask is not None:
             # Expand the mask to match the dimensions of x (seq_len, batch_size, embed_dim)
@@ -824,3 +826,117 @@ def tune_transformer(tune_fname: str, num_features: int, adjustment: str = None,
         # save the results in a csv file
         results = pd.DataFrame(params_train)
         results.to_csv(os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv'), index=False)
+    
+def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1) -> None:
+    """visualize the attention weights of the transformer model
+
+    Args:
+        model (skorch.NeuralNetRegressor): the trained transformer model
+        X_test (pd.DataFrame): the test data
+        num_features (int): number of features to use for the MLP
+        device (str, optional): device used for tuning. Defaults to 'cuda'.
+        dropout (float, optional): percentage of input units to drop. Defaults to 0.1.
+        percentage (float, optional): percentage of the training data to use. Defaults to 1.0.
+    """
+    # Load the data
+    test_data_all = pd.read_csv(os.path.join('models', 'data', 'transformer', f'transformer-{model_name}.csv'))
+    # if percentage is less than 1, then use a subset of the data
+    if percentage < 1:
+        test_data_all = test_data_all.sample(frac=percentage, random_state=42)
+    test_data_all = test_data_all[test_data_all['fold']==0]
+    # group the test data with edit length of 1 by edit type
+    test_data_all = test_data_all[test_data_all['edit-length']==1]
+    test_data_replace = test_data_all[test_data_all['mut-type']==0]
+    test_data_insertion = test_data_all[test_data_all['mut-type']==1]
+    test_data_deletion = test_data_all[test_data_all['mut-type']==2]
+    # remove rows with nan values
+    test_data_all = test_data_all.dropna()
+    # transform to float
+    test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
+    
+    embed_dim = 4 if not annot else 6
+    num_heads = 3 if annot else 2
+
+    sequence_length = len(test_data_all['wt-sequence'].values[0])
+
+    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=num_encoder_units, num_features=num_features, onehot=True, annot=annot, flash=False)
+    
+    accelerator = Accelerator(mixed_precision='bf16')
+            
+    # skorch model
+    tr_model = AcceleratedNet(
+        m,
+        accelerator=accelerator,
+        criterion=nn.MSELoss,
+        optimizer=torch.optim.AdamW,
+    )
+
+    tr_model.initialize()
+    tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f'{model_name}-fold-1.pt'))
+
+    prediction = {}
+    performance = []
+
+    attention_replace = [[[np.zeros(sequence_length) for _ in range(sequence_length)] for i in range(num_heads)] for j in range(num_encoder_units)]
+    attention_insertion = [[[np.zeros(sequence_length) for _ in range(sequence_length)] for i in range(num_heads)] for j in range(num_encoder_units)]
+    attention_deletion = [[[np.zeros(sequence_length) for _ in range(sequence_length)] for i in range(num_heads)] for j in range(num_encoder_units)]
+
+    attentions = [attention_replace, attention_insertion, attention_deletion]
+
+    count_replace = [0 for _ in range(sequence_length)]
+    count_insertion = [0 for _ in range(sequence_length)]
+    count_deletion = [0 for _ in range(sequence_length)]
+
+    counts = [count_replace, count_insertion, count_deletion]
+
+    # Load the models
+    for i, data in enumerate([test_data_replace, test_data_insertion, test_data_deletion]):
+        # run one example after each other and acquire the attention value
+        # corresponding to the edit position
+        X_test = preprocess_transformer(data)
+        for ind in tqdm.tqdm(range(len(data))):
+            item = {}
+            for key in X_test:
+                item[key] = X_test[key][ind].unsqueeze(0)
+            data_item = data.iloc[ind]
+            # print(f'Edit type: {data_item["mut-type"]}, Edit position: {data_item["lha-location-r"]}')
+            y_pred = tr_model.predict(item)
+            
+            for layer in range(num_encoder_units):
+                # get the attention weights
+                attns = tr_model.module_.transformer.decoder.layers[layer].cross_attn.attn
+
+                # # plot the attention weights for each head
+                # for j in range(num_heads):
+                #     plt.figure(figsize=(10, 10))
+                #     # highlight the diagonal
+                #     sns.heatmap(attns[0, j, :, :].detach().cpu().numpy(), cmap='viridis')
+                #     plt.title(f'Attention weights for head {j} and edit type {data_item["mut-type"]}')
+                #     plt.show()
+                # break
+                # print(attns.shape)
+                # get the attention weights for the first layer
+                for j in range(num_heads):
+                    normalized_attn = attns[0, j, data_item['lha-location-r'], :].detach().cpu().numpy()
+                    normalized_attn /= np.sum(normalized_attn)
+                    attentions[i][layer][j][data_item['lha-location-r']] += normalized_attn
+                    counts[i][data_item['lha-location-r']] += 1
+
+    # normalize the attention weights by the number of times the attention weights were added
+    for i in range(3):
+        for j in range(num_heads):
+            for k in range(sequence_length):
+                for layer in range(num_encoder_units):
+                    attentions[i][layer][j][k] /= counts[i][k]
+
+    # plot the attention weights for each head and edit type
+    for i, data in enumerate(['replace', 'insertion', 'deletion']):
+        for j in range(num_heads):
+            for layer in range(num_encoder_units):
+                plt.figure(figsize=(10, 10))
+                # highlight the diagonal
+                sns.heatmap(attentions[i][layer][j], cmap='viridis')
+                plt.title(f'Attention weights for head {j} and edit type {data} at layer {layer}')
+                plt.show()
+
+    return attentions
