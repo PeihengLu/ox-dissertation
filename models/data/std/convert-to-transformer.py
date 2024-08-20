@@ -43,7 +43,7 @@ for f in glob("*.csv"):
     ml_data = ml_data[cols]
     
     # concatenate positional information
-    positions = ['protospacer-location-l','protospacer-location-r','pbs-location-l','pbs-location-r','rtt-location-l','rtt-location-r','mut-type']
+    positions = ['protospacer-location-l','protospacer-location-r','pbs-location-l','pbs-location-r','rtt-location-l','rtt-location-r','mut-type', 'lha-location-r']
     # load the positional data from std data into the transformer data
     for pos in positions:
         ml_data[pos] = df[pos]
