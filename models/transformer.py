@@ -114,6 +114,7 @@ class MultiHeadAttention(nn.Module):
         if mask is not None:
             # Same mask applied to all heads
             mask = mask.unsqueeze(1)
+            
         batch_size = query.size(0)
         
         # Do all the linear projections in batch from embed_dim => num_heads x head_dim
@@ -232,7 +233,6 @@ class DecoderLayer(nn.Module):
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mut_mask))
         x = self.sublayer[1](x, lambda x: self.cross_attn(x, enc_out, enc_out, wt_mask))
         return self.sublayer[2](x, self.feed_forward)
-
 
 class Transformer(nn.Module):
     """encoder decoder transformer architecture
@@ -604,8 +604,10 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
     
     embed_dim = 4 if not annot else 6
     num_heads = 3 if annot else 2
+    
+    sequence_length = len(test_data_all['wt-sequence'].values[0])
 
-    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=50, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False)
+    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
     
     accelerator = Accelerator(mixed_precision='bf16')
             

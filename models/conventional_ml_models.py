@@ -28,7 +28,7 @@ def random_forest() -> BaseEstimator:
 
     # estimator = grid_search(X_train, y_train, rf, 'Random Forest', param_grid)
     
-    estimator = rf.set_params(n_estimators=200, max_depth=5)
+    estimator = rf.set_params(n_estimators=200, max_depth=10)
 
     return estimator
 
