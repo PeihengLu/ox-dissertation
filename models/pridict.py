@@ -635,7 +635,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
     # device
     device = torch.device('cuda')
     
-    for i in range(fold):
+    for i in range(3, fold):
         print(f'Fold {i+1} of {fold}')
         
         # if os.path.isfile(os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-best.pt")):
