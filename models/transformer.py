@@ -314,7 +314,7 @@ def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, on
     return model
 
 class PrimeDesignTransformer(nn.Module):
-    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=4, pdropout=0.1, mlp_embed_dim=64, num_encoder_units=2, num_features=24, flash=False, onehot=True, annot=False, local=False):
+    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=2, pdropout=0.1, mlp_embed_dim=100, num_encoder_units=1, num_features=24, flash=False, onehot=True, annot=False, local=False):
         super(PrimeDesignTransformer, self).__init__()
         self.embed_dim = embed_dim
         self.sequence_length = sequence_length
@@ -327,7 +327,7 @@ class PrimeDesignTransformer(nn.Module):
         self.onehot = onehot
         
         self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
-        self.linear_transformer = nn.Linear(embed_dim, 1, bias=False)
+        self.linear_transformer = nn.Linear(sequence_length, 1, bias=False)
         # self.gru = nn.GRU(input_size=sequence_length, hidden_size=128, num_layers=1, batch_first=True, bidirectional=True)
         
         self.feature_embedding = nn.Sequential(
@@ -341,9 +341,9 @@ class PrimeDesignTransformer(nn.Module):
         )
 
         self.head = nn.Sequential(
-            nn.LayerNorm(sequence_length + 128),
+            nn.LayerNorm(embed_dim + 128),
             nn.Dropout(pdropout),
-            nn.Linear(sequence_length + 128, 1, bias=True),
+            nn.Linear(embed_dim + 128, 1, bias=True),
         )
 
         # initialize the parameters with xavier uniform
@@ -370,14 +370,12 @@ class PrimeDesignTransformer(nn.Module):
         # (batch, sequence length, embed_dim)
         transformer_out = self.transformer(X_nucl, X_mut_nucl, X_pbs, X_rtt, X_rtt_mut)
                 
-        # flatten the output of the transformer using a linear layer
+        # reduce the sequence to its dimension
+        # (batch, sequence length, embed_dim) => (batch, embed_dim)
+        # reshape so that the linear layer can be applied to each of the dimensions
+        transformer_out = transformer_out.transpose(0, 2, 1)
         transformer_out = self.linear_transformer(transformer_out)
-        
-        # remove the last dimension of the transformer output
         transformer_out = transformer_out.squeeze(2)
-        # transpose the output of the transformer for the GRU
-        # transformer_out = transformer_out.transpose(1, 2)
-        # transformer_out, _ = self.gru(transformer_out)
         
         # print('transformer_out shape:', transformer_out.shape)
         
