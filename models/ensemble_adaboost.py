@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class EmsenbleAdaBoost:
     def __init__(self, n_estimators=50, learning_rate=1.0):
         self.n_estimators = n_estimators

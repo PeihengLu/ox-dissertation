@@ -161,3 +161,26 @@ cython_debug/
 
 # large files
 models/data/shap/shap-dp-hek293t-pe2.npy
+models/data/ensemble/ensemble-dp_small-a549-pe2max_epegrna.csv
+models/data/ensemble/ensemble-dp_small-a549-pe2max.csv
+models/data/ensemble/ensemble-dp_small-a549-pe4max_epegrna.csv
+models/data/ensemble/ensemble-dp_small-a549-pe4max.csv
+models/data/ensemble/ensemble-dp_small-dld1-nrch_pe4max.csv
+models/data/ensemble/ensemble-dp_small-dld1-pe2max.csv
+models/data/ensemble/ensemble-dp_small-dld1-pe4max.csv
+models/data/ensemble/ensemble-dp_small-hct116-pe2.csv
+models/data/ensemble/ensemble-dp_small-hek293t-nrch_pe2.csv
+models/data/ensemble/ensemble-dp_small-hek293t-nrch_pe2max.csv
+models/data/ensemble/ensemble-dp_small-hek293t-pe2.csv
+models/data/ensemble/ensemble-dp_small-hek293t-pe2max_epegrna.csv
+models/data/ensemble/ensemble-dp_small-hek293t-pe2max.csv
+models/data/ensemble/ensemble-dp_small-hek293t-pe4max_epegrna.csv
+models/data/ensemble/ensemble-dp_small-hek293t-pe4max.csv
+models/data/ensemble/ensemble-dp_small-hela-pe2max.csv
+models/data/ensemble/ensemble-dp_small-mda_mb_231-pe2.csv
+models/data/ensemble/ensemble-dp_small-nih3t3-nrch_pe4max.csv
+models/data/ensemble/ensemble-dp-hek293t-pe2.csv
+models/data/ensemble/ensemble-pd-adv-pe2.csv
+models/data/ensemble/ensemble-pd-hek293t-pe2.csv
+models/data/ensemble/ensemble-pd-k562-pe2.csv
+models/data/ensemble/ensemble-pd-k562mlh1dn-pe2.csv

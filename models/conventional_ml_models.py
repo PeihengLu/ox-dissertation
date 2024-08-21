@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from typing import Tuple
 from sklearn.base import BaseEstimator
+import skorch
 
 # ================================================
 # Random Forest
@@ -158,7 +159,7 @@ class MLP(torch.nn.Module):
         x = self.output_layer(x)
         return x
 
-def mlp() -> BaseEstimator:
+def mlp(save_path) -> BaseEstimator:
     '''
     MLP Regressor
     '''
@@ -171,6 +172,12 @@ def mlp() -> BaseEstimator:
         lr=0.005,
         device='cuda' if torch.cuda.is_available() else 'cpu',
         module__hidden_layer_sizes = (64, 64,),
+        # early stopping
+        callbacks=[
+            skorch.callbacks.EarlyStopping(patience=5),
+            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt'),
+            skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts, monitor='valid_loss', T_0=10, T_mult=1),
+        ]
     )
 
     # # Define the hyperparameters
