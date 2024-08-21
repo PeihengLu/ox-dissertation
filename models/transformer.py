@@ -81,8 +81,8 @@ class SequenceEmbedder(nn.Module):
             # concatenate the positional information
             x = torch.cat([x, X_pbs, X_rtt], dim=-1)
         
-        # if not self.onehot:
-        #     x = self.We(X_nucl)
+        if not self.onehot:
+            x = self.We(X_nucl)
         
         # position embedding for non padding sequence using sinusoidal function
         x = x + self.position_encoding[:, :x.size(1)].requires_grad_(False)
@@ -147,7 +147,7 @@ class MultiHeadAttention(nn.Module):
                 # no attention probabilities is returned
                 x = self.attention(query, key, value, mask=None)
             else:
-                x, self.attn = self.attention(query, key, value, mask=None, dropout=self.dropout)
+                x, self.attn = self.attention(query, key, value, mask=mask, dropout=self.dropout)
         del query, key, value
 
         # concatenate the output of the attention heads into the same shape as the input
@@ -292,7 +292,7 @@ class Transformer(nn.Module):
         
         # print('wt_embed:', wt_embed.dtype)
         
-        # wt_seq and mut_seq are alread masked
+        # wt_seq and mut_seq are already masked
         enc_out = self.encoder(wt_embed, padding_mask_wt)
         dec_out = self.decoder(mut_embed, enc_out, padding_mask_wt, padding_mask_mut)
         
@@ -312,11 +312,6 @@ def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, on
         onehot=onehot
     )
     
-    # initialize the parameters with xavier uniform
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform_(p)
-    
     return model
 
 class PrimeDesignTransformer(nn.Module):
@@ -334,10 +329,10 @@ class PrimeDesignTransformer(nn.Module):
         self.onehot = onehot
         
         self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
-        self.linear_transformer = nn.Linear(embed_dim, 1)
+        self.linear_transformer = nn.Linear(embed_dim, 1, bias=False)
         # self.gru = nn.GRU(input_size=sequence_length, hidden_size=128, num_layers=1, batch_first=True, bidirectional=True)
         
-        self.d = nn.Sequential(
+        self.feature_embedding = nn.Sequential(
             nn.Linear(num_features, 96, bias=False),
             nn.ReLU(),
             nn.Dropout(pdropout),
@@ -352,6 +347,11 @@ class PrimeDesignTransformer(nn.Module):
             nn.Dropout(pdropout),
             nn.Linear(sequence_length + 128, 1, bias=True),
         )
+
+        # initialize the parameters with xavier uniform
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
         
     def forward(self, X_nucl: torch.Tensor, X_mut_nucl: torch.Tensor, X_pbs, X_rtt, X_rtt_mut, features: torch.Tensor) -> torch.Tensor:
         """forward pass of the transformer model
@@ -370,7 +370,6 @@ class PrimeDesignTransformer(nn.Module):
         
         # convert the sequence to embeddings
         # (batch, sequence length, embed_dim)
-        # convert the data to half precision
         transformer_out = self.transformer(X_nucl, X_mut_nucl, X_pbs, X_rtt, X_rtt_mut)
                 
         # flatten the output of the transformer using a linear layer
@@ -386,7 +385,7 @@ class PrimeDesignTransformer(nn.Module):
         
         # convert the features to embeddings
         # (batch, sequence length, embed_dim)
-        features_embed = self.d(features)
+        features_embed = self.feature_embedding(features)
                 
         # concatenate the output of the transformer and the features
         # (batch, sequence length, embed_dim)
@@ -435,7 +434,7 @@ def preprocess_transformer(X_train: pd.DataFrame, slice: bool=False) -> Dict[str
     # the rest are the features
     features = X_train.iloc[:, 2:26].values
 
-    nut_to_ix = {'N': 4, 'A': 0, 'C': 1, 'G': 2, 'T': 3}
+    nut_to_ix = {'N': 4, 'A': 0, 'T': 1, 'G': 2, 'C': 3}
     X_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in wt_seq])
     X_mut_nucl = torch.tensor([[nut_to_ix[n] for n in seq] for seq in mut_seq])
     # create a linear embedding for pbs, protospacer, and rtt values
@@ -918,7 +917,7 @@ def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 
                 # get the attention weights for the first layer
                 for j in range(num_heads):
                     normalized_attn = attns[0, j, data_item['lha-location-r'], :].detach().cpu().numpy()
-                    normalized_attn /= np.sum(normalized_attn)
+                    # normalized_attn /= np.sum(normalized_attn)
                     attentions[i][layer][j][data_item['lha-location-r']] += normalized_attn
                     counts[i][data_item['lha-location-r']] += 1
 
