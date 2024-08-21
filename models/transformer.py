@@ -147,11 +147,12 @@ class MultiHeadAttention(nn.Module):
                 x = self.attention(query, key, value, mask=None)
             else:
                 x, self.attn = self.attention(query, key, value, mask=mask, dropout=self.dropout)
-        del query, key, value
 
         # concatenate the output of the attention heads into the same shape as the input
         # (batch, sequence length, num_heads, head_dim) => (batch, sequence length, embed_dim)
         x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.num_heads * self.head_dim)
+        
+        del query, key, value
         
         return self.linears[-1](x)
     
@@ -327,7 +328,7 @@ class PrimeDesignTransformer(nn.Module):
         self.onehot = onehot
         
         self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
-        self.linear_transformer = nn.Linear(sequence_length, 1, bias=False)
+        self.linear_transformer = nn.Linear(sequence_length, 1)
         # self.gru = nn.GRU(input_size=sequence_length, hidden_size=128, num_layers=1, batch_first=True, bidirectional=True)
         
         self.feature_embedding = nn.Sequential(
@@ -369,11 +370,11 @@ class PrimeDesignTransformer(nn.Module):
         # convert the sequence to embeddings
         # (batch, sequence length, embed_dim)
         transformer_out = self.transformer(X_nucl, X_mut_nucl, X_pbs, X_rtt, X_rtt_mut)
-                
+        
         # reduce the sequence to its dimension
         # (batch, sequence length, embed_dim) => (batch, embed_dim)
         # reshape so that the linear layer can be applied to each of the dimensions
-        transformer_out = transformer_out.transpose(0, 2, 1)
+        transformer_out = transformer_out.transpose(2, 1)
         transformer_out = self.linear_transformer(transformer_out)
         transformer_out = transformer_out.squeeze(2)
         
@@ -392,6 +393,8 @@ class PrimeDesignTransformer(nn.Module):
         # pass the output to the MLP decoder
         output = self.head(output)
         
+        del transformer_out, features_embed, X_nucl, X_mut_nucl, X_pbs, X_rtt, X_rtt_mut, features
+        
         # print('output shape:', output.shape)
         # print('output:', output)
         
@@ -408,7 +411,8 @@ def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
     if mask is not None:
-        scores = scores.masked_fill(mask == True, -1e9)
+        mask = mask.unsqueeze(1)
+        scores = scores.masked_fill(mask, -1e9)
     p_attn = scores.softmax(dim=-1)
     if dropout is not None:
         p_attn = dropout(p_attn)
@@ -464,7 +468,7 @@ def preprocess_transformer(X_train: pd.DataFrame, slice: bool=False) -> Dict[str
     
     return result
 
-def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, annot: bool = True) -> skorch.NeuralNetRegressor:
+def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, annot: bool = True, num_encoder_units: int = 1) -> skorch.NeuralNetRegressor:
     """train the transformer model
 
     Args:
@@ -534,7 +538,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
         for j in range(num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
-            m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
+            m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_features=num_features, onehot=True, annot=annot, flash=False, local=False, num_encoder_units=num_encoder_units)
             
             accelerator = Accelerator(mixed_precision='bf16')
             
@@ -559,14 +563,14 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                                     f_optimizer=None, 
                                     f_history=None,
                                     f_criterion=None),
-                    # skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-3),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-6),
                     # skorch.callbacks.ProgressBar(),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.ReduceLROnPlateau, monitor='valid_loss', factor=0.5, patience=3, min_lr=1e-6),
+                    # skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.ReduceLROnPlateau, monitor='valid_loss', factor=0.5, patience=3, min_lr=1e-6),
                     # PrintParameterGradients()
                 ]
             )
             
-            model.initialize()
+            # model.initialize()
             # torch.nn.utils.clip_grad_norm_(m.parameters(), max_norm=1.0)
             
             model.fit(X_train, y_train)
