@@ -95,7 +95,6 @@ class SequenceEmbedder(nn.Module):
         
         return x
 
-
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, embed_dim, pdropout, flash: bool = False, local: bool = False):
         super(MultiHeadAttention, self).__init__()
@@ -315,14 +314,13 @@ def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, on
     return model
 
 class PrimeDesignTransformer(nn.Module):
-    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=4, pdropout=0.1, mlp_embed_dim=64, nonlin_func=nn.ReLU(), num_encoder_units=2, num_features=24, flash=False, onehot=True, annot=False, local=False):
+    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=4, pdropout=0.1, mlp_embed_dim=64, num_encoder_units=2, num_features=24, flash=False, onehot=True, annot=False, local=False):
         super(PrimeDesignTransformer, self).__init__()
         self.embed_dim = embed_dim
         self.sequence_length = sequence_length
         self.num_heads = num_heads
         self.pdropout = pdropout
         self.mlp_embed_dim = mlp_embed_dim
-        self.nonlin_func = nonlin_func
         self.num_encoder_units = num_encoder_units
         self.num_features = num_features
         self.flash = flash
@@ -412,7 +410,7 @@ def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
     if mask is not None:
-        scores = scores.masked_fill(mask == 0, -1e9)
+        scores = scores.masked_fill(mask == True, -1e9)
     p_attn = scores.softmax(dim=-1)
     if dropout is not None:
         p_attn = dropout(p_attn)
