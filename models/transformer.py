@@ -748,43 +748,43 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
                 save_file_name += f"-{p}-{par[p]}"
             save_file_name += '.pt'
 
-            # skorch model
-            model = skorch.NeuralNetRegressor(
-                PrimeDesignTransformer,
-                # module__embed_dim=4,
-                module__sequence_length=99,
-                module__pdropout=dropout,
-                module__nonlin_func=nn.ReLU(),
-                module__num_encoder_units=1,
-                module__num_features=num_features,
-                module__flash=False,
-                module__local=True,
-                module__annot=False,
-                module__mlp_embed_dim=100,
-                # accelerator=accelerator,
-                criterion=nn.MSELoss,
-                optimizer=torch.optim.AdamW,
-                # optimizer__eps=1e-4,
-                # optimizer=torch.optim.SGD,
-                optimizer__lr=0.025,
-                max_epochs=500,
-                device='cuda',
-                batch_size=4096,
-                train_split= skorch.dataset.ValidSplit(cv=5),
-                # early stopping
-                callbacks=[
-                    skorch.callbacks.EarlyStopping(patience=patience),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-3),
-                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
-                    # skorch.callbacks.ProgressBar(),
-                    # PrintParameterGradients()
-                ]
-            )
-            model.set_params(**par)
+            # # skorch model
+            # model = skorch.NeuralNetRegressor(
+            #     PrimeDesignTransformer,
+            #     # module__embed_dim=4,
+            #     module__sequence_length=99,
+            #     module__pdropout=dropout,
+            #     module__nonlin_func=nn.ReLU(),
+            #     module__num_encoder_units=1,
+            #     module__num_features=num_features,
+            #     module__flash=False,
+            #     module__local=True,
+            #     module__annot=False,
+            #     module__mlp_embed_dim=100,
+            #     # accelerator=accelerator,
+            #     criterion=nn.MSELoss,
+            #     optimizer=torch.optim.AdamW,
+            #     # optimizer__eps=1e-4,
+            #     # optimizer=torch.optim.SGD,
+            #     optimizer__lr=0.025,
+            #     max_epochs=500,
+            #     device='cuda',
+            #     batch_size=4096,
+            #     train_split= skorch.dataset.ValidSplit(cv=5),
+            #     # early stopping
+            #     callbacks=[
+            #         skorch.callbacks.EarlyStopping(patience=patience),
+            #         skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-3),
+            #         skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
+            #         # skorch.callbacks.ProgressBar(),
+            #         # PrintParameterGradients()
+            #     ]
+            # )
+            # model.set_params(**par)
 
-            model.fit(X_train, y_train)
+            # model.fit(X_train, y_train)
 
-            print(f'Parameter: {par}, val loss: {model.history[-1, "valid_loss"]}')
+            # print(f'Parameter: {par}, val loss: {model.history[-1, "valid_loss"]}')
             # evaluate the model
             model = skorch.NeuralNetRegressor(
                 PrimeDesignTransformer,
@@ -823,6 +823,10 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
     # and calculate the mean performance of each configuration
     # save the performance in each run of each configuration in a csv file
     performances = pd.DataFrame(params_arch)
+    # add a column for the mean performance
+    performances['mean_performance'] = [np.mean(p) for p in performances['performance']]
+    # add a column for the highest performance
+    performances['max_performance'] = [np.max(p) for p in performances['performance']]
     performances.to_csv(os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv'), index=False)
 
 
