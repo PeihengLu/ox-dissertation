@@ -134,10 +134,12 @@ class EnsembleWeightedMean:
 
             self.models.append(models_fold)
             predictions = np.array(predictions).T
-
+            
             if self.optimization:
+                target = target.reshape(-1, 1)
                 if self.with_features:
                     predictions = np.concatenate((predictions, features), axis=1)
+                    predictions = torch.tensor(predictions, dtype=torch.float32)
                     if not isfile(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'ensemble-{data_source}-fold-{i+1}-features.pt')):
                         print('Training Ensemble')
                         self.ensemble[i].fit(predictions, target)
@@ -145,6 +147,7 @@ class EnsembleWeightedMean:
                         self.ensemble[i].initialize()
                         self.ensemble[i].load(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'ensemble-{data_source}-fold-{i+1}-features.pt'))
                 else:
+                    predictions = torch.tensor(predictions, dtype=torch.float32)
                     if not isfile(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'ensemble-{data_source}-fold-{i+1}.pt')):
                         print('Training Ensemble')
                         self.ensemble[i].fit(predictions, target)
@@ -153,7 +156,6 @@ class EnsembleWeightedMean:
                         self.ensemble[i].load(pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'ensemble-{data_source}-fold-{i+1}.pt'))
             else:
                 target = target.flatten()
-                
                 self.ensemble[i] = []
                 for j in range(self.n_regressors):
                     self.ensemble[i].append(pearsonr(predictions[:, j], target)[0])
