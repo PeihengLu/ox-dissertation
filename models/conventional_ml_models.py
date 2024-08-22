@@ -152,12 +152,33 @@ class MLP(torch.nn.Module):
         elif activation == 'logistic':
             self.activation = torch.nn.Sigmoid()
 
-    def forward(self, x):
+    def forward(self, x, sample_weight=None):
         x = self.activation(self.input_layer(x))
         for i in range(len(self.hidden_layer_sizes)-1):
             x = self.activation(getattr(self, f'hidden_layer_{i}')(x))
         x = self.output_layer(x)
         return x
+
+class MLPSkorch(skorch.NeuralNet):
+    def __init__(self, *args, criterion__reduce=False, **kwargs):
+        # make sure to set reduce=False in your criterion, since we need the loss
+        # for each sample so that it can be weighted
+        super().__init__(*args, criterion__reduce=criterion__reduce, **kwargs)
+
+    def get_loss(self, y_pred, y_true, X, *args, **kwargs):
+        # override get_loss to use the sample_weight from X
+        loss_unreduced = super().get_loss(y_pred, y_true, X, *args, **kwargs)
+        sample_weight = skorch.utils.to_tensor(X['sample_weight'], device=self.device)
+        loss_reduced = (sample_weight * loss_unreduced).mean()
+        return loss_reduced
+    
+    def fit(self, X, y=None, sample_weights=None, **fit_params):
+        # update the input
+        X = {
+            'x': X,
+            'sample_weight': sample_weights
+        }
+        return super().fit(X, y, **fit_params)
 
 def mlp(save_path) -> BaseEstimator:
     '''
@@ -202,6 +223,29 @@ def mlp(save_path) -> BaseEstimator:
     estimator = mlp.set_params(module__hidden_layer_sizes=(64,64), module__activation='relu', lr=0.005)
 
     return estimator
+
+def mlp_weighted(save_path: str) -> BaseEstimator:
+    '''
+    MLP Regressor with sample weights
+    '''
+    # Define the model
+    mlp = MLPSkorch(
+        module=MLP,
+        criterion=torch.nn.MSELoss,
+        optimizer=torch.optim.Adam,
+        max_epochs=300,
+        lr=0.005,
+        device='cuda' if torch.cuda.is_available() else 'cpu',
+        module__hidden_layer_sizes = (64, 64,),
+        # early stopping
+        callbacks=[
+            skorch.callbacks.EarlyStopping(patience=20),
+            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt'),
+            skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts, monitor='valid_loss', T_0=10, T_mult=1),
+        ]
+    )
+    
+    estimator = mlp.set_params(module__hidden_layer_sizes=(64,64), module__activation='relu', lr=0.005)
 
 # ================================================
 # Helper functions
