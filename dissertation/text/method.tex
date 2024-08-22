@@ -193,19 +193,18 @@ To help the models trained on PRIDICT datasets work on unseen data supplied by t
 \label{sec:determinants}
 
 \begin{figure}
-    \centering
     \subfigure[DeepPrime]{
         \label{fig:shap-dp-pe2-hek}
         \includegraphics[width=0.99\textwidth]{shap-dp-hek293t-pe2.png}}
     \subfigure[Deletion]{
-        \includegraphics[width=0.3\textwidth]{shap-pd-hek293t-pe2-delete.png}
-    }
+        \includegraphics[width=0.33\textwidth]{shap-pd-hek293t-pe2-delete.png}
+    }%
     \subfigure[Insertion]{
-        \includegraphics[width=0.3\textwidth]{shap-pd-hek293t-pe2-insert.png}
-    }
+        \includegraphics[width=0.33\textwidth]{shap-pd-hek293t-pe2-insert.png}
+    }%
     \subfigure[Replacement]{
-        \includegraphics[width=0.3\textwidth]{shap-pd-hek293t-pe2-replace.png}
-    }
+        \includegraphics[width=0.33\textwidth]{shap-pd-hek293t-pe2-replace.png}
+    }%
     \caption[SHAP analysis for DeepPrime and PRIDICT2.0 datasets]{SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line: \textbf{(a)} Top 15 determinants from SHAP analysis using all of DeepPrime HEK293T Datasets. \textbf{(b-d)} Top 10 determinants from SHAP analysis using PRIDICT2.0 HEK293T data for each individual editing types. The colour of the individual data point shows their normalized values from high (red) to low (blue). The binary values have 1 (True) for high and 0 (False) for low. A number of shorthands have been used to improve the clarity of the illustrations. gcc for GC Content (different from GC count); et for editing type; tm for melting temperature; mfe for minimum free energy; n ap \# for base n at protospacer position \#; max cns for the length of maximum consecutive sequence of base n.} 
     \label{fig:shap}
 \end{figure}
@@ -312,23 +311,23 @@ To get an understanding of the suitability of the ensemble learning and establis
     \centering
     \subfigure[][Error Distribution]{
         \centering
-        \includegraphics[width=\textwidth]{error_comparison.png}
+        \includegraphics[width=\textwidth]{error_comparison_dp-hek293t-pe2.png}
         % \caption{Error Distribution of the Individual Models}
         \label{fig:error-distribution}
     }
     \subfigure[][Pearson Correlation]{
         \centering
-        \includegraphics[width=0.45\textwidth]{error_correlation_pearson.png}
+        \includegraphics[width=0.49\textwidth]{error_correlation_dp-hek293t-pe2_pearson.png}
         % \caption{Pearson Correlation of the Error of the Individual Models}
         \label{fig:pearson-correlation}
-    }
+    }%
     \subfigure[][Spearman Correlation]{
         \centering
-        \includegraphics[width=0.45\textwidth]{error_correlation_spearman.png}
+        \includegraphics[width=0.49\textwidth]{error_correlation_dp-hek293t-pe2_spearman.png}
         % \caption{Spearman Correlation of the Error of the Individual Models}
         \label{fig:spearman-correlation}
     }
-    \caption[Error Analysis of the Individual Models]{Error Analysis of the Individual Models on the DeepPrime HEK293T dataset. \textbf{(a)} The distribution of the error of the individual models at each example, smoothened using a  \textbf{(b)} The Pearson correlation of the error of the individual models. \textbf{(c)} The Spearman correlation of the error of the individual models.}
+    \caption[Error Analysis of the Individual Models]{Error Analysis of the Individual Models on the DeepPrime HEK293T dataset. \textbf{(a)} The distribution of the error of the individual models at each example, smoothened using a moving window of size 1000, and downsampled with a ratio of 100:1 for better visibility; \textbf{(b)} The Pearson correlation of the error of the individual models. \textbf{(c)} The Spearman correlation of the error of the individual models.}
     \label{fig:error-analysis}
 \end{figure}
 
@@ -346,31 +345,55 @@ The same analysis was conducted on all PRIDICT datasets, with consistent results
 
 The simplest method of ensembling in a regression task is averaging the predictions of the individual models. The averaging can be weighted to give more importance to the more accurate models. 
 
-A number of methods were common in the literature for determining the weights of the models, including weighted based on model's performance on the training/validation set\cite{fathiImprovingPrecipitationForecasts2019}, using a grid search to find the optimal weights \cite{anandWeightedAverageEnsemble2023}, or direct optimization of the weights using a meta learner. Due to the similarity of the grid search and direct optimization models, only the direct optimization and weighted according to the model's performance were tested in this study. For each fold, the meta learner takes the the prediction of the individual models on the training set as input and the measured efficiency as target. Similar to MLP, an additional validation set was created to prevent overfitting during the optimization. At the same time, the weights for each model during testing were determined by the model's performance according to Pearson's correlation on the training set.
+A number of methods were common in the literature for determining the weights of the models, including weighting based on model's performance on the training/validation set\cite{fathiImprovingPrecipitationForecasts2019}, using a grid search to find the optimal weights \cite{anandWeightedAverageEnsemble2023}, or direct optimization of the weights using a meta learner. Due to the similarity of the grid search and direct optimization models, only the direct optimization and weighted according to the model's performance were tested in this study. For each fold, the meta learner takes the the prediction of the individual models on the training set as input and the measured efficiency as target. Similar to MLP, an additional validation set was created to prevent overfitting during the optimization. For the performance based weighting, the weights for each model during testing were determined by the model's performance using the normalized Pearson's correlation on the training set. 
 
 Additionally, to provide context to the meta learning, weighted averaging was also tested with extended input data. In addition to the prediction of the individual models, the 24 extracted features were inputted into the meta learner. 
 
-This resulted in three different ensemble models: weighted averaging with only the prediction of the individual models, weighted averaging with the 24 extracted features, and weighted averaging using performance on the training set.
+\begin{figure}
+    \subfigure[Pearson]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{ensemble_pearson.pdf}
+        \label{fig:ensemble-weighted-mean-pearson}
+    }%
+    \subfigure[Spearman]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{ensemble_spearman.pdf}
+        \label{fig:ensemble-weighted-mean-spearman}
+    }
+    \caption[Ensemble Model Performance]{Pearson \textbf{(a)} and Spearman \textbf{(b)} Performance of the ensemble models using weighted averaging with different input data on the PRIDICT HEK293T dataset. The base learners used the uniform colour of gray, while each ensemble model is represented by a different colour. Three ensemble techniques were tested: direct optimization using only the predictions from base models (opt), direct optimization supplemented by the extracted features (opt-f), as well as performance based weighting (pwm, pearson weighted mean). A dotted line of matching colour was drawn at each ensemble model's mean performance for easier comparison.}
+    \label{fig:ensemble-weighted-mean}
+\end{figure}
+
+This resulted in three different ensemble models: weighted averaging with only the prediction of the individual models, weighted averaging with the addition of 24 extracted features, and weighted averaging using only performance (Pearson's $r$) on the training set. All methods were tested on the PRIDICT HEK293T dataset, and their performance compared to the individual base model are shown in \autoref{fig:ensemble-weighted-mean}.
+
+Interestingly, the simplest performance based weighting method achieved the best performance in terms of both Pearson and Spearman correlation, while the direct optimization methods could not outperform the individual models on the test set, possibly due to overfitting on the training set. The performance based weighting method was on par with the best individual models XGBoost and random forest, while significantly outperforming both of them when evaluated using Spearman's correlation ($p<0.05$, paired t-test). 
+
+As a result, the performance based weighting method was selected as part of the ensemble model for further testing on the DeepPrime dataset with the inclusion of the DeepPrime model.
 
 \subsection{Ensemble with Bagging}
 
-Bootstrap aggregating, or bagging, is a method that trains multiple models on different subsets of the training data and averages the predictions to produce the final prediction. 
+Bootstrap aggregating, or bagging, is a method that trains multiple models on different subsets of the training data and averages the predictions to produce the final prediction. Bagging works on the expectation that the models trained on different subsets of the data will have different biases and errors, and the averaging of the predictions will reduce the variance of the final prediction.
+
+Although sklearn provides implementation of bagging, their implementation does not work with regressors of different types. The deep learning models and the conventional ml models also use different input data, further exacerbating the difficulty of using preestablished libraries. Thus, a custom implementation of AdaBoost was written to handle the specific requirements of this task.
+
 
 \subsection{Ensemble with AdaBoost}
 
-Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains multiple models sequentially. It trains a model on the training data, calculates the error of the model, and then trains another model on the same data with the error of the previous model as the weight of the data. This process is repeated until the desired number of regressors are trained
+Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains multiple models sequentially. It trains a model on the training data, calculates the error of the model, and then trains another model on the same data with the error of the previous model as the weight of the data. This process is repeated until the desired number of regressors are trained, and the final prediction is the weighted sum of the predictions of the individual models. 
 
 The idea is similar to what DeepPrime did when training on their dataset, but applicable to all dataset without needing to carefully tweaking the weight adjustment functions for each editor and cell line.
+
+Having faced similar problem with bagging, AdaBoost was also implemented from scratch. Since the pytorch models do not natively support sample weights, a wrapper was written on top of the existing skorch wrapper to adjust the loss function using the provided weights.
+
 
 \section{Adoption of Transformer Models}
 
 % TODO: Add more details about the transformer
-The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences. This makes it a suitable candidate for processing the wide target sequences, as the object of RNN and CNN used by PRIDICT and DeepPrime was to capture the influence of the surrounding nucleotides on the editing efficiency.
+The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences. This makes it a suitable candidate for processing the wide target sequences, as the objective of RNN and CNN used by PRIDICT and DeepPrime was to capture the influence of the surrounding nucleotides on the editing efficiency.
 
-It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}. In their task, the transformer model was used to predict the bystander editing efficiency of the base editors given a protospacer location. The bystander editing refers to the phenomenon where the base editor induces unintended edits in the DNA sequence by modifying other targetable nucleotides in the vicinity of the activity window. A number of possible edits result and its corresponding efficiency were inputted into the model during training, and the model can output the efficiency of all possible outcome during inference, even if the outcome was not observed during training. Although having slightly lower performance when compared to other models focusing on predicting the intended edits, the transformer model was able to predict the bystander editing efficiency with far superior accuracy.
+It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}. In their task, the transformer model was used to predict the bystander editing efficiency of the base editors given a protospacer location. The bystander editing refers to the phenomenon where the base editor induces unintended edits in the DNA sequence by modifying other targetable nucleotides in the vicinity of the activity window. A number of possible edits result and its corresponding efficiency were inputted into the model during training, and the model can accurately output the efficiency of all possible outcome during inference, even at unseen target loci. Although having slightly lower performance when compared to other models focusing on predicting the intended edits, the transformer model was able to predict the bystander editing efficiency with far superior accuracy.
 
 The success of BE-DICT in predicting the bystander editing efficiency suggests that the transformer model may be capable of capturing the complex relationship between the wild type and edited sequences. This prompted me to utilize this architecture in the task of prime editing efficiency prediction, which involves a similar targeting mechanism as base editing.
-
 
 \subsection{Model Architecture}
 
