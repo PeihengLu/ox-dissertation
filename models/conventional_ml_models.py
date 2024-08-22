@@ -168,13 +168,13 @@ def mlp(save_path) -> BaseEstimator:
         module=MLP,
         criterion=torch.nn.MSELoss,
         optimizer=torch.optim.Adam,
-        max_epochs=100,
+        max_epochs=300,
         lr=0.005,
         device='cuda' if torch.cuda.is_available() else 'cpu',
         module__hidden_layer_sizes = (64, 64,),
         # early stopping
         callbacks=[
-            skorch.callbacks.EarlyStopping(patience=5),
+            skorch.callbacks.EarlyStopping(patience=50),
             skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt'),
             skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts, monitor='valid_loss', T_0=10, T_mult=1),
         ]
