@@ -67,7 +67,7 @@ class SequenceEmbedder(nn.Module):
 
         Args:
             X_nucl (torch.tensor): numerical representation of the nucleotide sequence
-            padding_mask (torch.tensor, optional): tensor, float32, (batch, sequence length) representing the padding mask. Defaults to None.
+            padding_mask (torch.tensor, optional): tensor, float32, (batch, sequence length, embed_dim) representing the padding mask. Defaults to None.
 
         Returns:
             torch.tensor: tensor, float32, (batch, sequence length, embed_dim) embedded sequence
@@ -88,9 +88,8 @@ class SequenceEmbedder(nn.Module):
         x = x + self.position_encoding[:, :x.size(1)].requires_grad_(False)
         
         if padding_mask is not None:
-            # Expand the mask to match the dimensions of x (seq_len, batch_size, embed_dim)
+            # Expand the mask to match the dimensions of x (batch_size, seq_len, embed_dim)
             # print distinct values in the padding mask
-            padding_mask = padding_mask.unsqueeze(-1).expand(x.size())
             x = x.masked_fill(padding_mask, 0)
         
         return x
@@ -144,7 +143,7 @@ class MultiHeadAttention(nn.Module):
         else:
             if self.local:
                 # no attention probabilities is returned
-                x = self.attention(query, key, value, mask=None)
+                x = self.attention(query, key, value, mask=mask)
             else:
                 x, self.attn = self.attention(query, key, value, mask=mask, dropout=self.dropout)
 
@@ -273,6 +272,10 @@ class Transformer(nn.Module):
             # convert the padding value to 0 so that one hot encoding can be applied
             X_wt = X_wt.masked_fill(padding_mask_wt, 0)
             X_mut = X_mut.masked_fill(padding_mask_mut, 0)
+            
+        # the mask should mask all embed dimensions
+        padding_mask_wt = padding_mask_wt.unsqueeze(-1)
+        padding_mask_mut = padding_mask_mut.unsqueeze(-1)
         
         # convert the sequence to embeddings
         # (batch, sequence length, embed_dim)
@@ -328,7 +331,17 @@ class PrimeDesignTransformer(nn.Module):
         self.onehot = onehot
         
         self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
-        self.linear_transformer = nn.Linear(sequence_length, 1)
+        # self.linear_transformer_1 = nn.Linear(embed_dim, 1, bias=False)
+        # self.linear_transformer_2 = nn.Sequential(
+        #     nn.LayerNorm(sequence_length),
+        #     nn.Dropout(pdropout),
+        #     nn.Linear(sequence_length, mlp_embed_dim, bias=False),
+        #     nn.ReLU(),
+        #     nn.Dropout(pdropout),
+        #     nn.Linear(mlp_embed_dim, 64, bias=False),
+        # )
+        self.linear_transformer = nn.Linear(sequence_length, 1, bias=False)
+        
         # self.gru = nn.GRU(input_size=sequence_length, hidden_size=128, num_layers=1, batch_first=True, bidirectional=True)
         
         self.feature_embedding = nn.Sequential(
@@ -374,9 +387,12 @@ class PrimeDesignTransformer(nn.Module):
         # reduce the sequence to its dimension
         # (batch, sequence length, embed_dim) => (batch, embed_dim)
         # reshape so that the linear layer can be applied to each of the dimensions
-        transformer_out = transformer_out.transpose(2, 1)
+        transformer_out = transformer_out.permute(0, 2, 1)
         transformer_out = self.linear_transformer(transformer_out)
         transformer_out = transformer_out.squeeze(2)
+        # transformer_out = self.linear_transformer_1(transformer_out)
+        # transformer_out = transformer_out.squeeze(2)
+        # transformer_out = self.linear_transformer_2(transformer_out)
         
         # print('transformer_out shape:', transformer_out.shape)
         
@@ -411,7 +427,6 @@ def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
     if mask is not None:
-        mask = mask.unsqueeze(1)
         scores = scores.masked_fill(mask, -1e9)
     p_attn = scores.softmax(dim=-1)
     if dropout is not None:
@@ -468,7 +483,7 @@ def preprocess_transformer(X_train: pd.DataFrame, slice: bool=False) -> Dict[str
     
     return result
 
-def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, annot: bool = True, num_encoder_units: int = 1) -> skorch.NeuralNetRegressor:
+def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, annot: bool = False, num_encoder_units: int = 1) -> skorch.NeuralNetRegressor:
     """train the transformer model
 
     Args:
@@ -509,7 +524,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
     # device
     device = torch.device('cuda')
     
-    for i in range(4, fold):
+    for i in range(0, fold):
         print(f'Fold {i+1} of {fold}')
         
         train = dp_dataset[dp_dataset['fold']!=i]
@@ -540,18 +555,18 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
             # model
             m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_features=num_features, onehot=True, annot=annot, flash=False, local=False, num_encoder_units=num_encoder_units)
             
-            accelerator = Accelerator(mixed_precision='bf16')
+            # accelerator = Accelerator(mixed_precision='bf16')
             
             # skorch model
-            model = AcceleratedNet(
+            model = skorch.NeuralNetRegressor(
                 m,
-                accelerator=accelerator,
+                # accelerator=accelerator,
                 criterion=nn.MSELoss,
                 optimizer=torch.optim.AdamW,
                 # optimizer__eps=1e-4,
                 # optimizer=torch.optim.SGD,
                 optimizer__lr=lr,
-                device=None,
+                device='cuda' if torch.cuda.is_available() else 'cpu',
                 batch_size=batch_size,
                 max_epochs=epochs,
                 train_split= skorch.dataset.ValidSplit(cv=5),
@@ -563,7 +578,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                                     f_optimizer=None, 
                                     f_history=None,
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-6),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-6),
                     # skorch.callbacks.ProgressBar(),
                     # skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.ReduceLROnPlateau, monitor='valid_loss', factor=0.5, patience=3, min_lr=1e-6),
                     # PrintParameterGradients()
@@ -862,14 +877,15 @@ def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 
 
     sequence_length = len(test_data_all['wt-sequence'].values[0])
 
-    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=num_encoder_units, num_features=num_features, onehot=True, annot=annot, flash=False)
+    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_encoder_units=num_encoder_units, num_features=num_features, onehot=True, annot=annot, flash=False)
     
     accelerator = Accelerator(mixed_precision='bf16')
             
     # skorch model
-    tr_model = AcceleratedNet(
+    tr_model = skorch.NeuralNetRegressor(
         m,
-        accelerator=accelerator,
+        # accelerator=accelerator,
+        device='cuda' if torch.cuda.is_available() else 'cpu',
         criterion=nn.MSELoss,
         optimizer=torch.optim.AdamW,
     )
