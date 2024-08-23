@@ -171,14 +171,6 @@ class MLPSkorch(skorch.NeuralNet):
         sample_weight = skorch.utils.to_tensor(X['sample_weight'], device=self.device)
         loss_reduced = (sample_weight * loss_unreduced).mean()
         return loss_reduced
-    
-    def fit(self, X, y=None, sample_weights=None, **fit_params):
-        # update the input
-        X = {
-            'x': X,
-            'sample_weight': sample_weights
-        }
-        return super().fit(X, y, **fit_params)
 
 def mlp(save_path) -> BaseEstimator:
     '''
@@ -191,12 +183,13 @@ def mlp(save_path) -> BaseEstimator:
         optimizer=torch.optim.Adam,
         max_epochs=300,
         lr=0.005,
+        batch_size=1024,
         device='cuda' if torch.cuda.is_available() else 'cpu',
         module__hidden_layer_sizes = (64, 64,),
         # early stopping
         callbacks=[
-            skorch.callbacks.EarlyStopping(patience=50),
-            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt'),
+            skorch.callbacks.EarlyStopping(patience=20),
+            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt', f_optimizer=None, f_history=None, f_pickle=None, f_criterion=None),
             skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts, monitor='valid_loss', T_0=10, T_mult=1),
         ]
     )
@@ -235,17 +228,20 @@ def mlp_weighted(save_path: str) -> BaseEstimator:
         optimizer=torch.optim.Adam,
         max_epochs=300,
         lr=0.005,
+        batch_size=1024,
         device='cuda' if torch.cuda.is_available() else 'cpu',
         module__hidden_layer_sizes = (64, 64,),
         # early stopping
         callbacks=[
             skorch.callbacks.EarlyStopping(patience=20),
-            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt'),
+            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt', f_optimizer=None, f_history=None, f_pickle=None, f_criterion=None),
             skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts, monitor='valid_loss', T_0=10, T_mult=1),
         ]
     )
     
     estimator = mlp.set_params(module__hidden_layer_sizes=(64,64), module__activation='relu', lr=0.005)
+
+    return estimator
 
 # ================================================
 # Helper functions

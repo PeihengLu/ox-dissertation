@@ -157,6 +157,7 @@ class EnsembleWeightedMean:
             else:
                 target = target.flatten()
                 self.ensemble[i] = []
+                # using the pearson correlation as the weight
                 for j in range(self.n_regressors):
                     self.ensemble[i].append(pearsonr(predictions[:, j], target)[0])
                 self.ensemble[i] = np.array(self.ensemble[i])
@@ -165,12 +166,9 @@ class EnsembleWeightedMean:
 
     def test(self, data: str):
         dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
-        cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
-        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
         performances_pearson = collections.defaultdict(list)
         performances_spearman = collections.defaultdict(list)
-        performances_pearson_train = collections.defaultdict(list)
-        performances_spearman_train = collections.defaultdict(list)
+
         for i in range(5):
             data = dataset[dataset['fold'] == i]
             features = data.iloc[:, 2:26].values
