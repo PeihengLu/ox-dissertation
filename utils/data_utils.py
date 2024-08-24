@@ -795,6 +795,121 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
     
     return output_df
 
+def convert_to_ensemble_df(data: pd.DataFrame) -> pd.DataFrame:
+    """ Convert loaded std data to ensemble data format
+
+    """
+    features = ['wt_sequence', 'mut_sequence', 'gc-count-pbs', 'rha-length', 'pbs-length', 'gc-count-extension',
+       'melting-temperature-pbs', 'spcas9-score', 'lha-length',
+       'maximal-length-of-consecutive-t-sequence', 'edit-type-replacement',
+       'g-at-protospacer-position-16', 'gc-content-rha', 'pam-disrupted',
+       'edit-length', 'c-at-protospacer-position-17',
+       'melting-temperature-rha', 'minimum-free-energy-extension',
+       'a-at-protospacer-position-13', 'a-at-protospacer-position-14',
+       't-at-protospacer-position-16', 'gc-content-extension', 'gc-count-rha',
+       'g-at-protospacer-position-15', 'g-at-protospacer-position-19',
+       'gc-content-pbs']
+    
+    features += ['group-id', 'editing-efficiency']
+    
+    output = []
+    
+    for ind, item in tqdm.tqdm(data.iterrows(), total=len(data)):
+        wt_sequence = item['wt-sequence']
+        mut_sequence = item['mut-sequence']
+
+        pbs = wt_sequence[item['pbs-location-l']:item['pbs-location-r']]
+        pbs = get_compliment_dna_to_dna(pbs)
+        pbs = get_compliment_dna_to_rna(pbs)
+        protospacer = wt_sequence[item['protospacer-location-l']:item['protospacer-location-r']]
+        spacer = get_compliment_dna_to_rna(protospacer)
+        extension = wt_sequence[item['pbs-location-r']:item['rtt-location-r']]
+        extension = get_compliment_dna_to_dna(extension)
+        extension = get_compliment_dna_to_rna(extension)
+        rha = wt_sequence[item['rha-location-l']:item['rha-location-r']]
+        rha = get_compliment_dna_to_dna(rha)
+        rha = get_compliment_dna_to_rna(rha)
+        lha = wt_sequence[item['lha-location-l']:item['lha-location-r']]
+        lha = get_compliment_dna_to_dna(lha)
+        lha = get_compliment_dna_to_rna(lha)
+        cDNA = mut_sequence[item['pbs-location-l']:item['rtt-location-r']]
+        cDNA = get_compliment_dna_to_dna(cDNA)
+
+        # mask out regions outside of pbs and rtt for mutated sequence
+        mut_sequence = 'N' * item['pbs-location-l'] + mut_sequence[item['pbs-location-l']:item['rtt-location-r']] + 'N' * (len(mut_sequence) - item['rtt-location-r'])
+        
+        # gc content and count
+        gc_count_pbs, _ = get_gc_content_and_count(pbs)
+        gc_count_spacer, _ = get_gc_content_and_count(spacer)
+        gc_count_extension, _ = get_gc_content_and_count(extension)
+        gc_count_rha, _ = get_gc_content_and_count(rha)
+        
+        # gc content and count
+        gc_content_spacer, gc_count_spacer = get_gc_content_and_count(spacer)
+        gc_content_pbs, gc_count_pbs = get_gc_content_and_count(pbs)
+        gc_content_extension, gc_count_extension = get_gc_content_and_count(extension)
+        gc_content_rha, gc_count_rha = get_gc_content_and_count(rha)
+
+        # melting temperature
+        melting_temperature_spacer = get_melting_temperature(spacer, table='R_DNA_NN1')
+        melting_temperature_pbs = get_melting_temperature(pbs, table='R_DNA_NN1')
+        melting_temperature_extension = get_melting_temperature(extension, table='R_DNA_NN1')
+        melting_temperature_rha = get_melting_temperature(rha, table='R_DNA_NN1')
+
+        # minimum free energy
+        minimum_free_energy_spacer = get_minimum_free_energy(spacer)
+        minimum_free_energy_pbs = get_minimum_free_energy(pbs)
+        minimum_free_energy_extension = get_minimum_free_energy(extension)
+        minimum_free_energy_rha = get_minimum_free_energy(rha)
+
+        # nucleotide at protospacer position
+        a_at_protospacer_position = [0] * 20
+        g_at_protospacer_position = [0] * 20
+        t_at_protospacer_position = [0] * 20
+        c_at_protospacer_position = [0] * 20
+
+        for i in range(20):
+            if protospacer[i] == 'A':
+                a_at_protospacer_position[i] = 1
+            elif protospacer[i] == 'G':
+                g_at_protospacer_position[i] = 1
+            elif protospacer[i] == 'T':
+                t_at_protospacer_position[i] = 1
+            elif protospacer[i] == 'C':
+                c_at_protospacer_position[i] = 1
+
+
+        # length of the sequences
+        edit_type = item['mut-type']
+        edit_len = item['edit-len']
+        rha_len = len(rha)
+        lha_len = len(lha)
+        pbs_len = len(pbs)
+
+        # pam disrupted
+        pam_disrupted = not (wt_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3] == mut_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3])
+
+        # maximal length of consecutive nucleotide sequence
+        if len(get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)) > 1:
+            t_max_length = max([len(seq) for seq in get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)])
+        else:
+            t_max_length = 0
+        
+        # spcas9_score = item['spcas9-score']
+        # spcas9_score needs to be calculated
+
+        editing_efficiency = item['editing-efficiency']
+
+        output.append([wt_sequence, mut_sequence, gc_count_pbs, rha_len, pbs_len, gc_count_extension, melting_temperature_pbs, spcas9_score, lha_len, t_max_length, edit_type == 0, g_at_protospacer_position[15], gc_content_rha, pam_disrupted, edit_len, c_at_protospacer_position[16], melting_temperature_rha, minimum_free_energy_extension, a_at_protospacer_position[12], a_at_protospacer_position[13], t_at_protospacer_position[15], gc_content_extension, gc_count_rha, g_at_protospacer_position[14], g_at_protospacer_position[18], gc_content_pbs, item['group-id'], editing_efficiency])
+
+    # save the extracted information
+    output_df = pd.DataFrame(output, columns=features, dtype=np.float32)
+    # join output_df with data
+    output_df = pd.concat([data, output_df], axis=1)
+    # move group_id and editing_efficiency to the end
+    output_df = output_df[[col for col in output_df.columns if col not in ['group-id', 'editing-efficiency']] + ['group-id', 'editing-efficiency']]
+    return output_df
+
 # =============================================================================
 # Sequence data preprocessing
 # =============================================================================
