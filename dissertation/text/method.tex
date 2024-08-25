@@ -521,7 +521,7 @@ The result is returned as a JSON response and is parsed by the front end as a ta
 
 Other than the model itself, an algorithm for suggesting candidate pegRNAs given a desirable edit was also implemented. Supposing the nick is done at 3bp upstream of the PAM, for the edit to be possible, the PAM sequence must be at most 3bp downstream of the edit start location (in which case LHA length is 0). Additionally, the protospacer must begin with a guanine nucleotide (G), so that the U6 motor used for the transcription of the pegRNA can recognize the sequence and start the expression\cite{hsieh-fengEfficientExpressionMultiple2020}.
 
-These requirements have the most significant constraint on the LHA length, as it always starts at the nick site 3bp upstream of the PAM and must be able to reach the edit location. PBS and RHA, on the other hand, are much more flexible in length, as they can be freely extended to their 3' and 5' ends respectively.
+These requirements have the most significant constraint on the LHA length, as it always starts at the nick site 3bp upstream of the PAM and must end at the edit location. Thus, its length depends entirely on the choice of the protospacer location. PBS and RHA, on the other hand, are much more flexible in length, as they can be freely extended to their 3' and 5' ends respectively.
 However, as discussed in \autoref{sec:determinants}, the length of LHA, RHA and PBS all have significant impact on the editing efficiency. To come up with a recommended range for these parameters, a more detailed analysis of the relationship between the lengths and the editing efficiency was conducted.
 
 \begin{figure}
