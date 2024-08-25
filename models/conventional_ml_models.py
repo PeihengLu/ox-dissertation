@@ -184,7 +184,7 @@ def mlp(save_path) -> BaseEstimator:
         max_epochs=300,
         lr=0.005,
         batch_size=1024,
-        device='cuda' if torch.cuda.is_available() else 'cpu',
+        device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
         module__hidden_layer_sizes = (64, 64,),
         # early stopping
         callbacks=[
@@ -229,7 +229,7 @@ def mlp_weighted(save_path: str) -> BaseEstimator:
         max_epochs=300,
         lr=0.005,
         batch_size=1024,
-        device='cuda' if torch.cuda.is_available() else 'cpu',
+        device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
         module__hidden_layer_sizes = (64, 64,),
         # early stopping
         callbacks=[

@@ -127,4 +127,111 @@ Full result of the hyperparameter tuning for the transformer model.
 \section{Additional Figures for Error Analysis}
 \label{appendix:error-analysis-figures}
 
+
+
+\begin{figure}[ht]
+    \centering
+    \subfigure[][Error Distribution]{
+        \centering
+        \includegraphics[width=\textwidth]{error_comparison_pd-adv-pe2.png}
+        % \caption{Error Distribution of the Individual Models}
+        \label{fig:error-distribution-adv-pe2}
+    }
+    \subfigure[][Pearson Correlation]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-adv-pe2_pearson.png}
+        % \caption{Pearson Correlation of the Error of the Individual Models}
+        \label{fig:pearson-correlation-adv-pe2}
+    }%
+    \subfigure[][Spearman Correlation]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-adv-pe2_spearman.png}
+        % \caption{Spearman Correlation of the Error of the Individual Models}
+        \label{fig:spearman-correlation-adv-pe2}
+    }
+    \caption[Error Analysis of the Individual Models on PRIDICT Adv PE2 dataset]{Error Analysis of the Individual Models on the PRIDICT Adv PE2 dataset. \textbf{(a)} The distribution of the error of the individual models at each example, smoothened using a moving window of size 100, and downsampled with a ratio of 10:1 for better visibility; \textbf{(b)} The Pearson correlation of the error of the individual models. \textbf{(c)} The Spearman correlation of the error of the individual models.}
+    \label{fig:error-analysis-adv-pe2}
+\end{figure}
+
+The same error analysis conducted on \autoref{fig:error-analysis} was also conducted on the PRIDICT datasets. The result is very similar, but with major difference in terms of the correlation between PRIDICT and DeepPrime. The correlation between the two deep learning is much weaker, with the Spearman correlation around 0.7. The more dataset specific differences are pointed out in the caption of \autoref{fig:error-analysis-adv-pe2}, \autoref{fig:error-analysis-hek293t-pe2}, \autoref{fig:error-analysis-k562-pe2}, and \autoref{fig:error-analysis-k562mlh1dn-pe2}.
+
+Due to the smaller data size, the downsampling and smoothing were done with a lower ratio of 10:1 and a smaller moving window of size 100, respectively. 
+
+\begin{figure}
+    \centering
+    \subfigure[][Error Distribution]{
+        \centering
+        \includegraphics[width=\textwidth]{error_comparison_pd-hek293t-pe2.png}
+        % \caption{Error Distribution of the Individual Models}
+        \label{fig:error-distribution-hek293t-pe2}
+    }
+    \subfigure[][Pearson Correlation]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-hek293t-pe2_pearson.png}
+        % \caption{Pearson Correlation of the Error of the Individual Models}
+        \label{fig:pearson-correlation-hek293t-pe2}
+    }%
+    \subfigure[][Spearman Correlation
+    ]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-hek293t-pe2_spearman.png}
+        % \caption{Spearman Correlation of the Error of the Individual Models}
+        \label{fig:spearman-correlation-hek293t-pe2}
+    }
+    \caption[Error Analysis of the Individual Models on PRIDICT HEK293T PE2 dataset]{Error Analysis of the Individual Models on the PRIDICT HEK293T PE2 dataset. \textbf{(a)}, \textbf{(b)}, and \textbf{(c)} are the same as \autoref{fig:error-analysis-adv-pe2}. Pearson's r is much weaker, possibly due to a more balanced target value distribution as we have seen in \autoref{fig:imbalanced} The MLP is strongly correlated with all other models, especially PRIDICT.}
+    \label{fig:error-analysis-hek293t-pe2}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \subfigure[][Error Distribution]{
+        \centering
+        \includegraphics[width=\textwidth]{error_comparison_pd-k562-pe2.png}
+        % \caption{Error Distribution of the Individual Models}
+        \label{fig:error-distribution-k562-pe2}
+    }
+    \subfigure[][Pearson Correlation]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-k562-pe2_pearson.png}
+        % \caption{Pearson Correlation of the Error of the Individual Models}
+        \label{fig:pearson-correlation-k562-pe2}
+    }%
+    \subfigure[][Spearman Correlation]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-k562-pe2_spearman.png}
+        % \caption{Spearman Correlation of the Error of the Individual Models}
+        \label{fig:spearman-correlation-k562-pe2}
+    }
+    \caption[Error Analysis of the Individual Models on PRIDICT K562 PE2 dataset]{Error Analysis of the Individual Models on the PRIDICT K562 PE2 dataset. \textbf{(a)}, \textbf{(b)}, and \textbf{(c)} are the same as \autoref{fig:error-analysis-adv-pe2}.}
+    \label{fig:error-analysis-k562-pe2}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \subfigure[][Error Distribution]{
+        \centering
+        \includegraphics[width=\textwidth]{error_comparison_pd-k562mlh1dn-pe2.png}
+        % \caption{Error Distribution of the Individual Models}
+        \label{fig:error-distribution-k562mlh1dn-pe2}
+    }
+    \subfigure[][Pearson Correlation]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-k562mlh1dn-pe2_pearson.png}
+        % \caption{Pearson Correlation of the Error of the Individual Models}
+        \label{fig:pearson-correlation-k562mlh1dn-pe2}
+    }%
+    \subfigure[][Spearman Correlation]{
+        \centering
+        \includegraphics[width=0.49\textwidth]{error_correlation_pd-k562mlh1dn-pe2_spearman.png}
+        % \caption{Spearman Correlation of the Error of the Individual Models}
+        \label{fig:spearman-correlation-k562mlh1dn-pe2}
+    }
+    \caption[Error Analysis of the Individual Models on PRIDICT K562 MLH1 DN PE2 dataset]{Error Analysis of the Individual Models on the PRIDICT K562 MLH1 DN PE2 dataset. \textbf{(a)}, \textbf{(b)}, and \textbf{(c)} are the same as \autoref{fig:error-analysis-adv-pe2}.}
+    \label{fig:error-analysis-k562mlh1dn-pe2}
+\end{figure}
+
+\begin{figure}
+    
+\end{figure}
+
 \section{}

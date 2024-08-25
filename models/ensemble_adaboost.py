@@ -8,12 +8,11 @@ import collections
 from scipy.stats import pearsonr, spearmanr
 
 class EnsembleAdaBoost:
-    def __init__(self, n_rounds: int = 10, learning_rate=1.0):
+    def __init__(self, n_rounds: int = 10, threshold=0.5):
         """ 
         
         """
         self.n_rounds = n_rounds
-        self.learning_rate = learning_rate
         self.base_learners = {
             'xgb': xgboost,
             'mlp': mlp_weighted,
@@ -23,6 +22,7 @@ class EnsembleAdaBoost:
         self.dl_models = ['mlp']
         self.models = []
         self.alphas = []
+        self.threshold = threshold
         # set the random seed
         np.random.seed(42)
         torch.manual_seed(42)
@@ -38,6 +38,9 @@ class EnsembleAdaBoost:
             target = data.iloc[:, -2].values
             features = torch.tensor(features, dtype=torch.float32)
             target = torch.tensor(target, dtype=torch.float32)
+            target_np = np.array(target).flatten()
+            # deal with the case where the target is 0
+            target_np[target_np == 0] += 1e-6
             sample_weights = np.ones(len(target))
 
             # aggravated predictions
@@ -50,6 +53,7 @@ class EnsembleAdaBoost:
                 # create a new set of models
                 for base_learner in self.base_learners:
                     save_path = pjoin('models', 'trained-models', 'ensemble', 'adaboost', f'{base_learner}-{data_source}-fold-{fold+1}-round-{i+1}')
+                    print(f"Round {i+1} {base_learner}")
                     if base_learner in self.dl_models:
                         model = self.base_learners[base_learner](save_path=save_path)
                     else:
@@ -85,24 +89,21 @@ class EnsembleAdaBoost:
                     # make predictions
                     predictions = model.predict(features).flatten()
                     predictions = np.array(predictions)
-                    target_np = np.array(target).flatten()
-                    # calculate the error using pearson correlation
-                    # loss constrained within [0, 1]
-                    print(f"Round {i+1} {base_learner} {pearsonr(predictions, target_np)[0]}")
-                    # calculate the weight of the model
-                    alpha = self.learning_rate * pearsonr(predictions, target_np)[0]
-                    errs = np.abs(predictions - target_np)
-                    # standardize the errors
-                    errs = (errs - np.mean(errs)) / np.std(errs)
-                    # update the sample weights using absolute error
-                    sample_weights = sample_weights * np.exp(alpha * errs)
-                    # clip the sample weights to be within [0.01, 10]
-                    sample_weights = np.clip(sample_weights, 0.01, 10)
-                    # make sure sample weights have mean 1
-                    sample_weights = sample_weights * len(sample_weights) / np.sum(sample_weights) 
-                    # update the aggregated predictions
-                    agg_predictions += alpha * predictions
-
+                    # calculate the correlation between the predictions and the target as the model weight
+                    alpha = pearsonr(predictions, target_np)[0]
+                    # calculate relative error for each sample
+                    error = np.abs(predictions - target_np)
+                    error = error / target_np
+                    # calculate the error rate
+                    error_rate = np.sum(error > self.threshold) / len(error)
+                    # update the sample weights by multiplying the error rate for correct predictions
+                    error = [error_rate if e <= self.threshold else 1 for e in error]
+                    print(error)
+                    sample_weights = sample_weights * error
+                    # normalize the weights to have a mean of 1
+                    sample_weights = sample_weights / np.mean(sample_weights)
+                    # make sure no weight is less than 1e-6
+                    sample_weights = np.maximum(sample_weights, 1e-6)
                     # add the model to the list
                     models.append(model)
                     alphas.append(alpha)
@@ -163,3 +164,31 @@ class EnsembleAdaBoost:
             performances_spearman['ada'].append(spearmanr(agg_predictions, target)[0])
         
         return performances_pearson, performances_spearman
+    
+    # def predict(self, data: str):
+    #     """
+    #     Perform the prediction using the trained models
+    #     Produce predictions for the full dataset using corresponding fold models
+    #     """
+    #     dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+    #     data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+    #     predictions = np.zeros(len(dataset))
+    #     for i in range(5):
+    #         alphas = self.alphas[i].flatten()
+    #         models = self.models[i]
+
+    #         data = dataset[dataset['fold'] == i]
+    #         features = data.iloc[:, 2:26].values
+    #         target = data.iloc[:, -2].values
+    #         features = torch.tensor(features, dtype=torch.float32)
+
+    #         # aggregated predictions
+    #         agg_predictions = np.zeros(len(target))
+
+    #         for model, alpha in zip(models, alphas):
+    #             predictions = model.predict(features).flatten()
+    #             agg_predictions += alpha * predictions
+
+    #         predictions[data.index] = agg_predictions
+
+    #     return predictions

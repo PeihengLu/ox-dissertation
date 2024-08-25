@@ -4,10 +4,13 @@
 
 \section{Curating a Benchmarking Dataset}
 
-To establish a common ground for evaluating the performance of machine learning models, I curated a benchmarking dataset using data from various literatures. The main data source is the 2024 study by Mathis et al. which has the most diverse editing types ranging from 1-to-5bp replacement to 1-to-15bp deletions and insertions\cite{mathisMachineLearningPrediction2024}. It is complimented by the DeepPrime dataset, as it has a much bigger HEK293T dataset ($\sim290,000$ vs $\sim22,000$) as well as a wider range of cell type and PE pairs that can be used for fine-tuning the model to achieve better coverage and higher impact\cite{yuPredictionEfficienciesDiverse2023}. The mutated sequences in the datasets were masked by 'x', exposing only the region corresponding to PBS-RTT. To match the PRIDICT format, the mutated sequences were unmasked, and the missing regions due to the shorter wide sequence window is padded by `N'.
+Before starting the development of novel models, to establish a common ground for evaluating the performance of machine learning models, a benchmarking dataset was curated using data from various literatures. The main data source is the 2024 study by Mathis et al. which has the most diverse editing types ranging from 1-to-5bp replacement to 1-to-15bp deletions and insertions\cite{mathisMachineLearningPrediction2024}. It is complimented by the DeepPrime dataset, as it has a much bigger HEK293T dataset ($\sim290,000$ vs $\sim22,000$ for DeepPrime and PRIDICT respectively) as well as a wider range of cell type and PE pairs that can be used for fine-tuning the model to achieve better generalizability and higher impact\cite{yuPredictionEfficienciesDiverse2023}. 
 
+In the DeepPrime data, the mutated sequences in the datasets were masked, exposing only the region corresponding to PBS-RTT. To match the PRIDICT format, the mutated sequences were unmasked and aligned to the wild type sequences. 
 
-The dataset was parsed to preserve all essential information required by the models while also limiting the number of fields for better readability. More importantly, the standardized format allows easier conversion between datasets, with each data source requiring only two functions to allow universal usability, one to convert to and one to convert from standard format. The standard (std) format contains the following information:
+The dataset was parsed to uniform format to preserve all essential information required by the models while also limiting the number of fields for better readability and portability. At the same time, the standardized format allows easier conversion between datasets, with each data source requiring only two parsing functions, one to convert the model dataset to standard format and one to convert from standard format to the format required by the model. 
+
+The standard (std) format contains the following fields:
 
 \begin{itemize}[itemsep=-0mm]
     \item \textcolor{blue}{cell-line}: the cell line used in the experiment
@@ -24,7 +27,7 @@ The dataset was parsed to preserve all essential information required by the mod
     \item \textcolor{blue}{editing-result}: empirically observed editing efficiency
 \end{itemize}
 
-The locations are separated into two columns in the format of "start:end", where start is the 0-based index of the first base of the sequence, while end is for last base of the sequence(non-inclusive). All sequences were read in the direction of from protospacer to PAM for easier interpretation. This is often different from previous studies that read from 5' end to the 3' end of the pegRNA instead of using their relative position to the target sequence.
+The locations are separated into two columns in the format of "start:end", where start is the 0-based index of the first base of the sequence, while end is for the location of the last base (non-inclusive). All sequences were read in the direction of from protospacer to PAM for easier interpretation. This is often different from previous studies that read from 5' end to the 3' end of the pegRNA.
 
 The data files are named as ``\{format\}-\{source\}-\{cell-line\}-\{PE-version\}.csv". `format' can be `std' for standard format, `shap' for files with only extracted features, as well as formats for individual models containing all the data required for training, such as `pd' for PRIDICT and `dp' for DeepPrime. `source' is the name of the study that the data was extracted from, while `cell-line' and `PE-version' are self explanatory.
 
@@ -75,17 +78,16 @@ A conspicuous issue with the dataset is the imbalance in target values. Shown in
         \label{fig:imbalanced-quantile}
         \includegraphics[width=0.45\textwidth]{editing-efficiency-quantile-transform.png}
     }
-    \label{fig:imbalanced}
     \caption[Target Distribution Imbalance]{The distribution of the editing efficiency in the DeepPrime HEK293T PE2 (DP) dataset, the PRIDICT2.0 HEK293T (PD HEK293T) dataset, the PRIDICT2.0 K562 (PD K562) as well as K562 MMR deficient (PD K562MLH1DN) dataset, and the PRIDICT2.0 Adv (PD ADV) dataset. (a), followed by the distribution after several adjustments (b-d). Due to the significant different in dataset sizes, DeepPrime datasets and PRIDICT datasets used different y-axis scale (left and right for DeepPrime and PRIDICT respectively): 
     \textbf{(a)} the distribution of original editing efficiency in the datasets. editing efficiency on the x axis is limited to [0, 100], with bin size of 10; \textbf{(b)} the distribution of the log adjusted editing efficiency in the DeepPrime HEK293T PE2 dataset; \textbf{(c)} the distribution of the editing efficiency after undersampling the data with editing efficiency $<10$ with a ratio of 10:1 (10\% of the original data were preserved); \textbf{(d)}, the distribution of the editing efficiency after uniformly quantile transformed.}
+    \label{fig:imbalanced}
 \end{figure}
 
 Although the research for imbalanced regression task is relatively limited compared to classification, a number of methods have been proposed\cite{krawczykLearningImbalancedData2016}. The simplest method is to adjust the target values so that better balance can be achieved in the projected space. Log transformation is a suitable method for the editing efficiency dataset, as it increases the distance between the lower values while keeping the higher values close (Figure \ref{fig:imbalanced-log}). The numpy \verb|log1p| function was used to prevent the transformation from being undefined when the target value is 0. During inference, the predicted values were transformed back to the original scale using the \verb|expm1| function. Undersampling is also a useful technique, by removing the majority of the lower efficiency pegRNAs, the model can be trained to better predict the higher efficiency pegRNAs\cite{torgoResamplingStrategiesRegression2015}. 
 The undersampling ratio was set to 10:1, with the majority of the pegRNAs with efficiency $<10$ removed (Figure \ref{fig:imbalanced-undersampling}). The undersampling ratio and threshold for determining the part of the data to undersample was fine tuned in the list of [20:1, 15:1, 10:1, 5:1] and [5, 10, 15] respectively using a XGBoost model trained on the first fold of DeepPrime HEK293T PE2 dataset. 
 SMOTE (Synthetic Minority Over-sampling Technique) was also considered, but the generation of synthetic data is very difficult for the prime editing prediction task, as the pegRNA sequence is highly structured and the synthetic data generated may not be biologically feasible. Additionally, quantile transformation was also tested. However, since it discretizes the data, some precision is expected to be lost during the inverse transformation.
 
-In addition to adjusting the dataset itself, the loss function can also be adjusted to assign different importance to different target values. Sample weights can be used to penalize the model more for mispredicting the higher efficiency pegRNAs. 
-
+In addition to adjusting the target values, the loss function can also be adjusted to assign different importance to different target values. Sample weights can be used to penalize the model more for mispredicting the higher efficiency pegRNAs. 
 
 DeepPrime applied a weighted loss function of the editing efficiency tuned for their dataset:
 \begin{equation}
@@ -93,7 +95,7 @@ DeepPrime applied a weighted loss function of the editing efficiency tuned for t
 \end{equation}
 where x is the measured editing efficiency. The weight is then used in the loss function to penalize the model more for mispredicting the higher efficiency pegRNAs.
 
-At the mean time, PRIDICT did not report any special treatment for the imbalanced dataset, possibly because the having high accuracy for the lower efficiency pegRNAs is as important as predicting the performance higher efficiency pegRNAs accurately. 
+At the mean time, PRIDICT did not report any special treatment for the imbalanced dataset, possibly because the imbalance is less severe in their dataset (Figure \ref{fig:imbalanced-original}, the PRIDICT HEK293T dataset has a more balanced distribution with large amount of examples with high editing efficiency). 
 
 To verify if the adjustments had made any significant different on the model's performance, a simple two layer MLP with 128 hidden units in each layer was trained on the DeepPrime HEK293T PE2 dataset using the original, log adjusted, undersampled and quantile transformed datasets. An additional model using the DeepPrime adjusted MSE was also tested. The models were trained using the Adam optimizer with a learning rate of 0.005, and the learning rate was adjusted using the CosineAnnealingLRWarmRestart scheduler, with a T\_0 (epoch of the first restart) of 15 and T\_mult (the factor to extend the restart intervals) of 1 to escape local minima. 
 
@@ -263,7 +265,7 @@ When training the models, the MLP makes a futher validation set in the training 
 
 The models' performance were evaluated using Pearson and Spearman correlation between predicted and measured efficiency, and the result of the conventional models on the four datasets were shown in \autoref{fig:conventional_ml_models_performance}. 
 
-Although similar in accuracy, XGBoost's gradient boosted trees have far superiour efficiency compared to the Random Forest model thanks to its GPU support and optimized implementation ($\sim$300 times faster).
+The Lasso and Ridge regression are the worst performing models, with similar performance between the two. This is to be expected, as the Lasso and Ridge regression are simple linear models and only differ in the penalty term used for regularization. The Random Forest model performed significantly better than the linear models, but with a much longer training time. Although both being tree based models, XGBoost's gradient boosted trees have far superiour performance and efficiency ($\sim$300 times faster) compared to the Random Forest model thanks to its GPU support and optimized implementation of the gradient boosting algorithm . The MLP model trails closely behind the XGBoost model in terms of Pearson's r, but significantly outperforms the XGBoost model 
 
 \begin{figure}
     \centering
@@ -337,9 +339,10 @@ The ridge and lasso regression models had 100\% correlation, as they are essenti
 
 DeepPrime and PRIDICT models also had a high correlation, despite significant difference in architecture. This may indicate that the two models are strong enough to fit to the data as accurately as possible, and an ensemble of the two models may not be as beneficial as expected. 
 
-Interestingly, despite both being tree based models, the Random Forest and XGBoost models had a relatively low correlation in terms of error, with a Spearman correlation of 0.7. This suggests that the different ensembling method used by Random Forest and XGBoost have an impact on the prediction, and the two models can complement each other in the ensemble. 
+Interestingly, despite both being tree based models, the Random Forest and XGBoost models had a relatively low correlation in terms of error, with a Spearman correlation of 0.7. This suggests that the different ensembling method used by Random Forest and XGBoost have an impact on the prediction, and the two models can complement each other in the ensemble. Thus, the testing ensemble models were selected to be the Ridge regression, Random Forest, XGBoost, and the MLP model.
 
-The same analysis was conducted on all PRIDICT datasets, with consistent results, shown in \autoref{appendix:error-analysis-figures}. Thus, the testing ensemble models were selected to be the Ridge regression, Random Forest, XGBoost, and the MLP model.
+The same analysis was conducted on all PRIDICT datasets, with consistent results, shown in \autoref{appendix:error-analysis-figures}. However, the correlation between DeepPrime and PRIDICT was weaker on those datasets. Still, given the much longer training time of PRIDICT model, only DeepPrime would be used in the final ensemble model.
+
 
 \subsection{Ensemble Using Weighted Averaging}
 
@@ -372,10 +375,37 @@ As a result, the performance based weighting method was selected as part of the 
 
 \subsection{Ensemble with Bagging}
 
-Bootstrap aggregating, or bagging, is a method that trains multiple models on different subsets of the training data and averages the predictions to produce the final prediction. Bagging works on the expectation that the models trained on different subsets of the data will have different biases and errors, and the averaging of the predictions will reduce the variance of the final prediction.
+Bootstrap aggregating, or bagging, is a method that trains multiple models on different subsets of the training data and averages the predictions to produce the final prediction. Bagging works on the expectation that the models trained on different subsets of the data will have different biases and errors, and the averaging of the predictions will reduce the variance of the final prediction\cite{dongSurveyEnsembleLearning2020}.
 
-Although sklearn provides implementation of bagging, their implementation does not work with regressors of different types. The deep learning models and the conventional ml models also use different input data, further exacerbating the difficulty of using preestablished libraries. Thus, a custom implementation of AdaBoost was written to handle the specific requirements of this task.
+Although sklearn provides implementation of bagging, their implementation does not work with regressors of different types. The deep learning models and the conventional ml models also use different input data, further exacerbating the difficulty of using preestablished libraries. Thus, a custom implementation of Bagging was written to handle the specific requirements of this task.
 
+The bagging model has two important parameters, the number of rounds of training to perform and the percentage of the training test to sample for each round. In each round, all base models are trained on a different subset of the training data, thus the total number of base learners is the number of rounds multiplied by the number of base models. Due to computational constraints, these parameters were tuned separately on the PRIDICT HEK293T dataset instead of being tuned with a grid search. 
+
+\begin{figure}
+    \centering
+    \subfigure[Percentage Tuning Pearson]{
+        \includegraphics[width=0.49\textwidth]{ensemble_pearson_bagging_percentage.pdf}
+        \label{fig:ensemble-bagging-pearson-percentage}
+    }%
+    \subfigure[Percentage Tuning Spearman]{
+        \includegraphics[width=0.49\textwidth]{ensemble_spearman_bagging_percentage.pdf}
+        \label{fig:ensemble-bagging-spearman-percentage}
+    }
+    \subfigure[Round Tuning Pearson]{
+        \includegraphics[width=0.49\textwidth]{ensemble_bagging_pearson_round.png}
+        \label{fig:ensemble-bagging-pearson-round}
+    }%
+    \subfigure[Round Tuning Spearman]{
+        \includegraphics[width=0.49\textwidth]{ensemble_bagging_spearman_round.png}
+        \label{fig:ensemble-bagging-spearman-round}
+    }
+    \caption[Ensemble Model Performance]{Pearson \textbf{(a), (c)} and Spearman \textbf{(b), (d)} Performance of the ensemble models using bagging with different hyperparameters on the PRIDICT HEK293T dataset. The percentage of samples tested varied from 0.3 to 0.9 with an increment of 0.2 (bag-0.3 to bag-0.9), while the number of rounds varied from 1 to 15 with increasing increment (bag-1 to bag-15). }
+    \label{fig:ensemble-bagging-tuning}
+\end{figure}
+
+Starting with the percentage of the sample, by fixing the number of rounds to 3, the percentage of the sample was varied from 0.3 to 0.9 with an increment of 0.2. Shown in Figure \ref{fig:ensemble-bagging-pearson-percentage} and Figure \ref{fig:ensemble-bagging-spearman-percentage}, the performance of the ensemble increases with the percentage of the sample and plateaued at 0.7. 
+
+Additionally, fixing the sample percentage at 0.5, the number of rounds was varied from 1 to 15 with a varying increment mimicking the exponential increase. Similar to the effect of increasing the percentage of the sample, the performance of the ensemble increased with the number of rounds and plateaued at 3. Further increase in the number of rounds did not result in significant improvement in the performance of the ensemble.
 
 \subsection{Ensemble with AdaBoost}
 
@@ -383,27 +413,39 @@ Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains
 
 The idea is similar to what DeepPrime did when training on their dataset, but applicable to all dataset without needing to carefully tweaking the weight adjustment functions for each editor and cell line.
 
-Having faced similar problem with bagging, AdaBoost was also implemented from scratch. Since the pytorch models do not natively support sample weights, a wrapper was written on top of the existing skorch wrapper to adjust the loss function using the provided weights.
+Having faced similar problem with bagging, AdaBoost was also implemented from scratch. The implementation in this study is based on the implementation of the AdaBoost.RT algorithm, which is a variant of AdaBoost specifically designed for regression tasks \cite{shresthaExperimentsAdaBoostRT2006,solomatineAdaBoostRTBoosting2004}. However, the original algorithm has to be tweaked in a number of places to accommodate the different types of models used in this study. 
+
+Starting with a set of input data $X=\{x_1, x_2, ..., x_n\}$ and the corresponding target values $Y=\{y_1, y_2, ..., y_n\}$, and an integer specifying the number of rounds $T$, defined similarly to the bagging model. A threshold $0<\epsilon < 1$ was also defined to determine if an individual example is correctly predicted by the model.
+
+A set of sample weights $D_t(i)$ and a model weight $\alpha_t$ and an error rate $\epsilon_t$ were associated with each iteration $t\leq T$.
+In the original model, the sample weight distribution is initialized as a uniform distribution summing up to one: $D_1(i) = 1/n$. However, in a dataset with large sample size, the uniform distribution can result in a very small weight for each sample, which does not work well with the XGBoost model and would result in NaN values in its prediction. Thus, I modified the distribution to be a uniform distribution with a sum of number of samples in the dataset, $D_1(i) = 1$. Additionally, the AdaBoost model has no separation of error rate and the model weight. However, since Pearson's correlation is the desirable metric in this task, the model weight was set to be the Pearson's $r$ of the model's prediction on the training set, while error rate was used in adjusting the sample weights.
+
+After each iteration, the absolute relative error for each training example is calculated as $e_t(i) = |y_i - \hat{y}_t(i)|/y_i$, where $\hat{y}_t(i)$ is the prediction of the model at iteration $t$. The error is then used to calculate the error rate, indicating the percentage of examples predicted with higher relative error than the threshold $\phi$: $\epsilon_t = \sum_{i=1: e_t(i) > \phi} D_t(i) / n$. This projects the regression problem into a classification problem, where the AdaBoost algorithm was originally designed for.
+
+The sample weights are then updated using the calculated error rate and relative error associated with each sample as 
+$$D_{t+1}(i) = D_t(i) \times \begin{cases}
+    \epsilon_t, & \text{if } e_t(i) > \phi \\
+    1, & \text{otherwise}
+\end{cases}$$
+
+To prevent the sample weights from becoming too small for the XGBoost model during training, the sample weights were clipped to a minimum of 0.01. After clipping, the distribution is then normalized to sum up to 1, ensuring that the sample weights are still a probability distribution.
+
+The final output is then calculated as the weighted sum of the predictions of the individual models using the normalized model weights $\alpha$, similar to the performance weighted mean and bagging models.
+
+Tuning for AdaBoost is a lot more complicated, as the error rate threshold has a very significant impact on the performance of the model, and needs to be selected carefully for every set of data. A threshold too low would result in insufficient amount of correctly predicted examples, while a threshold too high would result in overfitting to the outliers with very high relative error\cite{shresthaExperimentsAdaBoostRT2006}. 
+
 
 
 \section{Adoption of Transformer Models}
 
 % TODO: Add more details about the transformer
-The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences. This makes it a suitable candidate for processing the wide target sequences, as the objective of RNN and CNN used by PRIDICT and DeepPrime was to capture the influence of the surrounding nucleotides on the editing efficiency.
+The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences\cite{vaswaniAttentionAllYou2017}. This makes it a suitable candidate for processing the wide target sequences, as the objective of RNN and CNN used by PRIDICT and DeepPrime was to capture the influence of the surrounding nucleotides on the editing efficiency.
 
 It was adopted by the Schwank lab (designers of PRIDICT) in the task of base editing efficiency prediction (BE-DICT), and achieved superior performance in multiple datasets compared to its RNN and CNN counterparts\cite{marquartPredictingBaseEditing2021}. In their task, the transformer model was used to predict the bystander editing efficiency of the base editors given a protospacer location. The bystander editing refers to the phenomenon where the base editor induces unintended edits in the DNA sequence by modifying other targetable nucleotides in the vicinity of the activity window. A number of possible edits result and its corresponding efficiency were inputted into the model during training, and the model can accurately output the efficiency of all possible outcome during inference, even at unseen target loci. Although having slightly lower performance when compared to other models focusing on predicting the intended edits, the transformer model was able to predict the bystander editing efficiency with far superior accuracy.
 
 The success of BE-DICT in predicting the bystander editing efficiency suggests that the transformer model may be capable of capturing the complex relationship between the wild type and edited sequences. This prompted me to utilize this architecture in the task of prime editing efficiency prediction, which involves a similar targeting mechanism as base editing.
 
 \subsection{Model Architecture}
-
-The implementation of the transformer architecture was adopted from Sasha Rush's implementation of the transformer model in Pytorch\cite{AnnotatedTransformer}, while the MLP encoder and decoder were implemented according to the cleaner design of the DeepPrime model\cite{yuPredictionEfficienciesDiverse2023}.
-
-The transformer model was used to encode both the wild type and mutated sequence, which is slightly unconventional when compared to its usage in other NLP tasks. Starting with positional encoding, the \verb|sine| and \verb|cosine| waves for even and odd dimensions were first applied to the one hot encoded sequence to assign positional information to the input sequences, as attention mechanism does not have any inherent understanding of the order of the input data. 
-To help the transformer model better understand the difference between wild type and edited sequences, the two sequences were aligned so that the non edited part of the sequence has matching positional encoding. The missing regions in the edited sequence for deletion and in the wild type sequence for insertion were filled with padding values, and the positional encoding was set to 0 for these regions.
-
-The wild type sequence is then inputted into the transformer encoder, composed of a self-attention layer and a feed forward layer. The self-attention layer is used to capture the relationship between the nucleotides in the sequence, while the positional feed forward layer further transforms the representation and introduces non-linearity with the activation function. Similarly, the mutated sequence is inputted into the transformer decoder, starting with the same self
-attention layer and positional feed forward layer. The output of the encoder and decoder are then processed by the cross attention layer, using the output of the encoder as the query and the output of the decoder as the key and value. After the cross attention layer, the output is processed by another positional feed forward layer, and then flattened with a linear layer to produce the final embedding. Residual connections and layer normalization were also used after each multi-head attention and positional feed forward layer to stabilize the training process.
 
 \begin{figure}
     \centering
@@ -412,6 +454,25 @@ attention layer and positional feed forward layer. The output of the encoder and
     \label{fig:transformer-model}
 \end{figure}
 
+The implementation of the transformer architecture was adopted from Sasha Rush's implementation of the transformer model in Pytorch\cite{AnnotatedTransformer}, while the MLP encoder and decoder were implemented according to the cleaner design of the DeepPrime model\cite{yuPredictionEfficienciesDiverse2023}.
+
+The transformer model was used to encode both the wild type and mutated sequence, which is slightly unconventional when compared to its usage in other NLP tasks. Starting with positional encoding, the \verb|sine| and \verb|cosine| waves for even and odd dimensions were first applied to the one hot encoded sequence to assign positional information to the input sequences, as attention mechanism does not have any inherent understanding of the order of the input data. 
+To help the transformer model better understand the difference between wild type and edited sequences, the two sequences were aligned so that the non edited part of the sequence has matching positional encoding. The missing regions in the edited sequence for deletion and in the wild type sequence for insertion were filled with padding values, and the positional encoding was set to 0 for these regions.
+
+The wild type sequence is then inputted into the transformer encoder, composed of a self-attention layer and a feed forward layer. The self-attention layer is used to capture the relationship between the nucleotides within the sequence, while the positional feed forward layer further transforms the representation and introduces non-linearity with the activation function. 
+
+Similarly, the mutated sequence is inputted into the transformer decoder, starting with the same self attention layer and positional feed forward layer. The output of the encoder and decoder are then processed by the cross attention layer, using the output of the encoder as the query and the output of the decoder as the key and value. After the cross attention layer, the output is processed by another positional feed forward layer, which completes one layer of the decoder. 
+
+The encoder and decoder could be stacked multiple times for the attention mechanism to capture higher level features of the input data. Residual connections and layer normalization were also used after each multi-head attention and positional feed forward layer to stabilize the training process.
+
+The final output of the transformer model is then pooled by a feature embedding attention layer, which assigns different weights to the output of the transformer model based on the importance of the each token, and produces a flattened representation with length equal to the number of embedding dimensions (4 if only only using one hot encoded sequence, 6 if adding the functional annotation of PBS and RTT regions).
+
+At the same time, the extracted features were processed by a separate MLP, which produces a dense representation of the input and is concatenated with the output of the transformer model. 
+
+Finally, the concatenated representation is processed by the MLP header, which produces a real value as the predicted editing efficiency of the input sequences given the pegRNA.
+
+
+
 \subsection{Architecture and Hyperparameter Tuning}
 
 A number of architectural and hyperparameter choices were tested during the development of the transformer model.
@@ -419,12 +480,12 @@ The tuning of the model's architecture and hyperparameter was performed on the P
 
 Similar to PRIDICT, the size of the MLP layers were controlled using three parameters. The first is the mlp\_embed\_factor, which controls the size of the hidden layers in the MLP encoder and decoder. This is followed by the embed dimension of the MLP, which is the size of the output of the MLP embedder processing the feature vector. The last parameter is the number of encoder units inside of the MLP, where a encoder unit is a combination of two linear layers converting the data from embed dimension to embed dimension * mlp\_embed\_factor, followed by dropout and layer normalization.
 
-To reduce the computational cost by testing many parameters at the same times and forming a large parameter grid, the tuning was conducted in two separate stages, with the first stage of tuning focusing on the a number of design decisions of the model architecture. To begin with, a number of alternative attention mechanisms were tested, using the scalar dot product attention as a baseline. 
+To reduce the computational cost by testing many parameters at the same times and forming a large parameter grid, the tuning was conducted in two separate stages, with the first stage of tuning focusing on the a number of design decisions of the model architecture. 
+
+To begin with, a number of alternative attention mechanisms were tested, using the scalar dot product attention as a baseline. 
 
 % Describe flash transformer
-To alleviate the quadratic computational cost of the scalar dot product attention model, flash attention was included as a more efficient alternative to the self-attention mechanism. 
-
-Half precision was required by the flash attention to train and test the model. Half precision can significantly reduce memory usage and training time, achieving up to 8 times speed up when compared to single precision (float32)\cite{micikeviciusMixedPrecisionTraining2018}. However, certain small-magnitude gradients may fall out of range of half precision and become zero. This results in NaN values in the model's weights and losses, causing training to fail. As a result, the hugging face accelerator module was adopted to prevent the model from diverging during training. 
+To alleviate the quadratic computational cost of the scalar dot product attention model, flash attention was included as a more efficient alternative to the self-attention mechanism. Half precision was required by the flash attention to train and test the model, which can significantly reduce memory usage and training time, achieving up to 8 times speed up when compared to single precision (float32)\cite{micikeviciusMixedPrecisionTraining2018}. However, certain small-magnitude gradients may fall out of range of half precision and become zero. This results in NaN values in the model's weights and losses, causing training to fail. As a result, the hugging face accelerator module was adopted to prevent the training from failing. 
 
 Additionally, global attention is not always necessary for lower level of the transformer model\cite{raeTransformersNeedDeep2020}, thus another 
 possible improvement to the model is to use local attention for self-attention layers. The local attention only allows the model to attend to a fixed number of tokens within a certain window, reducing the computational cost of the attention mechanism and maybe improving the model's performance by focusing on the most relevant tokens.
@@ -433,7 +494,7 @@ However, during testing, neither the flash attention nor the local attention sho
 
 Even with the hugging face's accelerator module, the mixed precision training still causes around 1 out of 20 training runs to fail due to NaN values in the model's weights and losses, especially in model configurations with poor performances. Additionally, no significant improvement in either training time or performance was observed when using flash attention when training on the network with 1 encoder and decoder layer using 2 attention heads (one head works on CG representation, the other works on AT representation, performance comparison with pearson's $r$ of 0.79 vs 0.79 across 5 repeated runs, $p>0.1$, paired t-test) compared to scalar product attention. On the same configuration of 1 encoder and 1 decoder, the local attention mechanism also did not show any significant improvement in the model's performance (pearson's $r$ of 0.78 vs 0.79 for with and without local attention respectively, $p>0.1$, paired t-test).
 
-Additionally, although having previously established that the usage of embedding does not significantly improve the DeepPrime and PRIDICT models' performance, the influence of using PRIDICT's functional annotation still needs to be investigated. Using the same configuration with local attention enabled, again no significant improvement was observed in the model's performance (3 heads used for annotated representation, with 2 heads processing ATGC representation as before, and 1 extra head processing the PBS and RTT representation, pearson's $r$ of 0.79 vs 0.79, $p>0.1$, paired t-test).
+Additionally, although having previously established that the usage of embedding does not significantly improve the DeepPrime and PRIDICT models' performance, the influence of using PRIDICT's functional annotation still needs to be investigated. Using the same configuration with local attention enabled, marginal improvement was observed in the model's performance (3 heads used for annotated representation, with 2 heads processing ATGC representation as before, and 1 extra head processing the PBS and RTT representation, pearson's $r$ of 0.79 vs 0.81 for without and with functional annotation, $p>0.05$, paired t-test). This indicated that the functional annotation may provide important contextual information for the transformer model to differential between different edits on the same target loci. Although no significant improvement was observed, the functional annotation was preserved in the final model for its potentially greater benefits on the larger DeepPrime dataset.
 
 As a result, the final model was configured with the scalar dot product attention mechanism with local attention used during the self-attention layers, without the usage of flash attention or functional annotation.
 
@@ -445,7 +506,9 @@ The next stage focuses on the parameter size of the model. Since the MLP modules
     \item \textcolor{blue}{Dropout Rate}: 0.1, 0.3, 0.5
 \end{itemize}
 
-The full list of performance of the models using each configuration can be found in \autoref{appendix:transformer-hyperparameter-tuning}. Overall, the best configuration for the transformer model was the simplest 1 encoder and 1 decoder layer with 2 attention heads, using a low dropout rate of 0.1. Stacking and increasing the number of hidden units in the positional feedforward layers significantly increased the model's training time and memory usage without any significant improvement in the model's performance. However, when reviewing the attention map of the cross attention layer, it was observed that at early layers, the attention map was dominated by the positional encoding, suggesting that the model with no stacking was not able to capture the relationship between the wild type and edited sequences. With stacking, on the other head, the attention map of higher layers showed a more interpretable patterns (details of attention maps will be shown in \autoref{sec:attention_analysis}). As a result, stacking of 3 encoder/decoder units was preserved in the final model.
+The full list of performance of the models using each configuration can be found in \autoref{appendix:transformer-hyperparameter-tuning}. Overall, the best configuration for the transformer model was the simplest 1 encoder and 1 decoder layer with 2 attention heads, using a low dropout rate of 0.1. Stacking and increasing the number of hidden units in the positional feedforward layers significantly increased the model's training time and memory usage without any significant improvement in the model's performance. 
+
+However, when reviewing the attention map of the cross attention layer, it was observed that at early layers, the attention map was dominated by the positional encoding, suggesting that the model with no stacking was not able to capture the relationship between the wild type and edited sequences. With stacking, on the other head, the attention map of higher layers showed a more interpretable patterns. As a result, stacking of 3 encoder/decoder units was preserved in the final model.
 
 \section{Development of pegRNA Design Web Tool}
 
@@ -502,7 +565,7 @@ suppose that the user is in the root directory of the project. The web tool can 
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{webapp-interface.png}
-    \caption[pegRNA Design Web Tool]{Interface of the pegRNA Design Web Tool. A dropdown menu is provided for the user to select the PE version and cell line, and the user can input their target edit in the correct format in the input box.}
+    \caption[pegRNA Design Web Tool Interface]{Interface of the pegRNA Design Web Tool. A dropdown menu is provided for the user to select the PE version and cell line, and the user can input their target edit in the correct format in the input box.}
     \label{fig:webtool}
 \end{figure}
 

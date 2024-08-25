@@ -4,7 +4,7 @@ pandas
 numpy
 matplotlib
 scikit-learn==1.5.1
-torch==2.3.0
+torch==2.2.0
 ipykernel>=6.9
 django
 skorch

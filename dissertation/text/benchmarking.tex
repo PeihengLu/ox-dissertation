@@ -2,14 +2,14 @@
 
 \section{Fine Tuning the Deep Learning Models}
 
-For a more thorough comparison, the trained models were also fine tuned on the smaller DeepPrime datasets.
+On top of the five main dataset of size $> 20k$, DeepPrime has additional 18 datasets of size $<5k$, which were used to fine tune the model for better generalizability. As a result, for a more thorough comparison between the models, the same fine tuning process was conducted on all deep learning models.
 
-(Remember to adjust for PAM differences when fine tuning, modify the feature extraction script)
+To fine tune the models, the same hyperparameters were used as the original training, except for the learning rate, which was set to $1e-4$ for the fine tuning to accommodate the smaller dataset size. The sequence processing layers were frozen, leaving only the feature processing and the final meta learner to be trained. The models were trained for at most 200 epochs for each fold, and the best model was selected based on the validation loss.
 
 \section{Benchmarking}
 
 % TODO: add references to the section and appendix after including the results
-As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime uses different features, for a more direct comparison of the architecture, both models were retrained using the features selected from this study. Since all models use the same number of features, the data is hot swappable between the models, allowing for easier retraining if a more optimal feature set is found.
+As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime uses different features, for a more direct comparison of the architecture, both models were retrained using the features selected from this study. Since all models use the same number of features (24), the data is hot swappable between the models, allowing for easier retraining if a more optimal feature set is found.
 
 \section{Attention Analysis}
 \label{sec:attention_analysis}
