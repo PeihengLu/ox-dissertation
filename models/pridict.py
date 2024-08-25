@@ -227,6 +227,8 @@ class FeatureEmbAttention(nn.Module):
         # squeeze the result to obtain (bsize, feat_dim)
         z = attn_w_normalized.unsqueeze(1).bmm(X).squeeze(1)
         
+        del X_scaled, queryv_scaled, attn_w
+        
         # returns (bsize, feat_dim), (bsize, seqlen)
         return z, attn_w_normalized
 
@@ -513,6 +515,8 @@ class Pridict(nn.Module):
         mu_logit = self.decoder(z)
         # mu = torch.exp(mu_logit)
         
+        del wt_embed, mut_embed, z_wt, z_mut, wt_mask, mut_mask, wt_mask_local, mut_mask_local, local_attention_wt, local_attention_mut, global_attention_wt, global_attention_mut, features_embed
+        
         return torch.functional.F.softplus(mu_logit)
         
 def preprocess_pridict(X_train: pd.DataFrame) -> Dict[str, torch.Tensor]:
@@ -656,7 +660,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         
         best_val_loss = np.inf
     
-        for j in range(2, num_runs):
+        for j in range(0, num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
             m = Pridict(input_dim=5,hidden_dim=32, sequence_length=sequence_length, dropout=dropout)
