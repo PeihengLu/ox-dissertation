@@ -265,7 +265,7 @@ When training the models, the MLP makes a futher validation set in the training 
 
 The models' performance were evaluated using Pearson and Spearman correlation between predicted and measured efficiency, and the result of the conventional models on the four datasets were shown in \autoref{fig:conventional_ml_models_performance}. 
 
-Although similar in accuracy, XGBoost's gradient boosted trees have far superiour efficiency compared to the Random Forest model thanks to its GPU support and optimized implementation ($\sim$300 times faster).
+The Lasso and Ridge regression are the worst performing models, with similar performance between the two. This is to be expected, as the Lasso and Ridge regression are simple linear models and only differ in the penalty term used for regularization. The Random Forest model performed significantly better than the linear models, but with a much longer training time. Although both being tree based models, XGBoost's gradient boosted trees have far superiour performance and efficiency ($\sim$300 times faster) compared to the Random Forest model thanks to its GPU support and optimized implementation of the gradient boosting algorithm . The MLP model trails closely behind the XGBoost model in terms of Pearson's r, but significantly outperforms the XGBoost model 
 
 \begin{figure}
     \centering
@@ -422,6 +422,15 @@ In the original model, the sample weight distribution is initialized as a unifor
 
 After each iteration, the absolute relative error for each training example is calculated as $e_t(i) = |y_i - \hat{y}_t(i)|/y_i$, where $\hat{y}_t(i)$ is the prediction of the model at iteration $t$. The error is then used to calculate the error rate, indicating the percentage of examples predicted with higher relative error than the threshold $\phi$: $\epsilon_t = \sum_{i=1: e_t(i) > \phi} D_t(i) / n$.
 
+The sample weights are then updated using the calculated error rate and relative error associated with each sample as 
+$$D_{t+1}(i) = D_t(i) \times \begin{cases}
+    \epsilon_t, & \text{if } e_t(i) > \phi \\
+    1, & \text{otherwise}
+\end{cases}$$
+
+To prevent the sample weights from becoming too small for the XGBoost model during training, the sample weights were clipped to a minimum of 0.01. After clipping, the distribution is then normalized to sum up to 1, ensuring that the sample weights are still a probability distribution.
+
+The final output is then calculated as the weighted sum of the predictions of the individual models using the normalized model weights $\alpha$, similar to the performance weighted mean and bagging models.
 
 Tuning for AdaBoost is a lot more complicated, as the error rate threshold has a very significant impact on the performance of the model, and needs to be selected carefully for every set of data. A threshold too low would result in insufficient amount of correctly predicted examples, while a threshold too high would result in overfitting to the outliers with very high relative error\cite{shresthaExperimentsAdaBoostRT2006}. 
 

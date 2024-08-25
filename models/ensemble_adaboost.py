@@ -87,22 +87,11 @@ class EnsembleAdaBoost:
                     predictions = model.predict(features).flatten()
                     predictions = np.array(predictions)
                     target_np = np.array(target).flatten()
+                    alpha = pearsonr(predictions, target_np)[0]
                     # calculate the error using pearson correlation
                     # loss constrained within [0, 1]
-                    print(f"Round {i+1} {base_learner} {pearsonr(predictions, target_np)[0]}")
-                    # calculate the weight of the model
-                    alpha = self.learning_rate * pearsonr(predictions, target_np)[0]
-                    errs = np.abs(predictions - target_np)
-                    # standardize the errors
-                    errs = (errs - np.mean(errs)) / np.std(errs)
-                    # update the sample weights using absolute error
-                    sample_weights = sample_weights * np.exp(alpha * errs)
-                    # clip the sample weights to be within [0.01, 10]
-                    sample_weights = np.clip(sample_weights, 0.01, 10)
-                    # make sure sample weights have mean 1
-                    sample_weights = sample_weights * len(sample_weights) / np.sum(sample_weights) 
-                    # update the aggregated predictions
-                    agg_predictions += alpha * predictions
+                    print(f"Round {i+1} {base_learner} {alpha}")
+                    
 
                     # add the model to the list
                     models.append(model)
