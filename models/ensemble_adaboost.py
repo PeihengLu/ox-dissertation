@@ -89,10 +89,8 @@ class EnsembleAdaBoost:
                     # make predictions
                     predictions = model.predict(features).flatten()
                     predictions = np.array(predictions)
+                    # calculate the correlation between the predictions and the target as the model weight
                     alpha = pearsonr(predictions, target_np)[0]
-                    # calculate the error using pearson correlation
-                    # loss constrained within [0, 1]
-                    print(f"Round {i+1} {base_learner} {alpha}")
                     # calculate relative error for each sample
                     error = np.abs(predictions - target_np)
                     error = error / target_np
@@ -100,6 +98,7 @@ class EnsembleAdaBoost:
                     error_rate = np.sum(error > self.threshold) / len(error)
                     # update the sample weights by multiplying the error rate for correct predictions
                     error = [error_rate if e <= self.threshold else 1 for e in error]
+                    print(error)
                     sample_weights = sample_weights * error
                     # normalize the weights to have a mean of 1
                     sample_weights = sample_weights / np.mean(sample_weights)
