@@ -328,3 +328,51 @@ def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int 
     torch.cuda.empty_cache()
     
     return prediction, performance
+
+def fine_tune_deepprime(fine_tune_fname: str):    
+    # load the fine tune datasets
+    fine_tune_data = glob(os.path.join('models', 'data', 'deepprime', '*small*.csv'))
+    
+    for data in fine_tune_data:
+        data_source = os.path.basename(data).split('-')[1]
+        data_source = data_source.split('.')[0]
+        # load the dp hek293t pe 2 model
+        model = DeepPrime(128, 1, 24, 0.05)
+        model.load_state_dict(torch.load('models/trained-models/deepprime/dp-dp-hek293t-pe2.pt'))
+        
+        # freeze the layers other than head
+        for param in model.parameters():
+            param.requires_grad = False
+        for param in model.head.parameters():
+            param.requires_grad = True
+            
+        # skorch wrapper
+        dp_model = skorch.NeuralNetRegressor(
+            model,
+            criterion=nn.MSELoss,
+            optimizer=torch.optim.Adam,
+            device='cuda' if torch.cuda.is_available() else 'cpu',
+            warm_start=True,
+            optimizer__lr=0.005,
+            max_epochs=200,
+            batch_size=1024,
+            train_split=skorch.dataset.CVSplit(5),
+            callbacks=[
+                skorch.callbacks.EarlyStopping(patience=20),
+                skorch.checkpoint.Checkpoint(monitor='valid_loss_best', f_params=f'models/trained-models/deepprime/dp-{data_source}.pt'),
+                skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1),
+            ]
+        )
+        
+        # load the fine tune data
+        fine_tune = pd.read_csv(data)
+        X_fine_tune = fine_tune.iloc[:, :26]
+        y_fine_tune = fine_tune.iloc[:, -2]
+        
+        X_fine_tune = preprocess_deep_prime(X_fine_tune)
+        y_fine_tune = y_fine_tune.values
+        y_fine_tune = y_fine_tune.reshape(-1, 1)
+        y_fine_tune = torch.tensor(y_fine_tune, dtype=torch.float32)
+        
+        # train the model
+        dp_model.fit(X_fine_tune, y_fine_tune)

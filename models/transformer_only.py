@@ -115,7 +115,7 @@ class MultiHeadAttention(nn.Module):
         if mask is not None:
             # Same mask applied to all heads
             mask = mask.unsqueeze(1)
-            # mask should be applied to the encoder sequence
+            # the mask should be applied to the key
             mask = mask.permute(0, 1, 3, 2)
                         
         batch_size = query.size(0)
@@ -158,6 +158,7 @@ class MultiHeadAttention(nn.Module):
         
         return self.linears[-1](x)
     
+    
 # attention layer for pooling the transformer outputs
 class FeatureEmbAttention(nn.Module):
     def __init__(self, input_dim):
@@ -177,7 +178,7 @@ class FeatureEmbAttention(nn.Module):
         Args:
             X: torch.Tensor, (bsize, seqlen, feature_dim), dtype=torch.float32
         '''
-        # scale the input and query vector to prevent vanishing gradients
+
         X_scaled = X / (self.input_dim ** (1/4))
         queryv_scaled = self.queryv / (self.input_dim ** (1/4))
         # using  matmul to compute tensor vector multiplication
@@ -275,7 +276,6 @@ class DecoderLayer(nn.Module):
         
     def forward(self, x, enc_out, wt_mask, mut_mask):
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mut_mask))
-        # wild type mask makes sure that the model does not attend to the padding values in the wild type sequence
         x = self.sublayer[1](x, lambda x: self.cross_attn(x, enc_out, enc_out, wt_mask))
         return self.sublayer[2](x, self.feed_forward)
 
@@ -361,9 +361,9 @@ def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, on
     
     return model
 
-class PrimeDesignTransformer(nn.Module):
+class PrimeDesignTransformerOnly(nn.Module):
     def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=2, pdropout=0.1, mlp_embed_dim=100, num_encoder_units=1, num_features=24, flash=False, onehot=True, annot=False, local=False):
-        super(PrimeDesignTransformer, self).__init__()
+        super(PrimeDesignTransformerOnly, self).__init__()
         self.embed_dim = embed_dim
         self.sequence_length = sequence_length
         self.num_heads = num_heads
@@ -373,9 +373,12 @@ class PrimeDesignTransformer(nn.Module):
         self.num_features = num_features
         self.flash = flash
         self.onehot = onehot
-        self.attention_values = [0 for _ in range(sequence_length)]
+        
+        self.attn_values = []
         
         self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
+
+        # pools the output to (batch, embed_dim)
         self.transformer_pool = FeatureEmbAttention(input_dim=embed_dim)
         
         # self.gru = nn.GRU(input_size=sequence_length, hidden_size=128, num_layers=1, batch_first=True, bidirectional=True)
@@ -391,14 +394,14 @@ class PrimeDesignTransformer(nn.Module):
         )
 
         self.head = nn.Sequential(
-            nn.LayerNorm(embed_dim + 128),
+            nn.LayerNorm(sequence_length + 128),
             nn.Dropout(pdropout),
-            nn.Linear(embed_dim + 128, 1, bias=True),
+            nn.Linear(sequence_length + 128, 1, bias=True),
         )
         
-        # self.generator = nn.Sequential(
-        #     nn.Linear(embed_dim, 1, bias=False),            
-        # )
+        self.generator = nn.Sequential(
+            nn.Linear(embed_dim, 1, bias=False),            
+        )
 
         # initialize the parameters with xavier uniform
         # for p in self.parameters():
@@ -424,10 +427,26 @@ class PrimeDesignTransformer(nn.Module):
         # (batch, sequence length, embed_dim)
         transformer_out = self.transformer(X_nucl, X_mut_nucl, X_pbs, X_rtt, X_rtt_mut)
         
+        # pools the output to (batch, embed_dim) with attention
+        transformer_out, attention_weights = self.transformer_pool(transformer_out)
+        self.attn_values = attention_weights
+        
         # reduce the sequence to its dimension
         # (batch, sequence length, embed_dim) => (batch, embed_dim)
         # reshape so that the linear layer can be applied to each of the dimensions
-        transformer_out, self.attention_values = self.transformer_pool(transformer_out)
+        # transformer_out = transformer_out.permute(0, 2, 1)
+        # transformer_out = self.linear_transformer(transformer_out)
+        # transformer_out = transformer_out.squeeze(2)
+        # transformer_out = self.linear_transformer_1(transformer_out)
+        # transformer_out = transformer_out.squeeze(2)
+        transformer_out = self.generator(transformer_out)
+        # transformer_out = self.linear_transformer(transformer_out)
+        # transformer_out = transformer_out.squeeze(2)
+        
+        del X_nucl, X_mut_nucl, X_pbs, X_rtt, X_rtt_mut
+        
+        return transformer_out
+        
         # # print('transformer_out shape:', transformer_out.shape)
         
         # convert the features to embeddings
@@ -450,7 +469,7 @@ class PrimeDesignTransformer(nn.Module):
         
         # return self.generator(transformer_out)
         
-        return output
+        return F.softplus(output)
     
     
 class AcceleratedNet(AccelerateMixin, skorch.NeuralNetRegressor):
@@ -519,7 +538,7 @@ def preprocess_transformer(X_train: pd.DataFrame, slice: bool=False) -> Dict[str
     
     return result
 
-def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, annot: bool = False, num_encoder_units: int = 1, onehot: bool=True) -> skorch.NeuralNetRegressor:
+def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1, annot: bool = False, num_encoder_units: int = 1, onehot: bool=True, local: bool=False) -> skorch.NeuralNetRegressor:
     """train the transformer model
 
     Args:
@@ -589,7 +608,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
         for j in range(num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
-            m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_features=num_features, onehot=onehot, annot=annot, flash=False, local=False, num_encoder_units=num_encoder_units)
+            m = PrimeDesignTransformerOnly(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_features=num_features, onehot=onehot, annot=annot, flash=False, local=local, num_encoder_units=num_encoder_units)
             
             # accelerator = Accelerator(mixed_precision='bf16')
             
@@ -609,12 +628,12 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                 # early stopping
                 callbacks=[
                     skorch.callbacks.EarlyStopping(patience=patience),
-                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', 
+                    skorch.callbacks.Checkpoint(monitor='train_loss_best', 
                                     f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), 
                                     f_optimizer=None, 
                                     f_history=None,
                                     f_criterion=None),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-6),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1, eta_min=1e-6),
                     # skorch.callbacks.ProgressBar(),
                     # skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.ReduceLROnPlateau, monitor='valid_loss', factor=0.5, patience=3, min_lr=1e-6),
                     # PrintParameterGradients()
@@ -630,7 +649,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                 print(f'Best validation loss: {np.min(model.history[:, "valid_loss"])}')
                 best_val_loss = np.min(model.history[:, 'valid_loss'])
                 # rename the model file to the best model
-                os.rename(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
+                os.rename(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"), os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-transformer-only.pt"))
             else: # delete the last model
                 print(f'Validation loss: {np.min(model.history[:, "valid_loss"])} is not better than {best_val_loss}')
                 os.remove(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(train_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-tmp.pt"))
@@ -659,7 +678,7 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
     
     sequence_length = len(test_data_all['wt-sequence'].values[0])
 
-    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
+    m = PrimeDesignTransformerOnly(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
     
     accelerator = Accelerator(mixed_precision='bf16')
             
@@ -711,11 +730,7 @@ from sklearn.model_selection import ParameterGrid
 import time
 import scipy.stats
 
-from sklearn.model_selection import ParameterGrid
-import time
-import scipy.stats
-
-def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1) -> skorch.NeuralNetRegressor:
+def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, epochs: int=500, patience: int=20, num_runs: int=5, num_features: int=24, dropout: float = 0.1, percentage: str = 1) -> skorch.NeuralNetRegressor:
     """perform hyperparameter tuning for the transformer model
 
     Args:
@@ -731,12 +746,11 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
     from sklearn.model_selection import GridSearchCV
 
     params_arch = {
-        'module__num_encoder_units': [1, 3, 5],
-        'module__pdropout': [0.05, 0.1, 0.2], # 0.01, 0.05,
-        'module__mlp_embed_dim': [50, 100, 150],
-        'module__pdropout': [0.1, 0.3, 0.5],
-        # 'module__flash': [True, False],
-        # 'module__local': [True, False],
+        'module__num_encoder_units': [1, 2, 3],
+        'module__pdropout': [0.1, 0.3, 0.5], # 0.01, 0.05,
+        'module__mlp_embed_dim': [100, 150, 200],
+        # 'module__pdropout': [0.1, 0.3, 0.5],
+        # 'module__local': [True],
         # 'module__annot': [True, False],
     }
     # for a grid using the full parameter space
@@ -744,7 +758,7 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
     params_arch = list(ParameterGrid(params_arch))
 
     # load a dp dataset
-    dp_dataset = pd.read_csv(os.path.join('/content/drive/MyDrive/ox-dissertation/models/data/transformer', tune_fname))
+    dp_dataset = pd.read_csv(os.path.join('models', 'data', 'transformer', tune_fname))
 
     # remove rows with nan values
     dp_dataset = dp_dataset.dropna()
@@ -765,32 +779,30 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
     X_test = preprocess_transformer(X_test)
     y_test = torch.tensor(y_test.values, dtype=torch.float32).unsqueeze(1)
 
-    fname = 'transformer-train-fine-tune'
-
     # use fold 0 for tuning
+    # for ind, par in enumerate(params_arch):
+    #     performances = os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv')
+    #     # check if the parameter has already been tuned
+    #     if os.path.isfile(performances):
+    #         performances = pd.read_csv(performances)
+    #         # convert the dataframe to a dictionary
+    #         condition = pd.Series([True]*len(performances))
+    #         for p in par:
+    #             condition = condition & performances[p] == str(par[p])
+    #         row = performances[condition]
+    #         if len(row['performance'].isna().values) > 0 and not row['performance'].isna().values[0]:
+    #             # print(f'Parameter: {par} has already been tuned')
+    #             # print('-'*50, '\n')
+    #             par['performance'] = row['performance'].values[0]
+                # continue
     for ind, par in enumerate(params_arch):
-        performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
-        # check if the parameter has already been tuned
-        if os.path.isfile(performances):
-            performances = pd.read_csv(performances)
-            # convert the dataframe to a dictionary
-            condition = pd.Series([True]*len(performances))
-            for p in par:
-                condition = condition & performances[p] == str(par[p])
-            row = performances[condition]
-            if len(row['performance'].isna().values) > 0 and not row['performance'].isna().values[0]:
-                # print(f'Parameter: {par} has already been tuned')
-                # print('-'*50, '\n')
-                par['performance'] = row['performance'].values[0]
-                continue
-    for ind, par in enumerate(params_arch):
-        performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
-        # check if the parameter has already been tuned
-        if os.path.isfile(performances):
-            if 'performance' in par:
-                print(f'Parameter: {par} has already been tuned')
-                print('-'*50, '\n')
-                continue
+        # performances = os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv')
+        # # check if the parameter has already been tuned
+        # if os.path.isfile(performances):
+        #     if 'performance' in par:
+        #         print(f'Parameter: {par} has already been tuned')
+        #         print('-'*50, '\n')
+        #         continue
 
         performances = []
         print(f'Parameter: {par}')
@@ -805,55 +817,56 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
                 save_file_name += f"-{p}-{par[p]}"
             save_file_name += '.pt'
 
-            # skorch model
-            model = skorch.NeuralNetRegressor(
-                PrimeDesignTransformer,
-                module__sequence_length=99,
-                module__pdropout=dropout,
-                module__num_encoder_units=3,
-                module__num_features=num_features,
-                module__flash=False,
-                module__local=False,
-                module__annot=True,
-                module__mlp_embed_dim=100,
-                # accelerator=accelerator,
-                criterion=nn.MSELoss,
-                optimizer=torch.optim.AdamW,
-                # optimizer__eps=1e-4,
-                # optimizer=torch.optim.SGD,
-                optimizer__lr=0.0025,
-                max_epochs=500,
-                device='cuda',
-                batch_size=2048,
-                train_split= skorch.dataset.ValidSplit(cv=5),
-                # early stopping
-                callbacks=[
-                    skorch.callbacks.EarlyStopping(patience=patience),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-5),
-                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
-                    # skorch.callbacks.ProgressBar(),
-                    # PrintParameterGradients()
-                ]
-            )
-            model.set_params(**par)
+            # # skorch model
+            # model = skorch.NeuralNetRegressor(
+            #     PrimeDesignTransformer,
+            #     # module__embed_dim=4,
+            #     module__sequence_length=99,
+            #     module__pdropout=dropout,
+            #     module__nonlin_func=nn.ReLU(),
+            #     module__num_encoder_units=1,
+            #     module__num_features=num_features,
+            #     module__flash=False,
+            #     module__local=True,
+            #     module__annot=False,
+            #     module__mlp_embed_dim=100,
+            #     # accelerator=accelerator,
+            #     criterion=nn.MSELoss,
+            #     optimizer=torch.optim.AdamW,
+            #     # optimizer__eps=1e-4,
+            #     # optimizer=torch.optim.SGD,
+            #     optimizer__lr=0.025,
+            #     max_epochs=500,
+            #     device='cuda',
+            #     batch_size=4096,
+            #     train_split= skorch.dataset.ValidSplit(cv=5),
+            #     # early stopping
+            #     callbacks=[
+            #         skorch.callbacks.EarlyStopping(patience=patience),
+            #         skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-3),
+            #         skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
+            #         # skorch.callbacks.ProgressBar(),
+            #         # PrintParameterGradients()
+            #     ]
+            # )
+            # model.set_params(**par)
 
-            model.fit(X_train, y_train)
+            # model.fit(X_train, y_train)
 
-            print(f'Parameter: {par}, val loss: {model.history[-1, "valid_loss"]}')
+            # print(f'Parameter: {par}, val loss: {model.history[-1, "valid_loss"]}')
             # evaluate the model
             model = skorch.NeuralNetRegressor(
-                PrimeDesignTransformer,
+                PrimeDesignTransformerOnly,
                 module__sequence_length=99,
                 module__pdropout=0,
-                module__num_encoder_units=3,
+                module__nonlin_func=nn.ReLU(),
+                module__num_encoder_units=1,
                 module__num_features=num_features,
                 module__flash=False,
                 module__local=True,
-                module__annot=True,
+                module__annot=False,
                 module__mlp_embed_dim=100,
                 # accelerator=accelerator,
-                device='cuda',
-                batch_size=512,
                 criterion=nn.MSELoss,
             )
 
@@ -868,12 +881,6 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
             pearson = np.corrcoef(y_test.T, y_pred.T)[0, 1]
 
             performances.append(pearson)
-
-            torch._C._cuda_clearCublasWorkspaces()
-            torch._dynamo.reset()
-            del model, accelerator
-            torch.cuda.empty_cache()
-            gc.collect()
             # delete the temporary model
             print(f'Run time: {time.time() - t}')
         par['performance'] = performances
@@ -883,9 +890,15 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
 
     # perform paired t test on the different configurations
     # and calculate the mean performance of each configuration
+    # save the performance in each run of each configuration in a csv file
     performances = pd.DataFrame(params_arch)
-    # save the performance
-    performances.to_csv(os.path.join('/content/drive/MyDrive/ox-dissertation/models/data/transformer', f'{fname}.csv'), index=False)
+    # add a column for the mean performance
+    performances['mean_performance'] = [np.mean(p) for p in performances['performance']]
+    # add a column for the highest performance
+    performances['max_performance'] = [np.max(p) for p in performances['performance']]
+    performances.to_csv(os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv'), index=False)
+
+
 
 def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1, onehot: bool =True) -> None:
     """visualize the attention weights of the transformer model
@@ -919,7 +932,7 @@ def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 
 
     sequence_length = len(test_data_all['wt-sequence'].values[0])
 
-    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_encoder_units=num_encoder_units, num_features=num_features, onehot=onehot, annot=annot, flash=False)
+    m = PrimeDesignTransformerOnly(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_encoder_units=num_encoder_units, num_features=num_features, onehot=onehot, annot=annot, flash=False)
     
     accelerator = Accelerator(mixed_precision='bf16')
             
@@ -933,14 +946,14 @@ def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 
     )
 
     tr_model.initialize()
-    tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f'{model_name}-fold-1.pt'))
+    tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f'{model_name}-fold-1-transformer-only.pt'))
 
     prediction = {}
     performance = []
 
-    attention_replace = [[[np.zeros(sequence_length) for _ in range(sequence_length)] for i in range(num_heads)] for j in range(num_encoder_units)]
-    attention_insertion = [[[np.zeros(sequence_length) for _ in range(sequence_length)] for i in range(num_heads)] for j in range(num_encoder_units)]
-    attention_deletion = [[[np.zeros(sequence_length) for _ in range(sequence_length)] for i in range(num_heads)] for j in range(num_encoder_units)]
+    attention_replace = [np.zeros(sequence_length) for _ in range(sequence_length)]
+    attention_insertion = [np.zeros(sequence_length) for _ in range(sequence_length)]
+    attention_deletion = [np.zeros(sequence_length) for _ in range(sequence_length)]
 
     attentions = [attention_replace, attention_insertion, attention_deletion]
 
@@ -963,42 +976,37 @@ def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 
             # print(f'Edit type: {data_item["mut-type"]}, Edit position: {data_item["lha-location-r"]}')
             y_pred = tr_model.predict(item)
             
-            for layer in range(num_encoder_units):
-                # get the attention weights
-                attns = tr_model.module_.transformer.decoder.layers[layer].cross_attn.attn
+            # get the attention weights and convert them to numpy
+            attns = tr_model.module_.attn_values[0].detach().cpu().numpy()
 
-                # plot the attention weights for each head
-                # for j in range(num_heads):
-                #     plt.figure(figsize=(10, 10))
-                #     # highlight the diagonal
-                #     sns.heatmap(attns[0, j, :, :].detach().cpu().numpy(), cmap='viridis')
-                #     plt.title(f'Attention weights for head {j} and edit type {data_item["mut-type"]}')
-                #     plt.show()
-                #     break
-                # print(attns.shape)
-                
-                # get the attention weights for each layer and head
-                for j in range(num_heads):
-                    normalized_attn = attns[0, j, data_item['lha-location-r'], :].detach().cpu().numpy()
-                    # normalized_attn /= np.sum(normalized_attn)
-                    attentions[i][layer][j][data_item['lha-location-r']] += normalized_attn
-                    counts[i][data_item['lha-location-r']] += 1
+            # plot the attention weights for each head
+            # for j in range(num_heads):
+            #     plt.figure(figsize=(10, 10))
+            #     # highlight the diagonal
+            #     sns.heatmap(attns[0, j, :, :].detach().cpu().numpy(), cmap='viridis')
+            #     plt.title(f'Attention weights for head {j} and edit type {data_item["mut-type"]}')
+            #     plt.show()
+            #     break
+            # print(attns.shape)
+            
+            # normalized_attn = attns[0, j, data_item['lha-location-r'], :].detach().cpu().numpy()
+            # normalized_attn /= np.sum(normalized_attn)
+            attentions[i][data_item['lha-location-r']] += attns
+            counts[i][data_item['lha-location-r']] += 1
 
     # normalize the attention weights by the number of times the attention weights were added
     for i in range(3):
-        for j in range(num_heads):
-            for k in range(sequence_length):
-                for layer in range(num_encoder_units):
-                    attentions[i][layer][j][k] /= counts[i][k]
+        for k in range(sequence_length):
+            attentions[i][k] /= counts[i][k]
 
     # plot the attention weights for each head and edit type
-    for i, data in enumerate(['replace', 'insertion', 'deletion']):
-        for j in range(num_heads):
-            for layer in range(num_encoder_units):
-                plt.figure(figsize=(10, 10))
-                # highlight the diagonal
-                sns.heatmap(attentions[i][layer][j], cmap='viridis')
-                plt.title(f'Attention weights for head {j} and edit type {data} at layer {layer}')
-                plt.show()
+    # for i, data in enumerate(['replace', 'insertion', 'deletion']):
+    #     for j in range(num_heads):
+    #         for layer in range(num_encoder_units):
+    #             plt.figure(figsize=(10, 10))
+    #             # highlight the diagonal
+    #             sns.heatmap(attentions[i][layer][j], cmap='coolwarm')
+    #             plt.title(f'Attention weights for head {j} and edit type {data} at layer {layer}')
+    #             plt.show()
 
-    return attentions
+    return attentions, counts
