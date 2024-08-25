@@ -711,7 +711,11 @@ from sklearn.model_selection import ParameterGrid
 import time
 import scipy.stats
 
-def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, epochs: int=500, patience: int=20, num_runs: int=5, num_features: int=24, dropout: float = 0.1, percentage: str = 1) -> skorch.NeuralNetRegressor:
+from sklearn.model_selection import ParameterGrid
+import time
+import scipy.stats
+
+def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, patience: int, num_runs: int, num_features: int, dropout: float = 0.1, percentage: str = 1) -> skorch.NeuralNetRegressor:
     """perform hyperparameter tuning for the transformer model
 
     Args:
@@ -727,11 +731,12 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
     from sklearn.model_selection import GridSearchCV
 
     params_arch = {
-        'module__num_encoder_units': [1, 2, 3],
-        'module__pdropout': [0.1, 0.3, 0.5], # 0.01, 0.05,
-        'module__mlp_embed_dim': [100, 150, 200],
-        # 'module__pdropout': [0.1, 0.3, 0.5],
-        # 'module__local': [True],
+        'module__num_encoder_units': [1, 3, 5],
+        'module__pdropout': [0.05, 0.1, 0.2], # 0.01, 0.05,
+        'module__mlp_embed_dim': [50, 100, 150],
+        'module__pdropout': [0.1, 0.3, 0.5],
+        # 'module__flash': [True, False],
+        # 'module__local': [True, False],
         # 'module__annot': [True, False],
     }
     # for a grid using the full parameter space
@@ -739,7 +744,7 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
     params_arch = list(ParameterGrid(params_arch))
 
     # load a dp dataset
-    dp_dataset = pd.read_csv(os.path.join('models', 'data', 'transformer', tune_fname))
+    dp_dataset = pd.read_csv(os.path.join('/content/drive/MyDrive/ox-dissertation/models/data/transformer', tune_fname))
 
     # remove rows with nan values
     dp_dataset = dp_dataset.dropna()
@@ -760,30 +765,32 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
     X_test = preprocess_transformer(X_test)
     y_test = torch.tensor(y_test.values, dtype=torch.float32).unsqueeze(1)
 
+    fname = 'transformer-train-fine-tune'
+
     # use fold 0 for tuning
-    # for ind, par in enumerate(params_arch):
-    #     performances = os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv')
-    #     # check if the parameter has already been tuned
-    #     if os.path.isfile(performances):
-    #         performances = pd.read_csv(performances)
-    #         # convert the dataframe to a dictionary
-    #         condition = pd.Series([True]*len(performances))
-    #         for p in par:
-    #             condition = condition & performances[p] == str(par[p])
-    #         row = performances[condition]
-    #         if len(row['performance'].isna().values) > 0 and not row['performance'].isna().values[0]:
-    #             # print(f'Parameter: {par} has already been tuned')
-    #             # print('-'*50, '\n')
-    #             par['performance'] = row['performance'].values[0]
-                # continue
     for ind, par in enumerate(params_arch):
-        # performances = os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv')
-        # # check if the parameter has already been tuned
-        # if os.path.isfile(performances):
-        #     if 'performance' in par:
-        #         print(f'Parameter: {par} has already been tuned')
-        #         print('-'*50, '\n')
-        #         continue
+        performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
+        # check if the parameter has already been tuned
+        if os.path.isfile(performances):
+            performances = pd.read_csv(performances)
+            # convert the dataframe to a dictionary
+            condition = pd.Series([True]*len(performances))
+            for p in par:
+                condition = condition & performances[p] == str(par[p])
+            row = performances[condition]
+            if len(row['performance'].isna().values) > 0 and not row['performance'].isna().values[0]:
+                # print(f'Parameter: {par} has already been tuned')
+                # print('-'*50, '\n')
+                par['performance'] = row['performance'].values[0]
+                continue
+    for ind, par in enumerate(params_arch):
+        performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
+        # check if the parameter has already been tuned
+        if os.path.isfile(performances):
+            if 'performance' in par:
+                print(f'Parameter: {par} has already been tuned')
+                print('-'*50, '\n')
+                continue
 
         performances = []
         print(f'Parameter: {par}')
@@ -798,56 +805,55 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
                 save_file_name += f"-{p}-{par[p]}"
             save_file_name += '.pt'
 
-            # # skorch model
-            # model = skorch.NeuralNetRegressor(
-            #     PrimeDesignTransformer,
-            #     # module__embed_dim=4,
-            #     module__sequence_length=99,
-            #     module__pdropout=dropout,
-            #     module__nonlin_func=nn.ReLU(),
-            #     module__num_encoder_units=1,
-            #     module__num_features=num_features,
-            #     module__flash=False,
-            #     module__local=True,
-            #     module__annot=False,
-            #     module__mlp_embed_dim=100,
-            #     # accelerator=accelerator,
-            #     criterion=nn.MSELoss,
-            #     optimizer=torch.optim.AdamW,
-            #     # optimizer__eps=1e-4,
-            #     # optimizer=torch.optim.SGD,
-            #     optimizer__lr=0.025,
-            #     max_epochs=500,
-            #     device='cuda',
-            #     batch_size=4096,
-            #     train_split= skorch.dataset.ValidSplit(cv=5),
-            #     # early stopping
-            #     callbacks=[
-            #         skorch.callbacks.EarlyStopping(patience=patience),
-            #         skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-3),
-            #         skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
-            #         # skorch.callbacks.ProgressBar(),
-            #         # PrintParameterGradients()
-            #     ]
-            # )
-            # model.set_params(**par)
+            # skorch model
+            model = skorch.NeuralNetRegressor(
+                PrimeDesignTransformer,
+                module__sequence_length=99,
+                module__pdropout=dropout,
+                module__num_encoder_units=3,
+                module__num_features=num_features,
+                module__flash=False,
+                module__local=False,
+                module__annot=True,
+                module__mlp_embed_dim=100,
+                # accelerator=accelerator,
+                criterion=nn.MSELoss,
+                optimizer=torch.optim.AdamW,
+                # optimizer__eps=1e-4,
+                # optimizer=torch.optim.SGD,
+                optimizer__lr=0.0025,
+                max_epochs=500,
+                device='cuda',
+                batch_size=2048,
+                train_split= skorch.dataset.ValidSplit(cv=5),
+                # early stopping
+                callbacks=[
+                    skorch.callbacks.EarlyStopping(patience=patience),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-5),
+                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
+                    # skorch.callbacks.ProgressBar(),
+                    # PrintParameterGradients()
+                ]
+            )
+            model.set_params(**par)
 
-            # model.fit(X_train, y_train)
+            model.fit(X_train, y_train)
 
-            # print(f'Parameter: {par}, val loss: {model.history[-1, "valid_loss"]}')
+            print(f'Parameter: {par}, val loss: {model.history[-1, "valid_loss"]}')
             # evaluate the model
             model = skorch.NeuralNetRegressor(
                 PrimeDesignTransformer,
                 module__sequence_length=99,
                 module__pdropout=0,
-                module__nonlin_func=nn.ReLU(),
-                module__num_encoder_units=1,
+                module__num_encoder_units=3,
                 module__num_features=num_features,
                 module__flash=False,
                 module__local=True,
-                module__annot=False,
+                module__annot=True,
                 module__mlp_embed_dim=100,
                 # accelerator=accelerator,
+                device='cuda',
+                batch_size=512,
                 criterion=nn.MSELoss,
             )
 
@@ -862,6 +868,12 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
             pearson = np.corrcoef(y_test.T, y_pred.T)[0, 1]
 
             performances.append(pearson)
+
+            torch._C._cuda_clearCublasWorkspaces()
+            torch._dynamo.reset()
+            del model, accelerator
+            torch.cuda.empty_cache()
+            gc.collect()
             # delete the temporary model
             print(f'Run time: {time.time() - t}')
         par['performance'] = performances
@@ -871,15 +883,9 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
 
     # perform paired t test on the different configurations
     # and calculate the mean performance of each configuration
-    # save the performance in each run of each configuration in a csv file
     performances = pd.DataFrame(params_arch)
-    # add a column for the mean performance
-    performances['mean_performance'] = [np.mean(p) for p in performances['performance']]
-    # add a column for the highest performance
-    performances['max_performance'] = [np.max(p) for p in performances['performance']]
-    performances.to_csv(os.path.join('models', 'data', 'performance', 'transformer-train-fine-tune.csv'), index=False)
-
-
+    # save the performance
+    performances.to_csv(os.path.join('/content/drive/MyDrive/ox-dissertation/models/data/transformer', f'{fname}.csv'), index=False)
 
 def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1, onehot: bool =True) -> None:
     """visualize the attention weights of the transformer model
