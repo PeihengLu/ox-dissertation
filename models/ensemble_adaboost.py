@@ -38,6 +38,9 @@ class EnsembleAdaBoost:
             target = data.iloc[:, -2].values
             features = torch.tensor(features, dtype=torch.float32)
             target = torch.tensor(target, dtype=torch.float32)
+            target_np = np.array(target).flatten()
+            # deal with the case where the target is 0
+            target_np[target_np == 0] += 1e-6
             sample_weights = np.ones(len(target))
 
             # aggravated predictions
@@ -50,6 +53,7 @@ class EnsembleAdaBoost:
                 # create a new set of models
                 for base_learner in self.base_learners:
                     save_path = pjoin('models', 'trained-models', 'ensemble', 'adaboost', f'{base_learner}-{data_source}-fold-{fold+1}-round-{i+1}')
+                    print(f"Round {i+1} {base_learner}")
                     if base_learner in self.dl_models:
                         model = self.base_learners[base_learner](save_path=save_path)
                     else:
@@ -85,15 +89,12 @@ class EnsembleAdaBoost:
                     # make predictions
                     predictions = model.predict(features).flatten()
                     predictions = np.array(predictions)
-                    target_np = np.array(target).flatten()
                     alpha = pearsonr(predictions, target_np)[0]
                     # calculate the error using pearson correlation
                     # loss constrained within [0, 1]
                     print(f"Round {i+1} {base_learner} {alpha}")
                     # calculate relative error for each sample
                     error = np.abs(predictions - target_np)
-                    # deal with the case where the target is 0
-                    target_np[target_np == 0] += 1e-6
                     error = error / target_np
                     # calculate the error rate
                     error_rate = np.sum(error > self.threshold) / len(error)
