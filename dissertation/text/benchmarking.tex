@@ -14,4 +14,10 @@ As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime
 \section{Attention Analysis}
 \label{sec:attention_analysis}
 
-To interpret the transformer model's decision making process, the attention weights of the cross attention layer were visualized. 
+A significant advantage of the attention based methods are their interpretability. The attention mechanism allows the model to focus on specific parts of the input data using the attention weights, which can be visualized teo understand the model's decision making process. 
+
+In this architecture, the most informative and interpretable attention weights are the feature embedding attention weights at the final layer of the transformer model, pooling all token embeddings into a single feature embedding. 
+
+The examples were grouped together by their editing type and length so that the edit positions can be easily identified and compared. And the attention weights for edits at the same position were aggregated to show the overall importance of the position in the editing efficiency prediction.
+
+The model trained on the biggest DeepPrime dataset was first tested, as the transformer model has the greatest chance of learning the underlying motifs influencing the editing efficiency in the data.
