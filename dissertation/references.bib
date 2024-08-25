@@ -1,3 +1,13 @@
+@article{vaswaniAttentionAllYou2017,
+  title = {Attention Is {{All}} You {{Need}}},
+  author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N and Kaiser, Łukasz and Polosukhin, Illia},
+  date = {2017},
+  abstract = {The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 Englishto-German translation task, improving over the existing best results, including ensembles, by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.0 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature.},
+  langid = {english},
+  keywords = {Deep Learning,Not Read},
+  file = {C:\Users\13954\OneDrive\Papers\NIPS-2017-attention-is-all-you-need-Paper.pdf}
+}
+
 @article{portoBaseEditingAdvances2020,
   title = {Base Editing: Advances and Therapeutic Opportunities},
   shorttitle = {Base Editing},
@@ -1258,4 +1268,69 @@
   pagetotal = {1058},
   keywords = {Allgemeine Mikrobiologie,Lehrbuch,Microbiological Phenomena,Microbiology,Microbiology Textbooks,Mikrobiologe,Mikrobiologie,Textbooks},
   annotation = {OCLC: 958205447}
+}
+
+@inproceedings{solomatineAdaBoostRTBoosting2004,
+  title = {{{AdaBoost}}.{{RT}}: A Boosting Algorithm for Regression Problems},
+  shorttitle = {{{AdaBoost}}.{{RT}}},
+  booktitle = {2004 {{IEEE International Joint Conference}} on {{Neural Networks}} ({{IEEE Cat}}. {{No}}.{{04CH37541}})},
+  author = {Solomatine, D.P. and Shrestha, D.L.},
+  date = {2004-07},
+  volume = {2},
+  pages = {1163-1168 vol.2},
+  issn = {1098-7576},
+  doi = {10.1109/IJCNN.2004.1380102},
+  url = {https://ieeexplore.ieee.org/document/1380102},
+  urldate = {2024-08-22},
+  abstract = {A boosting algorithm, AdaBoost.RT, is proposed for regression problems. The idea is to filter out examples with a relative estimation error that is higher than the pre-set threshold value, and then follow the AdaBoost procedure. Thus it requires to select the sub-optimal value of relative error threshold to demarcate predictions from the predictor as correct or incorrect. Some experimental results using the M5 model tree as a weak learning machine for benchmark data sets and for hydrological modeling are reported, and compared to other boosting methods, bagging and artificial neural networks, and to a single M5 model tree. AdaBoost.Rt is proved to perform better on most of the considered data sets.},
+  eventtitle = {2004 {{IEEE International Joint Conference}} on {{Neural Networks}} ({{IEEE Cat}}. {{No}}.{{04CH37541}})},
+  keywords = {Accuracy,Artificial neural networks,Bagging,Boosting,Classification algorithms,Error correction,Estimation error,Filtering,Machine learning,Training data},
+  file = {C\:\\Users\\13954\\Zotero\\storage\\MIPB3P67\\Solomatine and Shrestha - 2004 - AdaBoost.RT a boosting algorithm for regression problems.pdf;C\:\\Users\\13954\\Zotero\\storage\\597PT9FP\\1380102.html}
+}
+
+@article{shresthaExperimentsAdaBoostRT2006,
+  title = {Experiments with {{AdaBoost}}.{{RT}}, an {{Improved Boosting Scheme}} for {{Regression}}},
+  author = {Shrestha, D. L. and Solomatine, D. P.},
+  date = {2006-07-01},
+  journaltitle = {Neural Computation},
+  shortjournal = {Neural Computation},
+  volume = {18},
+  number = {7},
+  pages = {1678--1710},
+  issn = {0899-7667},
+  doi = {10.1162/neco.2006.18.7.1678},
+  url = {https://doi.org/10.1162/neco.2006.18.7.1678},
+  urldate = {2024-08-22},
+  abstract = {The application of boosting technique to regression problems has received relatively little attention in contrast to research aimed at classification problems. This letter describes a new boosting algorithm, AdaBoost.RT, for regression problems. Its idea is in filtering out the examples with the relative estimation error that is higher than the preset threshold value, and then following the AdaBoost procedure. Thus, it requires selecting the suboptimal value of the error threshold to demarcate examples as poorly or well predicted. Some experimental results using the M5 model tree as a weak learning machine for several benchmark data sets are reported. The results are compared to other boosting methods, bagging, artificial neural networks, and a single M5 model tree. The preliminary empirical comparisons show higher performance of AdaBoost.RT for most of the considered data sets.},
+  file = {C\:\\Users\\13954\\Zotero\\storage\\SPD577QA\\Shrestha and Solomatine - 2006 - Experiments with AdaBoost.RT, an Improved Boosting Scheme for Regression.pdf;C\:\\Users\\13954\\Zotero\\storage\\W9KLD6V8\\Experiments-with-AdaBoost-RT-an-Improved-Boosting.html}
+}
+
+@article{kummerAdaboostMRTBoosting2014,
+  title = {Adaboost.{{MRT}}: {{Boosting}} Regression for Multivariate Estimation},
+  shorttitle = {Adaboost.{{MRT}}},
+  author = {Kummer, Nikolai and Najjaran, H.},
+  date = {2014-10-28},
+  journaltitle = {Artificial Intelligence Research},
+  shortjournal = {Artificial Intelligence Research},
+  volume = {3},
+  doi = {10.5430/air.v3n4p64},
+  abstract = {Adaboost.RT is a well-known extension of Adaboost to regression problems, which achieves increased accuracy by iterative training of weak learners on different subsets of data. At each iteration, the prediction error is compared against a threshold, which is used to increase or decrease the weight of the sample for the next iteration. Adaboost.RT is susceptible to noise and contains a singularity in its misclassification function, which results in reduced accuracy for output values near zero. We propose Adaboost.MRT, which extends Adaboost.RT to multivariate output, addresses the singularity in the misclassification function and reduces noise sensitivity. A singularity-free, variance-scaled misclassification function is proposed that generates diversity in the training sets. Adaboost.MRT boosts multivariate regression by assigning each output variable a weight for each sample in the training data. To avoid fitting to outliers, the sampling weights for the training sets are averaged across all output variables. The threshold parameter is extended to accommodate the multivariate output and experiments suggest that for small amounts of output variables, the threshold can be tuned for each output variable individually. Comparisons on six singlevariate output datasets show that the proposed Adaboost.MRT outperforms Adaboost.RT on datasets with values near zero or with large noise and displays a similar accuracy otherwise. Experiments with three multivariate output datasets show that Adaboost.MRT performs similar or better than bagging and a simple averaging ensemble.},
+  file = {C:\Users\13954\Zotero\storage\K93BMYFF\Kummer and Najjaran - 2014 - Adaboost.MRT Boosting regression for multivariate estimation.pdf}
+}
+
+@article{opitzPopularEnsembleMethods1999,
+  title = {Popular {{Ensemble Methods}}: {{An Empirical Study}}},
+  shorttitle = {Popular {{Ensemble Methods}}},
+  author = {Opitz, D. and Maclin, R.},
+  date = {1999-08-01},
+  journaltitle = {Journal of Artificial Intelligence Research},
+  volume = {11},
+  pages = {169--198},
+  issn = {1076-9757},
+  doi = {10.1613/jair.614},
+  url = {https://www.jair.org/index.php/jair/article/view/10239},
+  urldate = {2024-08-24},
+  abstract = {An ensemble consists of a set of individually trained    classifiers (such as neural networks or decision trees) whose    predictions are combined when classifying novel instances.  Previous    research has shown that an ensemble is often more accurate than any of    the single classifiers in the ensemble.  Bagging (Breiman, 1996c) and    Boosting (Freund \& Shapire, 1996; Shapire, 1990) are two relatively    new but popular methods for producing ensembles.  In this paper we    evaluate these methods on 23 data sets using both neural networks and    decision trees as our classification algorithm.  Our results clearly    indicate a number of conclusions.  First, while Bagging is almost    always more accurate than a single classifier, it is sometimes much    less accurate than Boosting.  On the other hand, Boosting can create    ensembles that are less accurate than a single classifier --    especially when using neural networks.  Analysis indicates that the    performance of the Boosting methods is dependent on the    characteristics of the data set being examined.  In fact, further    results show that Boosting ensembles may overfit noisy data sets, thus    decreasing its performance.  Finally, consistent with previous    studies, our work suggests that most of the gain in an ensemble's    performance comes in the first few classifiers combined; however,    relatively large gains can be seen up to 25 classifiers when Boosting    decision trees.},
+  langid = {english},
+  file = {C:\Users\13954\Zotero\storage\4YFYB7F6\Opitz and Maclin - 1999 - Popular Ensemble Methods An Empirical Study.pdf}
 }

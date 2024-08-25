@@ -8,7 +8,7 @@ import collections
 from scipy.stats import pearsonr, spearmanr
 
 class EnsembleAdaBoost:
-    def __init__(self, n_rounds: int = 10, learning_rate=1.0):
+    def __init__(self, n_rounds: int = 10, learning_rate=1.0, threshold=0.5):
         """ 
         
         """
@@ -23,6 +23,7 @@ class EnsembleAdaBoost:
         self.dl_models = ['mlp']
         self.models = []
         self.alphas = []
+        self.threshold = threshold
         # set the random seed
         np.random.seed(42)
         torch.manual_seed(42)
