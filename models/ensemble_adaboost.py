@@ -8,12 +8,11 @@ import collections
 from scipy.stats import pearsonr, spearmanr
 
 class EnsembleAdaBoost:
-    def __init__(self, n_rounds: int = 10, learning_rate=1.0, threshold=0.5):
+    def __init__(self, n_rounds: int = 10, threshold=0.5):
         """ 
         
         """
         self.n_rounds = n_rounds
-        self.learning_rate = learning_rate
         self.base_learners = {
             'xgb': xgboost,
             'mlp': mlp_weighted,
@@ -91,8 +90,20 @@ class EnsembleAdaBoost:
                     # calculate the error using pearson correlation
                     # loss constrained within [0, 1]
                     print(f"Round {i+1} {base_learner} {alpha}")
-                    
-
+                    # calculate relative error for each sample
+                    error = np.abs(predictions - target_np)
+                    # deal with the case where the target is 0
+                    target_np[target_np == 0] += 1e-6
+                    error = error / target_np
+                    # calculate the error rate
+                    error_rate = np.sum(error > self.threshold) / len(error)
+                    # update the sample weights by multiplying the error rate for correct predictions
+                    error = [error_rate if e <= self.threshold else 1 for e in error]
+                    sample_weights = sample_weights * error
+                    # normalize the weights to have a mean of 1
+                    sample_weights = sample_weights / np.mean(sample_weights)
+                    # make sure no weight is less than 1e-6
+                    sample_weights = np.maximum(sample_weights, 1e-6)
                     # add the model to the list
                     models.append(model)
                     alphas.append(alpha)
@@ -153,3 +164,31 @@ class EnsembleAdaBoost:
             performances_spearman['ada'].append(spearmanr(agg_predictions, target)[0])
         
         return performances_pearson, performances_spearman
+    
+    # def predict(self, data: str):
+    #     """
+    #     Perform the prediction using the trained models
+    #     Produce predictions for the full dataset using corresponding fold models
+    #     """
+    #     dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+    #     data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+    #     predictions = np.zeros(len(dataset))
+    #     for i in range(5):
+    #         alphas = self.alphas[i].flatten()
+    #         models = self.models[i]
+
+    #         data = dataset[dataset['fold'] == i]
+    #         features = data.iloc[:, 2:26].values
+    #         target = data.iloc[:, -2].values
+    #         features = torch.tensor(features, dtype=torch.float32)
+
+    #         # aggregated predictions
+    #         agg_predictions = np.zeros(len(target))
+
+    #         for model, alpha in zip(models, alphas):
+    #             predictions = model.predict(features).flatten()
+    #             agg_predictions += alpha * predictions
+
+    #         predictions[data.index] = agg_predictions
+
+    #     return predictions
