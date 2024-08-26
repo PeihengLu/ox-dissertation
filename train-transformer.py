@@ -14,5 +14,5 @@ import torch, gc
 # torch.cuda.empty_cache()
 # gc.collect()
 
-train_transformer_only('transformer-dp-hek293t-pe2.csv', lr=0.0025, batch_size=512, epochs=500, patience=20, num_runs=3, num_features=24, percentage=0.1, dropout=0.1, num_encoder_units=3, annot=True, onehot=True, local=False)
+train_transformer_only('transformer-pd-hek293t-pe2.csv', lr=0.0025, batch_size=512, epochs=500, patience=20, num_runs=3, num_features=24, percentage=0.1, dropout=0.1, num_encoder_units=3, annot=True, onehot=True, local=False)
 
