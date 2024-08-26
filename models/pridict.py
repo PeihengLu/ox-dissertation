@@ -815,7 +815,7 @@ def fine_tune_pridict(fine_tune_fname: str=None):
                 model,
                 criterion=nn.MSELoss,
                 optimizer=torch.optim.Adam,
-                device='mps',
+                device=device,
                 warm_start=True,
                 optimizer__lr=0.005,
                 max_epochs=200,
