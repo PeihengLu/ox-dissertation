@@ -6,9 +6,10 @@ from os.path import join as pjoin, isfile
 import pandas as pd
 import collections
 from scipy.stats import pearsonr, spearmanr
+import sklearn
 
 class EnsembleAdaBoost:
-    def __init__(self, n_rounds: int = 10, threshold=0.5):
+    def __init__(self, n_rounds: int = 10, threshold=0.5, power:int = 1):
         """ 
         
         """
@@ -23,6 +24,7 @@ class EnsembleAdaBoost:
         self.models = []
         self.alphas = []
         self.threshold = threshold
+        self.power = power
         # set the random seed
         np.random.seed(42)
         torch.manual_seed(42)
@@ -43,8 +45,8 @@ class EnsembleAdaBoost:
             target_np[target_np == 0] += 1e-6
             sample_weights = np.ones(len(target))
 
-            # aggravated predictions
-            agg_predictions = np.zeros(len(target))
+            # # aggravated predictions
+            # agg_predictions = np.zeros(len(target))
 
             # each round creates performs the boost on a new set of models
             for i in range(self.n_rounds):
@@ -52,7 +54,7 @@ class EnsembleAdaBoost:
                 alphas = []
                 # create a new set of models
                 for base_learner in self.base_learners:
-                    save_path = pjoin('models', 'trained-models', 'ensemble', 'adaboost', f'{base_learner}-{data_source}-fold-{fold+1}-round-{i+1}')
+                    save_path = pjoin('models', 'trained-models', 'ensemble', 'adaboost', f'{base_learner}-{data_source}-fold-{fold+1}-round-{i+1}-threshold-{self.threshold}-power-{self.power}')
                     print(f"Round {i+1} {base_learner}")
                     if base_learner in self.dl_models:
                         model = self.base_learners[base_learner](save_path=save_path)
@@ -96,14 +98,15 @@ class EnsembleAdaBoost:
                     error = error / target_np
                     # calculate the error rate
                     error_rate = np.sum(error > self.threshold) / len(error)
+                    beta = np.power(error_rate, self.power)
                     # update the sample weights by multiplying the error rate for correct predictions
-                    error = [error_rate if e <= self.threshold else 1 for e in error]
-                    print(error)
+                    error = [beta if e <= self.threshold else 1 for e in error]
                     sample_weights = sample_weights * error
                     # normalize the weights to have a mean of 1
                     sample_weights = sample_weights / np.mean(sample_weights)
                     # make sure no weight is less than 1e-6
-                    sample_weights = np.maximum(sample_weights, 1e-6)
+                    sample_weights = np.maximum(sample_weights, 1e-4)
+                    print(sample_weights)
                     # add the model to the list
                     models.append(model)
                     alphas.append(alpha)
@@ -116,6 +119,125 @@ class EnsembleAdaBoost:
 
 
         return self.models, self.alphas
+    
+    def tune(self, data: str):
+        # tune the hyperparameters power and threshold
+        dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+        cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
+        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+
+        # only use the first fold for tuning
+        fold = 0
+        data = dataset[dataset['fold'] != fold]
+        features = data.iloc[:, 2:26].values
+        target = data.iloc[:, -2].values
+        features = torch.tensor(features, dtype=torch.float32)
+        target = torch.tensor(target, dtype=torch.float32)
+        target_np = np.array(target).flatten()
+
+        data_test = dataset[dataset['fold'] == fold]
+        features_test = data_test.iloc[:, 2:26].values
+        target_test = data_test.iloc[:, -2].values
+        features_test = torch.tensor(features_test, dtype=torch.float32)
+        target_test = torch.tensor(target_test, dtype=torch.float32)
+        target_np_test = np.array(target_test).flatten()
+
+        # deal with the case where the target is 0
+        target_np[target_np == 0] += 1e-6
+        sample_weights = np.ones(len(target))
+        
+        self.n_rounds = 10
+        configurations = {
+            'power': [1, 2, 3],
+            'threshold': [0.3, 0.5, 0.7]
+        }
+        param_grid = sklearn.model_selection.ParameterGrid(configurations)
+
+        for param in param_grid:
+            self.power = param['power']
+            self.threshold = param['threshold']
+
+            # each round creates performs the boost on a new set of models
+            for i in range(self.n_rounds):
+                models = []
+                alphas = []
+                # create a new set of models
+                for base_learner in self.base_learners:
+                    save_path = pjoin('models', 'trained-models', 'ensemble', 'adaboost', f'{base_learner}-{data_source}-fold-{fold+1}-round-{i+1}-threshold-{self.threshold}-power-{self.power}')
+                    if base_learner in self.dl_models:
+                        model = self.base_learners[base_learner](save_path=save_path)
+                    else:
+                        model = self.base_learners[base_learner]()
+                    # train or load the model
+                    if base_learner in self.dl_models:
+                        if isfile(f'{save_path}.pt'):
+                            model.initialize()
+                            model.load_params(f_params=f'{save_path}.pt')
+                        else:
+                            print(f"Training {base_learner}")
+                            target = target.view(-1, 1)
+                            # sample weights need to be applied to all the features
+                            sample_weights = torch.tensor(sample_weights, dtype=torch.float32).view(-1, 1)
+                            feature_X = {
+                                'x': features,
+                                'sample_weight': sample_weights
+                            }
+                            sample_weights = sample_weights.view(-1)
+                            sample_weights = sample_weights.numpy().flatten()
+                            model.fit(feature_X, target)
+                            target = target.view(-1)
+                    else:
+                        if isfile(f'{save_path}.pkl'):
+                            with open(f'{save_path}.pkl', 'rb') as f:
+                                model = pickle.load(f)
+                        else:
+                            print(f"Training {base_learner}")
+                            model.fit(features, target, sample_weight=sample_weights)
+                            with open(f'{save_path}.pkl', 'wb') as f:
+                                pickle.dump(model, f)
+
+                    # make predictions
+                    predictions = model.predict(features).flatten()
+                    predictions = np.array(predictions)
+                    # calculate the correlation between the predictions and the target as the model weight
+                    alpha = pearsonr(predictions, target_np)[0]
+                    # calculate relative error for each sample
+                    error = np.abs(predictions - target_np)
+                    error = error / target_np
+                    # calculate the error rate
+                    error_rate = np.sum(error > self.threshold) / len(error)
+                    beta = np.power(error_rate, self.power)
+                    # update the sample weights by multiplying the error rate for correct predictions
+                    error = [beta if e <= self.threshold else 1 for e in error]
+                    sample_weights = sample_weights * error
+                    # normalize the weights to have a mean of 1
+                    sample_weights = sample_weights / np.mean(sample_weights)
+                    # make sure no weight is less than 1e-6
+                    sample_weights = np.maximum(sample_weights, 1e-6)
+                    # add the model to the list
+                    models.append(model)
+                    alphas.append(alpha)
+
+            # normalize the weights
+            alphas = np.array(alphas)
+            alphas = alphas / np.sum(alphas)
+            # perform the prediction on the test set
+            agg_predictions = np.zeros(len(target_test))
+
+            for model, alpha in zip(models, alphas):
+                predictions = model.predict(features_test).flatten()
+                agg_predictions += alpha * predictions
+
+            # calculate the performance
+            performances_pearson = pearsonr(agg_predictions, target_np_test)[0]
+            performances_spearman = spearmanr(agg_predictions, target_np_test)[0]
+            print(f"Power: {self.power}, Threshold: {self.threshold}, Pearson: {performances_pearson}, Spearman: {performances_spearman}")
+
+            param['pearson'] = performances_pearson
+            param['spearman'] = performances_spearman
+
+        return param_grid
+
     
     def test(self, data: str):
         """Perform the prediction using the trained models
