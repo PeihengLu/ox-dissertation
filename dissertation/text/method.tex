@@ -230,7 +230,7 @@ The major determinants are as follows:
     \item \textcolor{red}{SpCas9 score}: DeepSpCas9 is a deep learning model that estimates the activity of the SpCas9 protein on a target loci, and has been shown to be a good indicator of prime editing efficiency\cite{kimPredictingEfficiencyPrime2021}. This is likely due the SpCas9's role in the prime editing process, as it is responsible for the initial binding of the pegRNA to the target loci. 
     \item \textcolor{red}{PAM disruption}: it was shown that prime editors can sometimes rebind to the edited sequences and induce unintended edits, lowering the editing efficiency\cite{liudavidr.SearchandreplaceGenomeEditing2019}. Thus, the disruption of the PAM sequence is beneficial for the editing efficiency as it prevents the reannealing of the pegRNA to the edited sequence.
     \item \textcolor{red}{LHA/RHA/PBS length}: the length of rha (right homology arm, RTT overhang) is a significant determinant for all editing types, with a short rha length leading to deceased prime editing efficiency, while the positive effect of a long rha is not as pronounced. This suggests the existence of a minimum threshold for rha length below which the edited strand cannot efficiently anneal to the unedited strand, consistent with the findings of Yu et al, 2023, recommending a rha length of at least 7nt\cite{yuPredictionEfficienciesDiverse2023}. Reported as edit position in some literatures, lha length corresponding to the distance between the PAM sequence and the edit location is also a significant feature for all editing types, especially insertion and deletion. A longer lha length adversely affects the editing efficiency, suggesting that although prime editors have less stringent requirements for PAM locations, editing should still be done close to the protospacer whenever possible. As for PBS length, both a very short and a very long PBS have a negative impact on the editing efficiency, suggesting an optimal range.
-    \item \textcolor{red}{Protospacer nucleotide composition}: in Figure \ref{fig:shap-dp-pe2-hek}, a guanine nucleotide (G) at protospacer location 16 was shown to have a positive impact on the editing efficiency. On top of that, among the top 24 features, the nucleotide compositions from protospacer location 13 to 17 were all shown to have a significant impact. 
+    \item \textcolor{red}{Protospacer nucleotide composition}: in Figure \ref{fig:shap-dp-pe2-hek}, the nucleotide compositions from protospacer location 13 to 17 (nicking position) were all shown to have a significant impact. In particular, a guanine (G) at position 16 and a cytosine (C) at position 17
     
     This is consistent with Mathis et al's finding that the nucleotide composition from protospacer position 10 to 20 shows high integrated gradient scores, suggesting that the nucleotide composition in this region is highly influential in determining the editing efficiency\cite{mathisPredictingPrimeEditing2023}.
     % TODO explain why
@@ -277,7 +277,7 @@ The Lasso and Ridge regression are the worst performing models, with similar per
 
 \section{Improving Performance with Ensemble Learning}
 
-The performance of the deep learning models can be further improved by using ensemble learning. The idea behind ensemble learning is to combine the results of various weaker models through various voting methods to achieve better prediction than any individual model.It is a common practice in machine learning, and is frequently seen in the top performing models in competitions hosted by Kaggle. In fact, most of the models tested in this study so far are already using ensembling learning in some way. Random forrest trains multiple decision trees using a subset of features and samples to alleviates the problem of overfitting. The XGBoost model is another ensemble of multiple decision trees using gradient boosting, while DeepPrime, PRIDICT and the Transformer model are effectively an ensemble of a deep learning model and a MLP, using another MLP as a meta learning to combine the representation produced by the two base models. 
+The performance of the deep learning models can be further improved by using ensemble learning. The idea behind ensemble learning is to combine the results of various weaker models through various voting methods to achieve better prediction than any individual model.It is a common practice in machine learning, and is frequently seen in the top performing models in competitions hosted by Kaggle. In fact, most of the models tested in this study so far are already using ensembling learning in some way. Random forrest trains multiple decision trees using a subset of features and samples to alleviates the problem of overfitting. The XGBoost model is another ensemble of multiple decision trees using optimized gradient boosting \cite{chenXGBoostScalableTree2016}, while DeepPrime, PRIDICT and the Transformer model are effectively an ensemble of a deep learning model and a MLP, using another MLP as a meta learning to combine the representation produced by the two base models. 
 
 In this study, a number of common supervised ensemble learning methods were evaluated, including weighted averaging, bagging, and adaptive boosting (AdaBoost). Due to the large number of models used in the ensemble, the initial training and testing were conducted on the same subset of the PRIDICT2.0 HEK293T dataset used for the hyperparameter tuning of the LLM model.
 
@@ -422,11 +422,17 @@ In the original model, the sample weight distribution is initialized as a unifor
 
 After each iteration, the absolute relative error for each training example is calculated as $e_t(i) = |y_i - \hat{y}_t(i)|/y_i$, where $\hat{y}_t(i)$ is the prediction of the model at iteration $t$. The error is then used to calculate the error rate, indicating the percentage of examples predicted with higher relative error than the threshold $\phi$: $\epsilon_t = \sum_{i=1: e_t(i) > \phi} D_t(i) / n$. This projects the regression problem into a classification problem, where the AdaBoost algorithm was originally designed for.
 
-The sample weights are then updated using the calculated error rate and relative error associated with each sample as 
-$$D_{t+1}(i) = D_t(i) \times \begin{cases}
-    \epsilon_t, & \text{if } e_t(i) > \phi \\
+The sample weights are then updated using the calculated error rate's power and relative error associated with each sample as 
+$$
+\beta_t = \epsilon_t ^ n
+$$
+$$
+D_{t+1}(i) = D_t(i) \times \begin{cases}
+    \beta_t, & \text{if } e_t(i) > \phi \\
     1, & \text{otherwise}
-\end{cases}$$
+\end{cases}
+$$
+Where n can be 1 (linear), 2 (quadratic), 3 (cubic) or any other positive integer. Higher value of n would result in the model focusing more on the misclassified examples, which can help the model to better fit the data, but would also increase the risk of overfitting.
 
 To prevent the sample weights from becoming too small for the XGBoost model during training, the sample weights were clipped to a minimum of 0.01. After clipping, the distribution is then normalized to sum up to 1, ensuring that the sample weights are still a probability distribution.
 
@@ -521,7 +527,7 @@ The result is returned as a JSON response and is parsed by the front end as a ta
 
 Other than the model itself, an algorithm for suggesting candidate pegRNAs given a desirable edit was also implemented. Supposing the nick is done at 3bp upstream of the PAM, for the edit to be possible, the PAM sequence must be at most 3bp downstream of the edit start location (in which case LHA length is 0). Additionally, the protospacer must begin with a guanine nucleotide (G), so that the U6 motor used for the transcription of the pegRNA can recognize the sequence and start the expression\cite{hsieh-fengEfficientExpressionMultiple2020}.
 
-These requirements have the most significant constraint on the LHA length, as it always starts at the nick site 3bp upstream of the PAM and must be able to reach the edit location. PBS and RHA, on the other hand, are much more flexible in length, as they can be freely extended to their 3' and 5' ends respectively.
+These requirements have the most significant constraint on the LHA length, as it always starts at the nick site 3bp upstream of the PAM and must end at the edit location. Thus, its length depends entirely on the choice of the protospacer location. PBS and RHA, on the other hand, are much more flexible in length, as they can be freely extended to their 3' and 5' ends respectively.
 However, as discussed in \autoref{sec:determinants}, the length of LHA, RHA and PBS all have significant impact on the editing efficiency. To come up with a recommended range for these parameters, a more detailed analysis of the relationship between the lengths and the editing efficiency was conducted.
 
 \begin{figure}
@@ -552,11 +558,7 @@ Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths 
 In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}. The recommending range would result in a maximum of 585 pegRNAs (true number is usually much smaller as LHA location is heavily constrained), which would then be processed and evaluated by the model to produce the estimated editing efficiency.
 
 
-
-
-Limited by the scale and funding of this project, the web tool was not deployed to a public server, but instead packaged in a container for local use with Docker. 
-
-It is also accessible using Python with Django and Pytorch installed by executing:
+Limited by the scale and funding of this project, the web application is not deployed to a public server at the current stage. However, it can still be tested locally using Python with Django and Pytorch installed by executing:
 
 \verb|python webtool/manage.py runserver|
 

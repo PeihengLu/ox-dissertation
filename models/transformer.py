@@ -18,6 +18,7 @@ import copy
 import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
+import gc
 
 import sys
 sys.path.append('../')
@@ -25,7 +26,7 @@ from typing import Dict, List, Tuple
 
 from utils.ml_utils import clones, StackedTransformer
 # from flash_attn import flash_attn_qkvpacked_func
-from local_attention import LocalAttention
+# from local_attention import LocalAttention
 
 class SequenceEmbedder(nn.Module):
     def __init__(self, embed_dim: int = 4, sequence_length=99, onehot: bool = True, annot: bool = False):
@@ -362,11 +363,9 @@ def make_model(N=6, embed_dim=4, mlp_embed_dim=64, num_heads=4, pdropout=0.1, on
     return model
 
 class PrimeDesignTransformer(nn.Module):
-    def __init__(self, embed_dim: int = 4, sequence_length=99, num_heads=2, pdropout=0.1, mlp_embed_dim=100, num_encoder_units=1, num_features=24, flash=False, onehot=True, annot=False, local=False):
+    def __init__(self, sequence_length=99, pdropout=0.1, mlp_embed_dim=100, num_encoder_units=1, num_features=24, flash=False, onehot=True, annot=False, local=False):
         super(PrimeDesignTransformer, self).__init__()
-        self.embed_dim = embed_dim
         self.sequence_length = sequence_length
-        self.num_heads = num_heads
         self.pdropout = pdropout
         self.mlp_embed_dim = mlp_embed_dim
         self.num_encoder_units = num_encoder_units
@@ -375,8 +374,11 @@ class PrimeDesignTransformer(nn.Module):
         self.onehot = onehot
         self.attention_values = [0 for _ in range(sequence_length)]
         
-        self.transformer = make_model(N=num_encoder_units, embed_dim=embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
-        self.transformer_pool = FeatureEmbAttention(input_dim=embed_dim)
+        self.embed_dim = 6 if annot else 4
+        self.num_heads = 3 if annot else 2
+                
+        self.transformer = make_model(N=num_encoder_units, embed_dim=self.embed_dim, mlp_embed_dim=mlp_embed_dim, num_heads=self.num_heads, pdropout=pdropout, onehot=onehot, annot=annot, flash=flash, local=local)
+        self.transformer_pool = FeatureEmbAttention(input_dim=self.embed_dim)
         
         # self.gru = nn.GRU(input_size=sequence_length, hidden_size=128, num_layers=1, batch_first=True, bidirectional=True)
         
@@ -391,9 +393,9 @@ class PrimeDesignTransformer(nn.Module):
         )
 
         self.head = nn.Sequential(
-            nn.LayerNorm(embed_dim + 128),
+            nn.LayerNorm(self.embed_dim + 128),
             nn.Dropout(pdropout),
-            nn.Linear(embed_dim + 128, 1, bias=True),
+            nn.Linear(self.embed_dim + 128, 1, bias=True),
         )
         
         # self.generator = nn.Sequential(
@@ -582,14 +584,11 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
         print("Training Transformer model...")
         
         best_val_loss = np.inf
-        
-        embed_dim = 4 if not annot else 6
-        num_heads = 3 if annot else 2
     
         for j in range(num_runs):
             print(f'Run {j+1} of {num_runs}')
             # model
-            m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_features=num_features, onehot=onehot, annot=annot, flash=False, local=False, num_encoder_units=num_encoder_units)
+            m = PrimeDesignTransformer(sequence_length=sequence_length, pdropout=dropout, num_features=num_features, onehot=onehot, annot=annot, flash=False, local=False, num_encoder_units=num_encoder_units)
             
             # accelerator = Accelerator(mixed_precision='bf16')
             
@@ -602,7 +601,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                 # optimizer__eps=1e-4,
                 # optimizer=torch.optim.SGD,
                 optimizer__lr=lr,
-                device='cuda' if torch.cuda.is_available() else 'cpu',
+                device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
                 batch_size=batch_size,
                 max_epochs=epochs,
                 train_split= skorch.dataset.ValidSplit(cv=5),
@@ -654,12 +653,9 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
     # transform to float
     test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
     
-    embed_dim = 4 if not annot else 6
-    num_heads = 3 if annot else 2
-    
     sequence_length = len(test_data_all['wt-sequence'].values[0])
 
-    m = PrimeDesignTransformer(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
+    m = PrimeDesignTransformer(sequence_length=sequence_length, pdropout=dropout, num_encoder_units=3, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
     
     accelerator = Accelerator(mixed_precision='bf16')
             
@@ -732,9 +728,9 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
 
     params_arch = {
         'module__num_encoder_units': [1, 3, 5],
-        'module__pdropout': [0.05, 0.1, 0.2], # 0.01, 0.05,
+        'module__pdropout': [0.05, 0.1, 0.2, 0.3, 0.5], # 0.01, 0.05,
         'module__mlp_embed_dim': [50, 100, 150],
-        'module__pdropout': [0.1, 0.3, 0.5],
+        # 'module__pdropout': [0.1, 0.3, 0.5],
         # 'module__flash': [True, False],
         # 'module__local': [True, False],
         # 'module__annot': [True, False],
@@ -744,7 +740,7 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
     params_arch = list(ParameterGrid(params_arch))
 
     # load a dp dataset
-    dp_dataset = pd.read_csv(os.path.join('/content/drive/MyDrive/ox-dissertation/models/data/transformer', tune_fname))
+    dp_dataset = pd.read_csv(os.path.join('models', 'data', 'transformer', tune_fname))
 
     # remove rows with nan values
     dp_dataset = dp_dataset.dropna()
@@ -774,25 +770,24 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
         if os.path.isfile(performances):
             performances = pd.read_csv(performances)
             # convert the dataframe to a dictionary
-            condition = pd.Series([True]*len(performances))
-            for p in par:
-                condition = condition & performances[p] == str(par[p])
-            row = performances[condition]
-            if len(row['performance'].isna().values) > 0 and not row['performance'].isna().values[0]:
-                # print(f'Parameter: {par} has already been tuned')
-                # print('-'*50, '\n')
-                par['performance'] = row['performance'].values[0]
+            row = performances[(performances['module__num_encoder_units'] == par['module__num_encoder_units']) & (performances['module__pdropout'] == par['module__pdropout']) & (performances['module__mlp_embed_dim'] == par['module__mlp_embed_dim'])]
+            if len(row['pearson'].isna().values) > 0 and not row['pearson'].isna().values[0]:
+                print(f'Parameter: {par} has already been tuned')
+                print('-'*50, '\n')
+                par['pearson'] = row['pearson'].values[0]
+                par['spearman'] = row['spearman'].values[0]
                 continue
     for ind, par in enumerate(params_arch):
         performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
         # check if the parameter has already been tuned
         if os.path.isfile(performances):
-            if 'performance' in par:
+            if 'pearson' in par:
                 print(f'Parameter: {par} has already been tuned')
                 print('-'*50, '\n')
                 continue
 
-        performances = []
+        performances_pearson = []
+        performances_spearman = []
         print(f'Parameter: {par}')
         for run in range(num_runs):
             t = time.time()
@@ -804,6 +799,8 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
             for p in par:
                 save_file_name += f"-{p}-{par[p]}"
             save_file_name += '.pt'
+            
+            print(f'Save file name: {save_file_name}')
 
             # skorch model
             model = skorch.NeuralNetRegressor(
@@ -839,7 +836,6 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
 
             model.fit(X_train, y_train)
 
-            print(f'Parameter: {par}, val loss: {model.history[-1, "valid_loss"]}')
             # evaluate the model
             model = skorch.NeuralNetRegressor(
                 PrimeDesignTransformer,
@@ -848,7 +844,7 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
                 module__num_encoder_units=3,
                 module__num_features=num_features,
                 module__flash=False,
-                module__local=True,
+                module__local=False,
                 module__annot=True,
                 module__mlp_embed_dim=100,
                 # accelerator=accelerator,
@@ -866,8 +862,12 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
 
             y_pred = model.predict(X_test)
             pearson = np.corrcoef(y_test.T, y_pred.T)[0, 1]
+            spearman = scipy.stats.spearmanr(y_test, y_pred)[0]
+            
+            print(f'Configuration: {par}, Run {run}, Pearson: {pearson}, Spearman: {spearman}')
 
-            performances.append(pearson)
+            performances_pearson.append(pearson)
+            performances_spearman.append(spearman)
 
             torch._C._cuda_clearCublasWorkspaces()
             torch._dynamo.reset()
@@ -876,7 +876,8 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
             gc.collect()
             # delete the temporary model
             print(f'Run time: {time.time() - t}')
-        par['performance'] = performances
+        par['pearson'] = performances_pearson
+        par['spearman'] = performances_spearman
 
         print(f'Parameter: {par}')
         print('-'*50, '\n')
@@ -885,7 +886,7 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
     # and calculate the mean performance of each configuration
     performances = pd.DataFrame(params_arch)
     # save the performance
-    performances.to_csv(os.path.join('/content/drive/MyDrive/ox-dissertation/models/data/transformer', f'{fname}.csv'), index=False)
+    performances.to_csv(os.path.join('models', 'data', 'performance', f'{fname}.csv'), index=False)
 
 def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1, onehot: bool =True) -> None:
     """visualize the attention weights of the transformer model

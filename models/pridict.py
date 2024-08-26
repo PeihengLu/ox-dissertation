@@ -9,6 +9,7 @@ import skorch
 import scipy
 
 import os
+from glob import glob
 from sklearn.preprocessing import StandardScaler
 
 class RNN_Net(nn.Module):
@@ -31,7 +32,7 @@ class RNN_Net(nn.Module):
         self.z_dim = z_dim
         self.num_hiddenlayers = num_hiddenlayers
         self.rnn_pdropout = rnn_pdropout
-        self.device = device
+        self.device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
         self.rnninput_dim = self.input_dim
 
         if num_hiddenlayers == 1:
@@ -708,7 +709,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         
     # return model
 
-def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
+def predict_pridict(test_fname: str, num_features: int=24, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
@@ -721,7 +722,9 @@ def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dr
     # transform to float
     test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
 
-    m = Pridict(input_dim=5,hidden_dim=32,dropout=0)
+    sequence_length = len(test_data_all['wt-sequence'].values[0])
+
+    m = Pridict(input_dim=5,hidden_dim=32, sequence_length=sequence_length, dropout=dropout)
     
     pd_model = skorch.NeuralNetRegressor(
         m,
@@ -774,3 +777,62 @@ def predict_pridict(test_fname: str, num_features: int, device: str = 'cuda', dr
     torch.cuda.empty_cache()
 
     return prediction, performance
+
+
+def fine_tune_pridict(fine_tune_fname: str=None):    
+    # load the fine tune datasets
+    if not fine_tune_fname:
+        fine_tune_data = glob(os.path.join('models', 'data', 'pridict', '*small*.csv'))
+    else:
+        fine_tune_data = [fine_tune_fname]
+
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    
+    for data in fine_tune_data:
+        data_source = os.path.basename(data).split('-')[1:]
+        data_source = '-'.join(data_source)
+        data_source = data_source.split('.')[0]
+        # load the fine tune data
+        fine_tune_data = pd.read_csv(data)
+        sequence_length = len(fine_tune_data['wt-sequence'].values[0])
+        for i in range(5):
+            fine_tune = fine_tune_data[fine_tune_data['fold'] != i]
+            fold = i + 1
+            # load the dp hek293t pe 2 model
+            model = Pridict(input_dim=5,hidden_dim=32, sequence_length=sequence_length, dropout=0)
+            model.load_state_dict(torch.load('models/trained-models/pridict/dp-hek293t-pe2-fold-1.pt', map_location=device))
+            
+            # freeze the layers other than head and feature mlps
+            for param in model.parameters():
+                param.requires_grad = False
+            for param in model.decoder.parameters():
+                param.requires_grad = True
+            for param in model.d.parameters():
+                param.requires_grad = True
+                
+            # skorch wrapper
+            dp_model = skorch.NeuralNetRegressor(
+                model,
+                criterion=nn.MSELoss,
+                optimizer=torch.optim.Adam,
+                device=device,
+                warm_start=True,
+                optimizer__lr=0.005,
+                max_epochs=200,
+                batch_size=1024,
+                train_split= skorch.dataset.ValidSplit(cv=5),
+                callbacks=[
+                    skorch.callbacks.EarlyStopping(patience=30),
+                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'models/trained-models/pridict/pd-{data_source}-fold-{fold}.pt', f_optimizer=None, f_history=None, f_criterion=None),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
+                ]
+            )
+            
+            y_fine_tune = fine_tune.iloc[:, -2]
+            X_fine_tune = preprocess_pridict(fine_tune)
+            y_fine_tune = y_fine_tune.values
+            y_fine_tune = y_fine_tune.reshape(-1, 1)
+            y_fine_tune = torch.tensor(y_fine_tune, dtype=torch.float32)
+            
+            # train the model
+            dp_model.fit(X_fine_tune, y_fine_tune)

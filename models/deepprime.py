@@ -88,8 +88,9 @@ class DeepPrime(nn.Module):
 
     # g is the stacked gene sequences(wildtype and edited) and x is the feature vector
     def forward(self, g, x):
-        g = g.to('cuda').long()
-        x = x.to('cuda')        
+        device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+        g = g.to(device).long()
+        x = x.to(device)        
         g = self.embedding(g)
         
         # Ensure g is 4D
@@ -274,6 +275,7 @@ def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int 
     Returns:
         Dict[str, np.ndarray]: The predictions result of the model from each fold
     """
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
@@ -291,7 +293,7 @@ def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int 
         DeepPrime(hidden_size, num_layers, num_features, dropout),
         # criterion=nn.MSELoss,
         # optimizer=torch.optim.Adam,
-        device='cuda' if torch.cuda.is_available() else 'cpu',
+        device=device,
     )
 
     prediction = {}
@@ -329,50 +331,82 @@ def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int 
     
     return prediction, performance
 
-def fine_tune_deepprime(fine_tune_fname: str):    
+def fine_tune_deepprime(fine_tune_fname: str=None):    
     # load the fine tune datasets
-    fine_tune_data = glob(os.path.join('models', 'data', 'deepprime', '*small*.csv'))
+    if not fine_tune_fname:
+        fine_tune_data = glob(os.path.join('models', 'data', 'deepprime', '*small*.csv'))
+    else:
+        fine_tune_data = [fine_tune_fname]
+
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     
     for data in fine_tune_data:
-        data_source = os.path.basename(data).split('-')[1]
+        data_source = os.path.basename(data).split('-')[1:]
+        data_source = '-'.join(data_source)
         data_source = data_source.split('.')[0]
-        # load the dp hek293t pe 2 model
-        model = DeepPrime(128, 1, 24, 0.05)
-        model.load_state_dict(torch.load('models/trained-models/deepprime/dp-dp-hek293t-pe2.pt'))
-        
-        # freeze the layers other than head
-        for param in model.parameters():
-            param.requires_grad = False
-        for param in model.head.parameters():
-            param.requires_grad = True
-            
-        # skorch wrapper
-        dp_model = skorch.NeuralNetRegressor(
-            model,
-            criterion=nn.MSELoss,
-            optimizer=torch.optim.Adam,
-            device='cuda' if torch.cuda.is_available() else 'cpu',
-            warm_start=True,
-            optimizer__lr=0.005,
-            max_epochs=200,
-            batch_size=1024,
-            train_split=skorch.dataset.CVSplit(5),
-            callbacks=[
-                skorch.callbacks.EarlyStopping(patience=20),
-                skorch.checkpoint.Checkpoint(monitor='valid_loss_best', f_params=f'models/trained-models/deepprime/dp-{data_source}.pt'),
-                skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1),
-            ]
-        )
-        
         # load the fine tune data
-        fine_tune = pd.read_csv(data)
-        X_fine_tune = fine_tune.iloc[:, :26]
-        y_fine_tune = fine_tune.iloc[:, -2]
-        
-        X_fine_tune = preprocess_deep_prime(X_fine_tune)
-        y_fine_tune = y_fine_tune.values
-        y_fine_tune = y_fine_tune.reshape(-1, 1)
-        y_fine_tune = torch.tensor(y_fine_tune, dtype=torch.float32)
-        
-        # train the model
-        dp_model.fit(X_fine_tune, y_fine_tune)
+        fine_tune_data = pd.read_csv(data)
+        for i in range(5):
+            fine_tune = fine_tune_data[fine_tune_data['fold'] != i]
+            fold = i + 1
+            # load the dp hek293t pe 2 model
+            model = DeepPrime(128, 1, 24, 0.05)
+            model.load_state_dict(torch.load('models/trained-models/deepprime/dp-hek293t-pe2-fold-1.pt', map_location=device))
+            
+            # freeze the layers other than head and feature mlps
+            for param in model.parameters():
+                param.requires_grad = False
+            for param in model.head.parameters():
+                param.requires_grad = True
+            for param in model.d.parameters():
+                param.requires_grad = True
+                
+            # skorch wrapper
+            dp_model = skorch.NeuralNetRegressor(
+                model,
+                criterion=nn.MSELoss,
+                optimizer=torch.optim.Adam,
+                device=device,
+                warm_start=True,
+                optimizer__lr=0.001,
+                max_epochs=500,
+                batch_size=1024,
+                train_split= skorch.dataset.ValidSplit(cv=5),
+                callbacks=[
+                    skorch.callbacks.EarlyStopping(patience=30),
+                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'models/trained-models/deepprime/dp-{data_source}-fold-{fold}.pt', f_optimizer=None, f_history=None, f_criterion=None),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
+                ]
+            )
+            
+            
+            X_fine_tune = fine_tune.iloc[:, :26]
+            y_fine_tune = fine_tune.iloc[:, -2]
+            
+            X_fine_tune = preprocess_deep_prime(X_fine_tune)
+            y_fine_tune = y_fine_tune.values
+            y_fine_tune = y_fine_tune.reshape(-1, 1)
+            y_fine_tune = torch.tensor(y_fine_tune, dtype=torch.float32)
+            
+            # train the model
+            dp_model.fit(X_fine_tune, y_fine_tune)
+
+
+def deepprime(save_path: str) -> skorch.NeuralNet:
+    '''
+    Returns the DeepPrime model wrapped by skorch
+    '''
+    model = skorch.NeuralNetRegressor(
+        DeepPrime(128, 1, 24, 0.05),
+        criterion=WeightedLoss,
+        optimizer=torch.optim.Adam,
+        device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
+        batch_size=1024,
+        max_epochs=500,
+        train_split= skorch.dataset.ValidSplit(cv=5),
+        callbacks=[
+            skorch.callbacks.EarlyStopping(patience=20),
+            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt', f_optimizer=None, f_history=None, f_criterion=None),
+            skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
+        ]
+    )
