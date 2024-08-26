@@ -390,3 +390,23 @@ def fine_tune_deepprime(fine_tune_fname: str=None):
             
             # train the model
             dp_model.fit(X_fine_tune, y_fine_tune)
+
+
+def deepprime(save_path: str) -> skorch.NeuralNet:
+    '''
+    Returns the DeepPrime model wrapped by skorch
+    '''
+    model = skorch.NeuralNetRegressor(
+        DeepPrime(128, 1, 24, 0.05),
+        criterion=WeightedLoss,
+        optimizer=torch.optim.Adam,
+        device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
+        batch_size=1024,
+        max_epochs=500,
+        train_split= skorch.dataset.ValidSplit(cv=5),
+        callbacks=[
+            skorch.callbacks.EarlyStopping(patience=20),
+            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt', f_optimizer=None, f_history=None, f_criterion=None),
+            skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
+        ]
+    )
