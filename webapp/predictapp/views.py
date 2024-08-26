@@ -98,7 +98,7 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
     
     # in the range of lha length, scan for PAM sequences
     # edit must start before 3bp upstream of the PAM
-    edit_to_pam_range = lha_len_range + 3
+    edit_to_pam_range = lha_len_range + len(pam)
     
     protospacer_location_l = []
     protospacer_location_r = []

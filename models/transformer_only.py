@@ -133,11 +133,11 @@ class MultiHeadAttention(nn.Module):
             # permute the dimensions to (batch, sequence length, 3, num_heads, head_dim)
             qkv = qkv.permute(0, 1, 4, 2, 3)
             
-            if self.local:
-                # feed the input to the flash attention
-                x, softmax_lse, self.attn = flash_attn_qkvpacked_func(qkv=qkv, dropout_p=self.dropout.p, return_attn_probs=True, window_size=(2, 2))
-            else:
-                x, softmax_lse, self.attn = flash_attn_qkvpacked_func(qkv=qkv, dropout_p=self.dropout.p, return_attn_probs=True)
+            # if self.local:
+            #     # feed the input to the flash attention
+            #     x, softmax_lse, self.attn = flash_attn_qkvpacked_func(qkv=qkv, dropout_p=self.dropout.p, return_attn_probs=True, window_size=(2, 2))
+            # else:
+            #     x, softmax_lse, self.attn = flash_attn_qkvpacked_func(qkv=qkv, dropout_p=self.dropout.p, return_attn_probs=True)
                 
             del qkv
             # del softmax_lse
