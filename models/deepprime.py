@@ -368,13 +368,13 @@ def fine_tune_deepprime(fine_tune_fname: str=None):
                 optimizer=torch.optim.Adam,
                 device=device,
                 warm_start=True,
-                optimizer__lr=0.005,
-                max_epochs=200,
+                optimizer__lr=0.001,
+                max_epochs=500,
                 batch_size=1024,
                 train_split= skorch.dataset.ValidSplit(cv=5),
                 callbacks=[
                     skorch.callbacks.EarlyStopping(patience=30),
-                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'models/trained-models/deepprime/dp-{data_source}-fold-{fold}.pt'),
+                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'models/trained-models/deepprime/dp-{data_source}-fold-{fold}.pt', f_optimizer=None, f_history=None, f_criterion=None),
                     skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
                 ]
             )
@@ -390,4 +390,3 @@ def fine_tune_deepprime(fine_tune_fname: str=None):
             
             # train the model
             dp_model.fit(X_fine_tune, y_fine_tune)
-            

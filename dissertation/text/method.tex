@@ -422,11 +422,17 @@ In the original model, the sample weight distribution is initialized as a unifor
 
 After each iteration, the absolute relative error for each training example is calculated as $e_t(i) = |y_i - \hat{y}_t(i)|/y_i$, where $\hat{y}_t(i)$ is the prediction of the model at iteration $t$. The error is then used to calculate the error rate, indicating the percentage of examples predicted with higher relative error than the threshold $\phi$: $\epsilon_t = \sum_{i=1: e_t(i) > \phi} D_t(i) / n$. This projects the regression problem into a classification problem, where the AdaBoost algorithm was originally designed for.
 
-The sample weights are then updated using the calculated error rate and relative error associated with each sample as 
-$$D_{t+1}(i) = D_t(i) \times \begin{cases}
-    \epsilon_t, & \text{if } e_t(i) > \phi \\
+The sample weights are then updated using the calculated error rate's power and relative error associated with each sample as 
+$$
+\beta_t = \epsilon_t ^ n
+$$
+$$
+D_{t+1}(i) = D_t(i) \times \begin{cases}
+    \beta_t, & \text{if } e_t(i) > \phi \\
     1, & \text{otherwise}
-\end{cases}$$
+\end{cases}
+$$
+Where n can be 1 (linear), 2 (quadratic), 3 (cubic) or any other positive integer. Higher value of n would result in the model focusing more on the misclassified examples, which can help the model to better fit the data, but would also increase the risk of overfitting.
 
 To prevent the sample weights from becoming too small for the XGBoost model during training, the sample weights were clipped to a minimum of 0.01. After clipping, the distribution is then normalized to sum up to 1, ensuring that the sample weights are still a probability distribution.
 

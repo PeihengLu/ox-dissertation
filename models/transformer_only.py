@@ -27,6 +27,8 @@ from utils.ml_utils import clones, StackedTransformer
 # from flash_attn import flash_attn_qkvpacked_func
 from local_attention import LocalAttention
 
+device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+
 class SequenceEmbedder(nn.Module):
     def __init__(self, embed_dim: int = 4, sequence_length=99, onehot: bool = True, annot: bool = False):
         super().__init__()
@@ -621,7 +623,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                 # optimizer__eps=1e-4,
                 # optimizer=torch.optim.SGD,
                 optimizer__lr=lr,
-                device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
+                device=device,
                 batch_size=batch_size,
                 max_epochs=epochs,
                 train_split= skorch.dataset.ValidSplit(cv=5),
@@ -680,14 +682,15 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
 
     m = PrimeDesignTransformerOnly(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, nonlin_func=nn.ReLU(), num_encoder_units=1, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
     
-    accelerator = Accelerator(mixed_precision='bf16')
+    # accelerator = Accelerator(mixed_precision='bf16')
             
     # skorch model
-    tr_model = AcceleratedNet(
+    tr_model = skorch.NeuralNetRegressor(
         m,
-        accelerator=accelerator,
+        # accelerator=accelerator,
         criterion=nn.MSELoss,
         optimizer=torch.optim.AdamW,
+        device=device,
     )
 
     prediction = {}
@@ -900,7 +903,7 @@ def tune_transformer(tune_fname: str, lr: float=0.0025, batch_size: int = 1024, 
 
 
 
-def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1, onehot: bool =True) -> None:
+def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1, onehot: bool =True) -> None:
     """visualize the attention weights of the transformer model
 
     Args:
@@ -933,20 +936,21 @@ def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 
     sequence_length = len(test_data_all['wt-sequence'].values[0])
 
     m = PrimeDesignTransformerOnly(embed_dim=embed_dim, sequence_length=sequence_length, num_heads=num_heads,pdropout=dropout, num_encoder_units=num_encoder_units, num_features=num_features, onehot=onehot, annot=annot, flash=False)
+
+    m.load_state_dict(torch.load(os.path.join('models', 'trained-models', 'transformer', f'{model_name}-fold-1-transformer-only.pt'), map_location=torch.device(device)))
     
-    accelerator = Accelerator(mixed_precision='bf16')
+    # accelerator = Accelerator(mixed_precision='bf16')
             
     # skorch model
     tr_model = skorch.NeuralNetRegressor(
         m,
         # accelerator=accelerator,
-        device='cuda' if torch.cuda.is_available() else 'cpu',
+        device=device,
         criterion=nn.MSELoss,
         optimizer=torch.optim.AdamW,
     )
 
     tr_model.initialize()
-    tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f'{model_name}-fold-1-transformer-only.pt'))
 
     prediction = {}
     performance = []
