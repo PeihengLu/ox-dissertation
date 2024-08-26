@@ -26,7 +26,7 @@ from typing import Dict, List, Tuple
 
 from utils.ml_utils import clones, StackedTransformer
 # from flash_attn import flash_attn_qkvpacked_func
-from local_attention import LocalAttention
+# from local_attention import LocalAttention
 
 class SequenceEmbedder(nn.Module):
     def __init__(self, embed_dim: int = 4, sequence_length=99, onehot: bool = True, annot: bool = False):
@@ -601,7 +601,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
                 # optimizer__eps=1e-4,
                 # optimizer=torch.optim.SGD,
                 optimizer__lr=lr,
-                device='cuda' if torch.cuda.is_available() else 'cpu',
+                device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
                 batch_size=batch_size,
                 max_epochs=epochs,
                 train_split= skorch.dataset.ValidSplit(cv=5),
