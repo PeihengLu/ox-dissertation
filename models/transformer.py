@@ -788,7 +788,8 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
                 print('-'*50, '\n')
                 continue
 
-        performances = []
+        performances_pearson = []
+        performances_spearman = []
         print(f'Parameter: {par}')
         for run in range(num_runs):
             t = time.time()
@@ -803,39 +804,39 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
             
             print(f'Save file name: {save_file_name}')
 
-            # skorch model
-            model = skorch.NeuralNetRegressor(
-                PrimeDesignTransformer,
-                module__sequence_length=99,
-                module__pdropout=dropout,
-                module__num_encoder_units=3,
-                module__num_features=num_features,
-                module__flash=False,
-                module__local=False,
-                module__annot=True,
-                module__mlp_embed_dim=100,
-                # accelerator=accelerator,
-                criterion=nn.MSELoss,
-                optimizer=torch.optim.AdamW,
-                # optimizer__eps=1e-4,
-                # optimizer=torch.optim.SGD,
-                optimizer__lr=0.0025,
-                max_epochs=500,
-                device='cuda',
-                batch_size=2048,
-                train_split= skorch.dataset.ValidSplit(cv=5),
-                # early stopping
-                callbacks=[
-                    skorch.callbacks.EarlyStopping(patience=patience),
-                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-5),
-                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
-                    # skorch.callbacks.ProgressBar(),
-                    # PrintParameterGradients()
-                ]
-            )
-            model.set_params(**par)
+            # # skorch model
+            # model = skorch.NeuralNetRegressor(
+            #     PrimeDesignTransformer,
+            #     module__sequence_length=99,
+            #     module__pdropout=dropout,
+            #     module__num_encoder_units=3,
+            #     module__num_features=num_features,
+            #     module__flash=False,
+            #     module__local=False,
+            #     module__annot=True,
+            #     module__mlp_embed_dim=100,
+            #     # accelerator=accelerator,
+            #     criterion=nn.MSELoss,
+            #     optimizer=torch.optim.AdamW,
+            #     # optimizer__eps=1e-4,
+            #     # optimizer=torch.optim.SGD,
+            #     optimizer__lr=0.0025,
+            #     max_epochs=500,
+            #     device='cuda',
+            #     batch_size=2048,
+            #     train_split= skorch.dataset.ValidSplit(cv=5),
+            #     # early stopping
+            #     callbacks=[
+            #         skorch.callbacks.EarlyStopping(patience=patience),
+            #         skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-5),
+            #         skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
+            #         # skorch.callbacks.ProgressBar(),
+            #         # PrintParameterGradients()
+            #     ]
+            # )
+            # model.set_params(**par)
 
-            model.fit(X_train, y_train)
+            # model.fit(X_train, y_train)
 
             # evaluate the model
             model = skorch.NeuralNetRegressor(
@@ -863,10 +864,12 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
 
             y_pred = model.predict(X_test)
             pearson = np.corrcoef(y_test.T, y_pred.T)[0, 1]
+            spearman = scipy.stats.spearmanr(y_test, y_pred)[0]
             
-            print(f'Configuration: {par}, Run {run}, Pearson: {pearson}')
+            print(f'Configuration: {par}, Run {run}, Pearson: {pearson}, Spearman: {spearman}')
 
-            performances.append(pearson)
+            performances_pearson.append(pearson)
+            performances_spearman.append(spearman)
 
             torch._C._cuda_clearCublasWorkspaces()
             torch._dynamo.reset()
@@ -875,7 +878,8 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
             gc.collect()
             # delete the temporary model
             print(f'Run time: {time.time() - t}')
-        par['performance'] = performances
+        par['pearson'] = performances_pearson
+        par['spearman'] = performances_spearman
 
         print(f'Parameter: {par}')
         print('-'*50, '\n')
