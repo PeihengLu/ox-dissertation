@@ -5,6 +5,7 @@ from scipy.stats import pearsonr, spearmanr
 
 from typing import List
 from models.conventional_ml_models import mlp, ridge_regression, lasso_regression, xgboost, random_forest
+from models.deepprime import deepprime, preprocess_deep_prime
 import pickle
 import pandas as pd
 import numpy as np
@@ -82,8 +83,9 @@ class EnsembleWeightedMean:
             'xgb': xgboost,
             'rf': random_forest,
             'mlp': mlp,
+            'dp': deepprime
         }
-        self.dl_models = ['mlp']
+        self.dl_models = ['mlp', 'dp']
 
     # fit would load the models if trained, if not, it would train the models
     def fit(self, data: str):
@@ -159,7 +161,7 @@ class EnsembleWeightedMean:
                 self.ensemble[i] = []
                 # using the pearson correlation as the weight
                 for j in range(self.n_regressors):
-                    self.ensemble[i].append(pearsonr(predictions[:, j], target)[0])
+                    self.ensemble[i].append(spearmanr(predictions[:, j], target)[0])
                 self.ensemble[i] = np.array(self.ensemble[i])
                 # normalize the weights
                 self.ensemble[i] = self.ensemble[i] / np.sum(self.ensemble[i])
