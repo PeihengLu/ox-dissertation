@@ -17,18 +17,18 @@ As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime
 \begin{figure}
     \centering
     \subfigure[Substitution]{
-        \includegraphics[width=0.9\textwidth]{dp-hek293t-pe2-transformer-only-attention-insertion.png}
+        \includegraphics[width=0.88\textwidth]{dp-hek293t-pe2-transformer-only-attention-insertion.png}
         \label{fig:attention_insertion}
     }
     \subfigure[Insertion]{
-        \includegraphics[width=0.9\textwidth]{dp-hek293t-pe2-transformer-only-attention-insertion.png}
+        \includegraphics[width=0.88\textwidth]{dp-hek293t-pe2-transformer-only-attention-insertion.png}
         \label{fig:attention_substitution}
     }
     \subfigure[Deletion]{
-        \includegraphics[width=0.9\textwidth]{dp-hek293t-pe2-transformer-only-attention-deletion.png}
+        \includegraphics[width=0.88\textwidth]{dp-hek293t-pe2-transformer-only-attention-deletion.png}
         \label{fig:attention_deletion}
     }
-    \caption[Attention weights for the DeepPrime model trained on the HEK293T-PE2 dataset]{Attention weights of length 1 edits for the DeepPrime model trained on the HEK293T-PE2 dataset. The x-axis represents the position of the transformer output token, the y-axis indicates the edit position. Red colour indicates higher attention weights, while blue indicates lower attention weights.}
+    \caption[Attention weights for the DeepPrime model trained on the HEK293T-PE2 dataset]{Attention weights of length 1 edits for the DeepPrime model trained on the HEK293T-PE2 dataset. The x-axis represents the position of the transformer output token, the y-axis indicates the edit position. Red colour indicates higher attention weights, while blue indicates lower attention weights. The example size for each edit location is shown on the right in the format of 'n=number of examples'.}
     \label{fig:attention}
 \end{figure}
 
@@ -40,4 +40,15 @@ The examples were grouped together by their editing type and length so that the 
 
 The model trained on the biggest DeepPrime dataset was first tested, as the transformer model has the greatest chance of learning the underlying motifs influencing the editing efficiency in the data. Starting with the edits of length 1, the attention weights were visualized for the substitution, insertion, and deletion, shown in \autoref{fig:attention}. 
 
-However, for deletion, the attention weights were the highest at the edit position. The cross attention output of the edit position for deletion was dominated by the encoder output, as the self-attention weights for the mutated sequence at edit position were masked out to be zero. This is a possible indication that the model considers the base to edit as an important feature for the deletion operation.
+For both 1-bp substitution and insertion, the attention weights were the highest from around the start of the protospacer location (location 4) to the nick position (location 20, also where the PBS ends). This may be an indication that the model considers the composition of the PBS as an important feature for the editing efficiency prediction. Additionally, one of the hot spots for the attention weights was the protospacer location 13 to 17. This is consistent with the finding in \autoref{fig:shap} that the composition of the protospacer is an important feature for the editing efficiency prediction.
+
+However, for deletion, the attention weights were the highest at the edit position. The cross attention output of the edit position for deletion was dominated by the encoder output, as the self-attention weights for the mutated sequence at edit position were masked out to be zero. This is a possible indication that the model considers the base to delete as an important feature for the deletion operation.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\textwidth]{dp-hek293t-pe2-transformer-only-attention-deletion-3bp.png}
+    \caption[Attention weights for 3-bp deletion of the DeepPrime model trained on the HEK293T-PE2 dataset]{Similar to \autoref{fig:attention}, attention weights of length 3 deletion for the DeepPrime model trained on the HEK293T-PE2 dataset.}
+    \label{fig:attention_deletion_3bp}
+\end{figure}
+
+The attention weights for the edits of length 3 showed similar result (\autoref{fig:attention_deletion_3bp}), the only noticeable difference is that the high attention regions for deletion were extended to 3bp long, reflecting the longer deletion length.
