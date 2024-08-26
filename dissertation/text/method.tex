@@ -230,7 +230,7 @@ The major determinants are as follows:
     \item \textcolor{red}{SpCas9 score}: DeepSpCas9 is a deep learning model that estimates the activity of the SpCas9 protein on a target loci, and has been shown to be a good indicator of prime editing efficiency\cite{kimPredictingEfficiencyPrime2021}. This is likely due the SpCas9's role in the prime editing process, as it is responsible for the initial binding of the pegRNA to the target loci. 
     \item \textcolor{red}{PAM disruption}: it was shown that prime editors can sometimes rebind to the edited sequences and induce unintended edits, lowering the editing efficiency\cite{liudavidr.SearchandreplaceGenomeEditing2019}. Thus, the disruption of the PAM sequence is beneficial for the editing efficiency as it prevents the reannealing of the pegRNA to the edited sequence.
     \item \textcolor{red}{LHA/RHA/PBS length}: the length of rha (right homology arm, RTT overhang) is a significant determinant for all editing types, with a short rha length leading to deceased prime editing efficiency, while the positive effect of a long rha is not as pronounced. This suggests the existence of a minimum threshold for rha length below which the edited strand cannot efficiently anneal to the unedited strand, consistent with the findings of Yu et al, 2023, recommending a rha length of at least 7nt\cite{yuPredictionEfficienciesDiverse2023}. Reported as edit position in some literatures, lha length corresponding to the distance between the PAM sequence and the edit location is also a significant feature for all editing types, especially insertion and deletion. A longer lha length adversely affects the editing efficiency, suggesting that although prime editors have less stringent requirements for PAM locations, editing should still be done close to the protospacer whenever possible. As for PBS length, both a very short and a very long PBS have a negative impact on the editing efficiency, suggesting an optimal range.
-    \item \textcolor{red}{Protospacer nucleotide composition}: in Figure \ref{fig:shap-dp-pe2-hek}, a guanine nucleotide (G) at protospacer location 16 was shown to have a positive impact on the editing efficiency. On top of that, among the top 24 features, the nucleotide compositions from protospacer location 13 to 17 were all shown to have a significant impact. 
+    \item \textcolor{red}{Protospacer nucleotide composition}: in Figure \ref{fig:shap-dp-pe2-hek}, the nucleotide compositions from protospacer location 13 to 17 (nicking position) were all shown to have a significant impact. In particular, a guanine (G) at position 16 and a cytosine (C) at position 17
     
     This is consistent with Mathis et al's finding that the nucleotide composition from protospacer position 10 to 20 shows high integrated gradient scores, suggesting that the nucleotide composition in this region is highly influential in determining the editing efficiency\cite{mathisPredictingPrimeEditing2023}.
     % TODO explain why
@@ -558,11 +558,7 @@ Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths 
 In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}. The recommending range would result in a maximum of 585 pegRNAs (true number is usually much smaller as LHA location is heavily constrained), which would then be processed and evaluated by the model to produce the estimated editing efficiency.
 
 
-
-
-Limited by the scale and funding of this project, the web tool was not deployed to a public server, but instead packaged in a container for local use with Docker. 
-
-It is also accessible using Python with Django and Pytorch installed by executing:
+Limited by the scale and funding of this project, the web application is not deployed to a public server at the current stage. However, it can still be tested locally using Python with Django and Pytorch installed by executing:
 
 \verb|python webtool/manage.py runserver|
 
