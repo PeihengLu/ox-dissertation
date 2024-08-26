@@ -728,7 +728,7 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
 
     params_arch = {
         'module__num_encoder_units': [1, 3, 5],
-        'module__pdropout': [0.05, 0.1, 0.2], # 0.01, 0.05,
+        'module__pdropout': [0.05, 0.1, 0.2, 0.3, 0.5], # 0.01, 0.05,
         'module__mlp_embed_dim': [50, 100, 150],
         # 'module__pdropout': [0.1, 0.3, 0.5],
         # 'module__flash': [True, False],
@@ -764,26 +764,24 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
     fname = 'transformer-train-fine-tune'
 
     # use fold 0 for tuning
-    # for ind, par in enumerate(params_arch):
-    #     performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
-    #     # check if the parameter has already been tuned
-    #     if os.path.isfile(performances):
-    #         performances = pd.read_csv(performances)
-    #         # convert the dataframe to a dictionary
-    #         condition = pd.Series([True]*len(performances))
-    #         for p in par:
-    #             condition = condition & performances[p] == str(par[p])
-    #         row = performances[condition]
-    #         if len(row['performance'].isna().values) > 0 and not row['performance'].isna().values[0]:
-    #             # print(f'Parameter: {par} has already been tuned')
-    #             # print('-'*50, '\n')
-    #             par['performance'] = row['performance'].values[0]
-    #             continue
     for ind, par in enumerate(params_arch):
         performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
         # check if the parameter has already been tuned
         if os.path.isfile(performances):
-            if 'performance' in par:
+            performances = pd.read_csv(performances)
+            # convert the dataframe to a dictionary
+            row = performances[(performances['module__num_encoder_units'] == par['module__num_encoder_units']) & (performances['module__pdropout'] == par['module__pdropout']) & (performances['module__mlp_embed_dim'] == par['module__mlp_embed_dim'])]
+            if len(row['pearson'].isna().values) > 0 and not row['pearson'].isna().values[0]:
+                print(f'Parameter: {par} has already been tuned')
+                print('-'*50, '\n')
+                par['pearson'] = row['pearson'].values[0]
+                par['spearman'] = row['spearman'].values[0]
+                continue
+    for ind, par in enumerate(params_arch):
+        performances = os.path.join('models', 'data', 'performance', f'{fname}.csv')
+        # check if the parameter has already been tuned
+        if os.path.isfile(performances):
+            if 'pearson' in par:
                 print(f'Parameter: {par} has already been tuned')
                 print('-'*50, '\n')
                 continue
@@ -804,39 +802,39 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
             
             print(f'Save file name: {save_file_name}')
 
-            # # skorch model
-            # model = skorch.NeuralNetRegressor(
-            #     PrimeDesignTransformer,
-            #     module__sequence_length=99,
-            #     module__pdropout=dropout,
-            #     module__num_encoder_units=3,
-            #     module__num_features=num_features,
-            #     module__flash=False,
-            #     module__local=False,
-            #     module__annot=True,
-            #     module__mlp_embed_dim=100,
-            #     # accelerator=accelerator,
-            #     criterion=nn.MSELoss,
-            #     optimizer=torch.optim.AdamW,
-            #     # optimizer__eps=1e-4,
-            #     # optimizer=torch.optim.SGD,
-            #     optimizer__lr=0.0025,
-            #     max_epochs=500,
-            #     device='cuda',
-            #     batch_size=2048,
-            #     train_split= skorch.dataset.ValidSplit(cv=5),
-            #     # early stopping
-            #     callbacks=[
-            #         skorch.callbacks.EarlyStopping(patience=patience),
-            #         skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-5),
-            #         skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
-            #         # skorch.callbacks.ProgressBar(),
-            #         # PrintParameterGradients()
-            #     ]
-            # )
-            # model.set_params(**par)
+            # skorch model
+            model = skorch.NeuralNetRegressor(
+                PrimeDesignTransformer,
+                module__sequence_length=99,
+                module__pdropout=dropout,
+                module__num_encoder_units=3,
+                module__num_features=num_features,
+                module__flash=False,
+                module__local=False,
+                module__annot=True,
+                module__mlp_embed_dim=100,
+                # accelerator=accelerator,
+                criterion=nn.MSELoss,
+                optimizer=torch.optim.AdamW,
+                # optimizer__eps=1e-4,
+                # optimizer=torch.optim.SGD,
+                optimizer__lr=0.0025,
+                max_epochs=500,
+                device='cuda',
+                batch_size=2048,
+                train_split= skorch.dataset.ValidSplit(cv=5),
+                # early stopping
+                callbacks=[
+                    skorch.callbacks.EarlyStopping(patience=patience),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-5),
+                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=save_file_name, f_optimizer=None, f_history=None, f_criterion=None),
+                    # skorch.callbacks.ProgressBar(),
+                    # PrintParameterGradients()
+                ]
+            )
+            model.set_params(**par)
 
-            # model.fit(X_train, y_train)
+            model.fit(X_train, y_train)
 
             # evaluate the model
             model = skorch.NeuralNetRegressor(
