@@ -117,7 +117,10 @@ class EnsembleWeightedMean:
                         print(f"Training {base_learner}")
                         # reshape the target
                         target = target.view(-1, 1)
-                        model.fit(features, target)
+                        if base_learner == 'dp':
+                            model.fit(preprocess_deep_prime(data), target)
+                        else:
+                            model.fit(features, target)
                         target = target.view(-1)
                         model.save_params(f_params=f'{save_path}.pt')
                 else:
@@ -131,7 +134,10 @@ class EnsembleWeightedMean:
                         with open(f'{save_path}.pkl', 'wb') as f:
                             pickle.dump(model, f)
 
-                predictions.append(model.predict(features).flatten())
+                if base_learner == 'dp':
+                    predictions.append(model.predict(preprocess_deep_prime(data)).flatten())
+                else:
+                    predictions.append(model.predict(features).flatten())
                 models_fold.append(model)
 
             self.models.append(models_fold)
@@ -162,6 +168,7 @@ class EnsembleWeightedMean:
                 # using the pearson correlation as the weight
                 for j in range(self.n_regressors):
                     self.ensemble[i].append(spearmanr(predictions[:, j], target)[0])
+                    print(f"Weight for model {j}: {self.ensemble[i][-1]}")
                 self.ensemble[i] = np.array(self.ensemble[i])
                 # normalize the weights
                 self.ensemble[i] = self.ensemble[i] / np.sum(self.ensemble[i])

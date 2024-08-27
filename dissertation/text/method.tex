@@ -1,4 +1,4 @@
-\chapter{Methods}
+\chapter{Method}
 
 \minitoc
 
@@ -355,12 +355,12 @@ Additionally, to provide context to the meta learning, weighted averaging was al
 \begin{figure}
     \subfigure[Pearson]{
         \centering
-        \includegraphics[width=0.49\textwidth]{ensemble_pearson.pdf}
+        \includegraphics[width=0.45\textwidth]{ensemble_pearson.pdf}
         \label{fig:ensemble-weighted-mean-pearson}
-    }%
+    }
     \subfigure[Spearman]{
         \centering
-        \includegraphics[width=0.49\textwidth]{ensemble_spearman.pdf}
+        \includegraphics[width=0.45\textwidth]{ensemble_spearman.pdf}
         \label{fig:ensemble-weighted-mean-spearman}
     }
     \caption[Ensemble Model Performance]{Pearson \textbf{(a)} and Spearman \textbf{(b)} Performance of the ensemble models using weighted averaging with different input data on the PRIDICT HEK293T dataset. The base learners used the uniform colour of gray, while each ensemble model is represented by a different colour. Three ensemble techniques were tested: direct optimization using only the predictions from base models (opt), direct optimization supplemented by the extracted features (opt-f), as well as performance based weighting (pwm, pearson weighted mean). A dotted line of matching colour was drawn at each ensemble model's mean performance for easier comparison.}
@@ -384,19 +384,19 @@ The bagging model has two important parameters, the number of rounds of training
 \begin{figure}
     \centering
     \subfigure[Percentage Tuning Pearson]{
-        \includegraphics[width=0.49\textwidth]{ensemble_pearson_bagging_percentage.pdf}
+        \includegraphics[width=0.45\textwidth]{ensemble_pearson_bagging_percentage.pdf}
         \label{fig:ensemble-bagging-pearson-percentage}
     }%
     \subfigure[Percentage Tuning Spearman]{
-        \includegraphics[width=0.49\textwidth]{ensemble_spearman_bagging_percentage.pdf}
+        \includegraphics[width=0.45\textwidth]{ensemble_spearman_bagging_percentage.pdf}
         \label{fig:ensemble-bagging-spearman-percentage}
     }
     \subfigure[Round Tuning Pearson]{
-        \includegraphics[width=0.49\textwidth]{ensemble_bagging_pearson_round.png}
+        \includegraphics[width=0.45\textwidth]{ensemble_bagging_pearson_round.png}
         \label{fig:ensemble-bagging-pearson-round}
     }%
     \subfigure[Round Tuning Spearman]{
-        \includegraphics[width=0.49\textwidth]{ensemble_bagging_spearman_round.png}
+        \includegraphics[width=0.45\textwidth]{ensemble_bagging_spearman_round.png}
         \label{fig:ensemble-bagging-spearman-round}
     }
     \caption[Ensemble Model Performance]{Pearson \textbf{(a), (c)} and Spearman \textbf{(b), (d)} Performance of the ensemble models using bagging with different hyperparameters on the PRIDICT HEK293T dataset. The percentage of samples tested varied from 0.3 to 0.9 with an increment of 0.2 (bag-0.3 to bag-0.9), while the number of rounds varied from 1 to 15 with increasing increment (bag-1 to bag-15). }
@@ -408,6 +408,7 @@ Starting with the percentage of the sample, by fixing the number of rounds to 3,
 Additionally, fixing the sample percentage at 0.5, the number of rounds was varied from 1 to 15 with a varying increment mimicking the exponential increase. Similar to the effect of increasing the percentage of the sample, the performance of the ensemble increased with the number of rounds and plateaued at 3. Further increase in the number of rounds did not result in significant improvement in the performance of the ensemble.
 
 \subsection{Ensemble with AdaBoost}
+\label{sec:ensemble-adaboost}
 
 Unlike weighted averaging and bagging, AdaBoost is a boosting method that trains multiple models sequentially. It trains a model on the training data, calculates the error of the model, and then trains another model on the same data with the error of the previous model as the weight of the data. This process is repeated until the desired number of regressors are trained, and the final prediction is the weighted sum of the predictions of the individual models. 
 
@@ -440,9 +441,11 @@ The final output is then calculated as the weighted sum of the predictions of th
 
 Tuning for AdaBoost is a lot more complicated, as the error rate threshold has a very significant impact on the performance of the model, and needs to be selected carefully for every set of data. A threshold too low would result in insufficient amount of correctly predicted examples, while a threshold too high would result in overfitting to the outliers with very high relative error\cite{shresthaExperimentsAdaBoostRT2006}. 
 
+Ideally, the tuning process should be repeated for each dataset. However, considering the time and resource limit of the project, the configuration tuned for the PRIDICT HEK293T PE2 dataset was used as a representative for all datasets. 
 
 
-\section{Adoption of Transformer Models}
+
+\section{Adoption of Transformer Model}
 
 % TODO: Add more details about the transformer
 The transformer architecture was a ground breaking innovation in the field of NLP, relying solely on self-attention mechanism to create a representation of the input that captures the long range dependencies in the sequences\cite{vaswaniAttentionAllYou2017}. This makes it a suitable candidate for processing the wide target sequences, as the objective of RNN and CNN used by PRIDICT and DeepPrime was to capture the influence of the surrounding nucleotides on the editing efficiency.
@@ -481,8 +484,7 @@ Finally, the concatenated representation is processed by the MLP header, which p
 
 \subsection{Architecture and Hyperparameter Tuning}
 
-A number of architectural and hyperparameter choices were tested during the development of the transformer model.
-The tuning of the model's architecture and hyperparameter was performed on the PRIDICT2.0 HEK293T for a balance between dataset size and training time.
+A number of architectural and hyperparameter choices were tested during the development of the transformer model. As mentioned in \autoref{sec:ensemble-adaboost}, the tuning of the model should ideally be repeated for each dataset. Limited by available resource, however, tuning was only performed on the PRIDICT2.0 HEK293T for a balance between dataset size and training time.
 
 Similar to PRIDICT, the size of the MLP layers were controlled using three parameters. The first is the mlp\_embed\_factor, which controls the size of the hidden layers in the MLP encoder and decoder. This is followed by the embed dimension of the MLP, which is the size of the output of the MLP embedder processing the feature vector. The last parameter is the number of encoder units inside of the MLP, where a encoder unit is a combination of two linear layers converting the data from embed dimension to embed dimension * mlp\_embed\_factor, followed by dropout and layer normalization.
 
@@ -500,28 +502,59 @@ However, during testing, neither the flash attention nor the local attention sho
 
 Even with the hugging face's accelerator module, the mixed precision training still causes around 1 out of 20 training runs to fail due to NaN values in the model's weights and losses, especially in model configurations with poor performances. Additionally, no significant improvement in either training time or performance was observed when using flash attention when training on the network with 1 encoder and decoder layer using 2 attention heads (one head works on CG representation, the other works on AT representation, performance comparison with pearson's $r$ of 0.79 vs 0.79 across 5 repeated runs, $p>0.1$, paired t-test) compared to scalar product attention. On the same configuration of 1 encoder and 1 decoder, the local attention mechanism also did not show any significant improvement in the model's performance (pearson's $r$ of 0.78 vs 0.79 for with and without local attention respectively, $p>0.1$, paired t-test).
 
-Additionally, although having previously established that the usage of embedding does not significantly improve the DeepPrime and PRIDICT models' performance, the influence of using PRIDICT's functional annotation still needs to be investigated. Using the same configuration with local attention enabled, marginal improvement was observed in the model's performance (3 heads used for annotated representation, with 2 heads processing ATGC representation as before, and 1 extra head processing the PBS and RTT representation, pearson's $r$ of 0.79 vs 0.81 for without and with functional annotation, $p>0.05$, paired t-test). This indicated that the functional annotation may provide important contextual information for the transformer model to differential between different edits on the same target loci. Although no significant improvement was observed, the functional annotation was preserved in the final model for its potentially greater benefits on the larger DeepPrime dataset.
+Additionally, although having previously established that the usage of embedding does not significantly improve the DeepPrime and PRIDICT models' performance, the influence of using PRIDICT's functional annotation still needs to be investigated. Using the same configuration with local attention enabled, marginal improvement was observed in the model's performance (3 heads used for annotated representation, with 2 heads processing ATGC representation as before, and 1 extra head processing the PBS and RTT representation, pearson's $r$ of 0.79 vs 0.81 for without and with functional annotation, $p>0.05$, paired t-test). This indicated that the functional annotation may provide important contextual information for the transformer model to differential between different edits on the same target loci. Although the improvement was not significant, the improvement was consistent across all 5 repeated runs, and thus the functional annotation was included in the final model.
 
 As a result, the final model was configured with the scalar dot product attention mechanism with local attention used during the self-attention layers, without the usage of flash attention or functional annotation.
 
-The next stage focuses on the parameter size of the model. Since the MLP modules were already optimized by Yu at al in their DeepPrime study, the size of the MLP layers were kept constant. The size of the transformer is mostly controlled by twi parameters: the number of encoder and decoder layers, and the mlp embedding size of the positional feedforward layers. Additionally, the dropout rate was also optimized in this stage as it determines the amount of information that is retained during training. A grid search was conducted on the PRIDICT2.0 HEK293T dataset, using the following configuration for each parameter:
+\begin{figure}
+    \subfigure[1 e/d unit]{
+        \includegraphics[width=0.42\textwidth]{transformer-tune-pdropout-num_encoder_units-fixed-at-1-pearson.png}
+        \label{fig:transformer-tune-pdropout-num_encoder_units-fixed-at-1-pearson}
+    }%
+    \subfigure[3 e/d units]{
+        \includegraphics[width=0.27\textwidth]{transformer-tune-pdropout-num_encoder_units-fixed-at-3-pearson.png}
+        \label{fig:transformer-tune-pdropout-num_encoder_units-fixed-at-3-pearson}
+    }%
+    \subfigure[5 e/d units]{
+        \includegraphics[width=0.27\textwidth]{transformer-tune-pdropout-num_encoder_units-fixed-at-5-pearson.png}
+        \label{fig:transformer-tune-pdropout-num_encoder_units-fixed-at-5-pearson}
+    }
+    \subfigure[1 e/d units]{
+        \includegraphics[width=0.42\textwidth]{transformer-tune-pdropout-num_encoder_units-fixed-at-1-spearman.png}
+        \label{fig:transformer-tune-pdropout-num_encoder_units-fixed-at-1-spearman}
+    }%
+    \subfigure[3 e/d units]{
+        \includegraphics[width=0.27\textwidth]{transformer-tune-pdropout-num_encoder_units-fixed-at-3-spearman.png}
+        \label{fig:transformer-tune-pdropout-num_encoder_units-fixed-at-3-spearman}
+    }%
+    \subfigure[5 e/d units]{
+        \includegraphics[width=0.27\textwidth]{transformer-tune-pdropout-num_encoder_units-fixed-at-5-spearman.png}
+        \label{fig:transformer-tune-pdropout-num_encoder_units-fixed-at-5-spearman}
+    }
+    \caption[Transformer Model Hyperparameter Tuning]{Pearson \textbf{(a-c)} and spearman \textbf{(d-f)} performance of the transformer model with different dropout rates (pdropout), positional feedforward embedding size (mlp\_embed\_dim) and number of encoder/decoder units (e/d unit) on the PRIDICT2.0 HEK293T dataset. The highest pearson and spearman value among all configuration was drawn as a red line for easier comparison. The strip plot on top of the box plot shows the real data points for each run of the model.}
+    \label{fig:transformer-tune}
+\end{figure}
+
+The next stage focuses on the parameter size of the model. Since the MLP modules were already optimized by Yu at al in their DeepPrime study, the size of the MLP layers were kept constant. The size of the transformer is mostly controlled by twi parameters: the number of encoder and decoder layers, and the mlp embedding size of the positional feedforward layers. Additionally, the dropout rate was also optimized in this stage as it determines the amount of information that is retained during training. A grid search was conducted on the dataset, using the following configuration for each parameter:
 
 \begin{itemize}[itemsep=-0mm]
-    \item \textcolor{blue}{Number of Encoder/Decoder Layers}: 1, 2, 3
-    \item \textcolor{blue}{Positional Feedforward Embedding Size}: 100, 150, 200
-    \item \textcolor{blue}{Dropout Rate}: 0.1, 0.3, 0.5
+    \item \textcolor{blue}{Number of Encoder/Decoder Units}: 1, 2, 3
+    \item \textcolor{blue}{Positional Feedforward Hidden Unit Size}: 50, 100, 150
+    \item \textcolor{blue}{Dropout Rate}: 0.05, 0.1, 0.2, 0.3, 0.5
 \end{itemize}
 
-The full list of performance of the models using each configuration can be found in \autoref{appendix:transformer-hyperparameter-tuning}. Overall, the best configuration for the transformer model was the simplest 1 encoder and 1 decoder layer with 2 attention heads, using a low dropout rate of 0.1. Stacking and increasing the number of hidden units in the positional feedforward layers significantly increased the model's training time and memory usage without any significant improvement in the model's performance. 
+Each configuration was repeated for 3 runs to get a better representation of the model's performance, with the result shown in \autoref{fig:transformer-tune}. 
+The effects of dropout rate varied with the number of encoder and decoder units as well as the positional feedforward embedding size. With 100 hidden units, performance consistently increased with dropout rate 0.2 or 0.3, and then started to plummet. With 50 and 150 units, the trend is similar when 1 or 3 encoder/decoder units were used, but with an initial drop in performance when the dropout rate was increased from 0.05 to 0.1. However, when a stack of 5 encoder/decoder units were used, the 150 hidden unit configurations still follows the first increase then decrease trend, while the 50 hidden unit configuration showed a steady decrease in both pearson and spearman correlation as the dropout rate increased.
 
-However, when reviewing the attention map of the cross attention layer, it was observed that at early layers, the attention map was dominated by the positional encoding, suggesting that the model with no stacking was not able to capture the relationship between the wild type and edited sequences. With stacking, on the other head, the attention map of higher layers showed a more interpretable patterns. As a result, stacking of 3 encoder/decoder units was preserved in the final model.
+Overall, the configuration with dropout rate of 0.2, 1 encoder and decoder unit, and positional feedforward hidden unit size of 100 achieved the highest performance in terms of both Pearson and Spearman correlation, and the 3 encoder and decoder units configuration with 0.3 dropout trails closely behind. The performance difference were not significant between the best and the second best configurations (pearson's $r$ of 0.82 vs 0.82, spearman's rank correlation of 0.84 vs 0.84, $p>0.1$, paired t-test). However, the 1 encoder and decoder unit configuration consumes significantly less computational resources and was significantly faster to train. Taking into the practical considerations, the 1 encoder and decoder unit configuration was selected as the final model.
+
+As a result, the final model was configured with 1 encoder and decoder unit, positional feedforward hidden unit size of 100, 3 scalar dot product attention heads, and a dropout rate of 0.2. 
 
 \section{Development of pegRNA Design Web Tool}
 
-To facilitate the use of the model in the community, a web tool was developed for users to input their target edit and receive the best pegRNA design as per the model's prediction. The web tool was implemented using the Django framework for easier interaction with Python scripts. 
+To facilitate the use of the developed models in the community, a web tool was developed for users to input their target edit and receive the best pegRNA design as per the model's prediction. The web tool was implemented using the Django framework for easier interaction with Python scripts. 
 
 User input should be in the PRIDICT format of \{at-lesat-100bp\}-(before-edit/after-edit)-\{at-lesat-100bp\}. The user response is then handled by the prediction API endpoint, which would parse the input into original and mutated sequence as well as edit location, type and length. A number of pegRNAs would then be proposed accordingly in the standard data format, which is then converted to the suitable formats for the models. The best performing model would then be used to predict the editing efficiency of the candidate pegRNAs. 
-
 
 The result is returned as a JSON response and is parsed by the front end as a table of pegRNA candidates with their corresponding editing efficiency. The pegRNA's composition with regard to the wild type sequence can also be visualized by selecting a particular result for easier interpretation.
 

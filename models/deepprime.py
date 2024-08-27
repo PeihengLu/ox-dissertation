@@ -158,7 +158,7 @@ def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp') -> Dict[str
         mut_seq = [seq[:74] for seq in mut_seq]
     
     # the rest are the features
-    features = X_train.drop(columns=['wt-sequence', 'mut-sequence']).values
+    features = X_train.iloc[:, 2:26].values
     
     # concatenate the sequences
     seqs = []
@@ -203,12 +203,7 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
         train = dp_dataset[dp_dataset['fold']!=i]
         X_train = train.iloc[:, :num_features+2]
         y_train = train.iloc[:, -2]
-        
-        # if adjustment == 'log':
-        #     y_train = np.log1p(y_train)
-        # elif adjustment == 'undersample':
-        #     X_train, y_train = undersample(X_train, y_train)
-        
+
 
         X_train = preprocess_deep_prime(X_train, source)
         y_train = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
@@ -403,6 +398,7 @@ def deepprime(save_path: str) -> skorch.NeuralNet:
         device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
         batch_size=1024,
         max_epochs=500,
+        optimizer__lr=0.0025,
         train_split= skorch.dataset.ValidSplit(cv=5),
         callbacks=[
             skorch.callbacks.EarlyStopping(patience=20),
@@ -410,3 +406,5 @@ def deepprime(save_path: str) -> skorch.NeuralNet:
             skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
         ]
     )
+    
+    return model

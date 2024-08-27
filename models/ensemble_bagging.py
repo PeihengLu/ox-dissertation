@@ -6,6 +6,7 @@ from os.path import join as pjoin, isfile
 import pandas as pd
 import collections
 from scipy.stats import pearsonr, spearmanr
+from models.deepprime import deepprime, preprocess_deep_prime
 
 class EnsembleBagging:
     def __init__(self, n_rounds: int = 10, sample_percentage: float = 0.5):
@@ -18,6 +19,7 @@ class EnsembleBagging:
             'mlp': mlp,
             'ridge': ridge_regression,
             'rf': random_forest,
+            'dp': deepprime
         }
         self.dl_models = ['mlp']
         self.models = []

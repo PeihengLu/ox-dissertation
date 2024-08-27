@@ -8,8 +8,10 @@ To fine tune the models, the same hyperparameters were used as the original trai
 
 \section{Benchmarking}
 
+To test how the different models compare on a variety of datasets, 
+
 % TODO: add references to the section and appendix after including the results
-As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime uses different features, for a more direct comparison of the architecture, both models were retrained using the features selected from this study. Since all models use the same number of features (24), the data is hot swappable between the models, allowing for easier retraining if a more optimal feature set is found.
+As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime uses different features, for a more direct comparison of the architecture, both models were retrained using the features selected from this study.
 
 \section{Attention Analysis}
 \label{sec:attention_analysis}
@@ -52,3 +54,5 @@ However, for deletion, the attention weights were the highest at the edit positi
 \end{figure}
 
 The attention weights for the edits of length 3 showed similar result (\autoref{fig:attention_deletion_3bp}), the only noticeable difference is that the high attention regions for deletion were extended to 3bp long, reflecting the longer deletion length.
+
+During SHAP analysis in \autoref{sec:determinants}, the edited base was not investigated, as a meaningful representation for bases of different lengths could not be found. Thus, to understand if the base to edit during deletion is indeed an important feature, SHAP analysis was conducted again on the HEK293T PE2 dataset with 
