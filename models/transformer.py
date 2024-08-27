@@ -562,7 +562,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
     # device
     device = torch.device('cuda')
     
-    for i in range(0, 1):
+    for i in range(fold):
         print(f'Fold {i+1} of {fold}')
         
         train = dp_dataset[dp_dataset['fold']!=i]
