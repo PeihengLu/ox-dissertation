@@ -276,6 +276,7 @@ The Lasso and Ridge regression are the worst performing models, with similar per
 
 
 \section{Improving Performance with Ensemble Learning}
+\label{sec:ensemble}
 
 The performance of the deep learning models can be further improved by using ensemble learning. The idea behind ensemble learning is to combine the results of various weaker models through various voting methods to achieve better prediction than any individual model.It is a common practice in machine learning, and is frequently seen in the top performing models in competitions hosted by Kaggle. In fact, most of the models tested in this study so far are already using ensembling learning in some way. Random forrest trains multiple decision trees using a subset of features and samples to alleviates the problem of overfitting. The XGBoost model is another ensemble of multiple decision trees using optimized gradient boosting \cite{chenXGBoostScalableTree2016}, while DeepPrime, PRIDICT and the Transformer model are effectively an ensemble of a deep learning model and a MLP, using another MLP as a meta learning to combine the representation produced by the two base models. 
 
@@ -614,6 +615,8 @@ Shown in \autoref{fig:lha-rha-pbs-length}, the relationship between the lengths 
 \end{table}
 
 In summary, unless specified otherwise by the users, the algorithm would only propose pegRNAs with component length in the range specified in \autoref{tab:recommended-range}. The recommending range would result in a maximum of 585 pegRNAs (true number is usually much smaller as LHA location is heavily constrained), which would then be processed and evaluated by the model to produce the estimated editing efficiency.
+
+Additionally, to produce the DeepSpCas9 score, 
 
 
 Limited by the scale and funding of this project, the web application is not deployed to a public server at the current stage. However, it can still be tested locally using Python with Django and Pytorch installed by executing:
