@@ -10,7 +10,7 @@ import sklearn
 import collections
 
 class EnsembleAdaBoost:
-    def __init__(self, n_rounds: int = 10, threshold=0.5, power:int = 1):
+    def __init__(self, n_rounds: int = 1, threshold=0.5, power:int = 3):
         """ 
         
         """
@@ -149,7 +149,8 @@ class EnsembleAdaBoost:
         self.n_rounds = 10
         configurations = {
             'power': [1, 2, 3],
-            'threshold': [0.05, 0.1, 0.2, 0.3, 0.5, 0.7]
+            'threshold': [0.05, 0.1, 0.2, 0.3, 0.5, 0.7],
+            'rounds': [1, 3, 5, 10]
         }
         param_grid = sklearn.model_selection.ParameterGrid(configurations)
         output = []
@@ -157,6 +158,7 @@ class EnsembleAdaBoost:
         for param in param_grid:
             self.power = param['power']
             self.threshold = param['threshold']
+            self.n_rounds = param['rounds']
             param['pearson'] = []
             param['spearman'] = []
 
@@ -192,7 +194,7 @@ class EnsembleAdaBoost:
                                 model.fit(feature_X, target)
                                 target = target.view(-1)
                         else:
-                            if isfile(f'{save_path}.pkl') and base_learner != 'xgb' and base_learner != 'ridge':
+                            if isfile(f'{save_path}.pkl'):
                                 with open(f'{save_path}.pkl', 'rb') as f:
                                     model = pickle.load(f)
                             else:
@@ -236,7 +238,8 @@ class EnsembleAdaBoost:
                 # calculate the performance
                 performances_pearson = pearsonr(agg_predictions, target_np_test)[0]
                 performances_spearman = spearmanr(agg_predictions, target_np_test)[0]
-                print(f"Power: {self.power}, Threshold: {self.threshold}, Pearson: {performances_pearson}, Spearman: {performances_spearman}")
+                if run == 0:
+                    print(f"Power: {self.power}, Threshold: {self.threshold}, Rounds: {self.n_rounds}, Pearson: {performances_pearson}, Spearman: {performances_spearman}")
 
                 param['pearson'].append(performances_pearson)
                 param['spearman'].append(performances_spearman)
@@ -294,30 +297,31 @@ class EnsembleAdaBoost:
         
         return performances_pearson, performances_spearman
     
-    # def predict(self, data: str):
-    #     """
-    #     Perform the prediction using the trained models
-    #     Produce predictions for the full dataset using corresponding fold models
-    #     """
-    #     dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
-    #     data_source = '-'.join(data.split('-')[1:]).split('.')[0]
-    #     predictions = np.zeros(len(dataset))
-    #     for i in range(5):
-    #         alphas = self.alphas[i].flatten()
-    #         models = self.models[i]
+    def predict(self, data: str):
+        """
+        Perform the prediction using the trained models
+        Produce predictions for the full dataset using corresponding fold models
+        """
+        self.fit(data)
+        dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+        predictions = np.zeros(len(dataset))
+        for i in range(5):
+            alphas = self.alphas[i].flatten()
+            models = self.models[i]
 
-    #         data = dataset[dataset['fold'] == i]
-    #         features = data.iloc[:, 2:26].values
-    #         target = data.iloc[:, -2].values
-    #         features = torch.tensor(features, dtype=torch.float32)
+            data = dataset[dataset['fold'] == i]
+            features = data.iloc[:, 2:26].values
+            target = data.iloc[:, -2].values
+            features = torch.tensor(features, dtype=torch.float32)
 
-    #         # aggregated predictions
-    #         agg_predictions = np.zeros(len(target))
+            # aggregated predictions
+            agg_predictions = np.zeros(len(target))
 
-    #         for model, alpha in zip(models, alphas):
-    #             predictions = model.predict(features).flatten()
-    #             agg_predictions += alpha * predictions
+            for model, alpha in zip(models, alphas):
+                predictions = model.predict(features).flatten()
+                agg_predictions += alpha * predictions
 
-    #         predictions[data.index] = agg_predictions
+            predictions[data.index] = agg_predictions
 
-    #     return predictions
+        return predictions
