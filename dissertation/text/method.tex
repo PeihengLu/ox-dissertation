@@ -333,15 +333,15 @@ To get an understanding of the suitability of the ensemble learning and establis
     \label{fig:error-analysis}
 \end{figure}
 
-Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$ for all model pairs, and $R>0.5$ for all pairs except Ridge and Lasso regressions with other models). Spearman's correlation was more informative in this case, as the low target values of majority of the DeepPrime HEK293T dataset could easily result in a high Pearson correlation, and we care more about the ranking of the predicted efficiencies in this task when comparing different pegRNA designs.
+Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$ for all model pairs, and $R>0.5$ for all pairs except Ridge and Lasso regressions with other models). This may suggest that the models are making similar errors, and an ensemble of these models may not be significantly outperform the individual models, especially for algorithms like AdaBoost that heavily relies on the diversity of the base learners. At the same time, the low target values of majority of the DeepPrime HEK293T dataset could result in a high Pearson correlation, and since we care more about the ranking of the predicted efficiencies in this task when comparing different pegRNA designs, the Spearman correlation could be more informative.
 
-The ridge and lasso regression models had 100\% correlation, as they are essentially the same model with different penalty terms. This ruled out the necessity of using both models in the ensemble, and only the ridge regression was preserved due to its superior stability, as lasso regression's L1 regularization can result in zeros in coefficients and cause abrupt changes in the prediction. 
+The ridge and lasso regression models had 100\% spearman correlation, as they are essentially the same model with different penalty terms. This ruled out the necessity of using both models in the ensemble, and only the ridge regression was preserved due to its superior stability, as lasso regression's L1 regularization can result in zeros in coefficients and cause abrupt changes in the prediction. 
 
-DeepPrime and PRIDICT models also had a high correlation, despite significant difference in architecture. This may indicate that the two models are strong enough to fit to the data as accurately as possible, and an ensemble of the two models may not be as beneficial as expected. 
+DeepPrime and PRIDICT models also had a high correlation, despite significant difference in architecture. This may indicate that the two models are both strong enough to fit to the data as accurately as possible, and an ensemble of the two models may not be very beneficial. 
 
 Interestingly, despite both being tree based models, the Random Forest and XGBoost models had a relatively low correlation in terms of error, with a Spearman correlation of 0.7. This suggests that the different ensembling method used by Random Forest and XGBoost have an impact on the prediction, and the two models can complement each other in the ensemble. Thus, the testing ensemble models were selected to be the Ridge regression, Random Forest, XGBoost, and the MLP model.
 
-The same analysis was conducted on all PRIDICT datasets, with consistent results, shown in \autoref{appendix:error-analysis-figures}. However, the correlation between DeepPrime and PRIDICT was weaker on those datasets. Still, given the much longer training time of PRIDICT model, only DeepPrime would be used in the final ensemble model.
+The same analysis was conducted on all PRIDICT datasets, with consistent results, shown in \autoref{appendix:error-analysis-figures}. However, the correlation between DeepPrime and PRIDICT was weaker on those datasets. Still, given the much longer training time of PRIDICT model, only DeepPrime would be used in the final ensemble model. 
 
 
 \subsection{Ensemble Using Weighted Averaging}
@@ -363,7 +363,7 @@ Additionally, to provide context to the meta learning, weighted averaging was al
         \includegraphics[width=0.45\textwidth]{ensemble_spearman.pdf}
         \label{fig:ensemble-weighted-mean-spearman}
     }
-    \caption[Ensemble Model Performance]{Pearson \textbf{(a)} and Spearman \textbf{(b)} Performance of the ensemble models using weighted averaging with different input data on the PRIDICT HEK293T dataset. The base learners used the uniform colour of gray, while each ensemble model is represented by a different colour. Three ensemble techniques were tested: direct optimization using only the predictions from base models (opt), direct optimization supplemented by the extracted features (opt-f), as well as performance based weighting (pwm, pearson weighted mean). A dotted line of matching colour was drawn at each ensemble model's mean performance for easier comparison.}
+    \caption[Ensemble Model Performance]{Pearson \textbf{(a)} and Spearman \textbf{(b)} Performance of the ensemble models using weighted averaging with different input data on the PRIDICT HEK293T dataset. The base learners used the uniform colour of gray, while each ensemble model is represented by a different colour. Three ensemble techniques were tested: direct optimization using only the predictions from base models (opt), direct optimization supplemented by the extracted features (opt-f), as well as performance based weighting (pwm, pearson weighted mean). The performance of the individual models were tested on all five folds of the PRIDICT HEK293T dataset, and the mean performance was plotted as the bar plot, while the individual runs' performance were shown as strip plots. Additionally, a dotted line of matching colour was drawn at each ensemble model's mean performance for easier comparison. }
     \label{fig:ensemble-weighted-mean}
 \end{figure}
 
@@ -399,7 +399,7 @@ The bagging model has two important parameters, the number of rounds of training
         \includegraphics[width=0.45\textwidth]{ensemble_bagging_spearman_round.png}
         \label{fig:ensemble-bagging-spearman-round}
     }
-    \caption[Ensemble Model Performance]{Pearson \textbf{(a), (c)} and Spearman \textbf{(b), (d)} Performance of the ensemble models using bagging with different hyperparameters on the PRIDICT HEK293T dataset. The percentage of samples tested varied from 0.3 to 0.9 with an increment of 0.2 (bag-0.3 to bag-0.9), while the number of rounds varied from 1 to 15 with increasing increment (bag-1 to bag-15). }
+    \caption[Ensemble Model Performance]{Pearson \textbf{(a), (c)} and Spearman \textbf{(b), (d)} Performance of the ensemble models using bagging with different hyperparameters on the PRIDICT HEK293T dataset. The percentage of samples tested varied from 0.3 to 0.9 with an increment of 0.2 (bag-0.3 to bag-0.9), while the number of rounds varied from 1 to 15 with increasing increment (bag-1 to bag-15). Similar to \autoref{fig:ensemble-weighted-mean}, the performance of the individual models were tested on all five folds of the PRIDICT HEK293T dataset, with the mean and individual runs' performance plotted as bar and strip plots, respectively.}
     \label{fig:ensemble-bagging-tuning}
 \end{figure}
 
@@ -421,7 +421,7 @@ Starting with a set of input data $X=\{x_1, x_2, ..., x_n\}$ and the correspondi
 A set of sample weights $D_t(i)$ and a model weight $\alpha_t$ and an error rate $\epsilon_t$ were associated with each iteration $t\leq T$.
 In the original model, the sample weight distribution is initialized as a uniform distribution summing up to one: $D_1(i) = 1/n$. However, in a dataset with large sample size, the uniform distribution can result in a very small weight for each sample, which does not work well with the XGBoost model and would result in NaN values in its prediction. Thus, I modified the distribution to be a uniform distribution with a sum of number of samples in the dataset, $D_1(i) = 1$. Additionally, the AdaBoost model has no separation of error rate and the model weight. However, since Pearson's correlation is the desirable metric in this task, the model weight was set to be the Pearson's $r$ of the model's prediction on the training set, while error rate was used in adjusting the sample weights.
 
-After each iteration, the absolute relative error for each training example is calculated as $e_t(i) = |y_i - \hat{y}_t(i)|/y_i$, where $\hat{y}_t(i)$ is the prediction of the model at iteration $t$. The error is then used to calculate the error rate, indicating the percentage of examples predicted with higher relative error than the threshold $\phi$: $\epsilon_t = \sum_{i=1: e_t(i) > \phi} D_t(i) / n$. This projects the regression problem into a classification problem, where the AdaBoost algorithm was originally designed for.
+After each iteration, the absolute relative error for each training example is calculated as $e_t(i) = |y_i - \hat{y}_t(i)|/y_i$, where $\hat{y}_t(i)$ is the prediction of the model at iteration $t$. The error is then used to calculate the error rate, indicating the percentage of examples predicted with higher relative error than the threshold $\phi$: $\epsilon_t = \sum_{i=1: e_t(i) > \phi} D_t(i) / n$. This projects the regression problem into a classification problem that the AdaBoost algorithm was originally designed for.
 
 The sample weights are then updated using the calculated error rate's power and relative error associated with each sample as 
 $$
@@ -435,13 +435,38 @@ D_{t+1}(i) = D_t(i) \times \begin{cases}
 $$
 Where n can be 1 (linear), 2 (quadratic), 3 (cubic) or any other positive integer. Higher value of n would result in the model focusing more on the misclassified examples, which can help the model to better fit the data, but would also increase the risk of overfitting.
 
-To prevent the sample weights from becoming too small for the XGBoost model during training, the sample weights were clipped to a minimum of 0.01. After clipping, the distribution is then normalized to sum up to 1, ensuring that the sample weights are still a probability distribution.
+To prevent the sample weights from becoming too small for the XGBoost model during training, the sample weights were clipped to a minimum of 1e-6. After clipping, the distribution is then normalized to sum up to 1, ensuring that the sample weights are still a probability distribution.
 
 The final output is then calculated as the weighted sum of the predictions of the individual models using the normalized model weights $\alpha$, similar to the performance weighted mean and bagging models.
 
 Tuning for AdaBoost is a lot more complicated, as the error rate threshold has a very significant impact on the performance of the model, and needs to be selected carefully for every set of data. A threshold too low would result in insufficient amount of correctly predicted examples, while a threshold too high would result in overfitting to the outliers with very high relative error\cite{shresthaExperimentsAdaBoostRT2006}. 
 
 Ideally, the tuning process should be repeated for each dataset. However, considering the time and resource limit of the project, the configuration tuned for the PRIDICT HEK293T PE2 dataset was used as a representative for all datasets. 
+
+\begin{figure}
+    \centering
+    \subfigure[$n = 1$]{
+        \centering
+        \includegraphics[width=0.9\textwidth]{ensemble-adaboost-threshold-power-fixed-at-1.png}
+        \label{fig:ensemble-adaboost-threshold-power-1}
+    }
+    \subfigure[$n = 2$]{
+        \centering
+        \includegraphics[width=0.9\textwidth]{ensemble-adaboost-threshold-power-fixed-at-2.png}
+        \label{fig:ensemble-adaboost-threshold-power-2}
+    }
+    \subfigure[$n = 3$]{
+        \centering
+        \includegraphics[width=0.9\textwidth]{ensemble-adaboost-threshold-power-fixed-at-3.png}
+        \label{fig:ensemble-adaboost-threshold-power-3}
+    }
+    \caption{
+        Pearson (\textbf{left}) and spearman (\textbf{right}) performance of the AdaBoost ensemble model on one fold of the PRIDICT HEK293T dataset with different error rate threshold $\phi$, power $n$ and number of rounds. 3 repeated runs were conducted on the same fold for each configuration. The mean performance was shown in the bar plot, while the performance of each individual run was shown in the scatter plot. The dotted line represents the highest pearson/spearman correlation among all configurations for easier comparison across different power values. 
+    }
+    \label{fig:ensemble-adaboost-tuning}
+\end{figure}
+
+The result of the tuning process is shown in \autoref{fig:ensemble-adaboost-tuning}. The performance of the AdaBoost model was very sensitive to the error rate threshold, but not so much to the power of the error rate or the number of base estimators (number of rounds).
 
 
 
@@ -531,7 +556,7 @@ As a result, the final model was configured with the scalar dot product attentio
         \includegraphics[width=0.27\textwidth]{transformer-tune-pdropout-num_encoder_units-fixed-at-5-spearman.png}
         \label{fig:transformer-tune-pdropout-num_encoder_units-fixed-at-5-spearman}
     }
-    \caption[Transformer Model Hyperparameter Tuning]{Pearson \textbf{(a-c)} and spearman \textbf{(d-f)} performance of the transformer model with different dropout rates (pdropout), positional feedforward embedding size (mlp\_embed\_dim) and number of encoder/decoder units (e/d unit) on the PRIDICT2.0 HEK293T dataset. The highest pearson and spearman value among all configuration was drawn as a red line for easier comparison. The strip plot on top of the box plot shows the real data points for each run of the model.}
+    \caption[Transformer Model Hyperparameter Tuning]{Pearson \textbf{(a-c)} and spearman \textbf{(d-f)} performance of the transformer model with different dropout rates (pdropout), positional feedforward embedding size (mlp\_embed\_dim) and number of encoder/decoder units (e/d unit) on all five folds of the PRIDICT2.0 HEK293T dataset. The highest pearson and spearman value among all configuration was drawn as a red line for easier comparison.}
     \label{fig:transformer-tune}
 \end{figure}
 
@@ -565,7 +590,7 @@ However, as discussed in \autoref{sec:determinants}, the length of LHA, RHA and 
 
 \begin{figure}
     \includegraphics[width=\textwidth]{lha-rha-pbs-length-requirement.png}
-    \caption[Relationship between LHA, RHA and PBS length and editing efficiency]{Relationship between PBS (top), RHA (middle) and LHA (bottom) length and editing efficiency. Data from all of the DeepPrime and PRIDICT datasets was used in the analysis for better generalizability. Random samples of 5\% of the individual data pointso were plotted as a strip plot on top of the box plot to shw real data while keeping the figure from clutering. Y axis is limited to a max value of 5 + 1.5 * IQR to further improve readability. }
+    \caption[Relationship between LHA, RHA and PBS length and editing efficiency]{Relationship between PBS (top), RHA (middle) and LHA (bottom) length and editing efficiency. Data from all of the DeepPrime and PRIDICT datasets was used in the analysis for better generalizability. Random samples of 5\% of the examples were plotted as a strip plot on top of the box plot to show individual data point while keeping the figure from cluttering. Y axis is limited to a max value of 5 + 1.5 * IQR to further improve readability. }
     % The values associated with rha length over 30bp were omitted due to the small number of data points and very low efficiency.
     \label{fig:lha-rha-pbs-length}
 \end{figure}
