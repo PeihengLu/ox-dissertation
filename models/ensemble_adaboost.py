@@ -1,5 +1,6 @@
 import numpy as np
 from models.conventional_ml_models import mlp_weighted, ridge_regression, random_forest, xgboost
+from models.deepprime import deepprime, preprocess_deep_prime
 import torch
 import pickle
 from os.path import join as pjoin, isfile
@@ -20,8 +21,9 @@ class EnsembleAdaBoost:
             'mlp': mlp_weighted,
             'ridge': ridge_regression,
             'rf': random_forest,
+            'dp': deepprime
         }
-        self.dl_models = ['mlp']
+        self.dl_models = ['mlp', 'dp']
         self.models = []
         self.alphas = []
         self.threshold = threshold
@@ -71,13 +73,16 @@ class EnsembleAdaBoost:
                             target = target.view(-1, 1)
                             # sample weights need to be applied to all the features
                             sample_weights = torch.tensor(sample_weights, dtype=torch.float32).view(-1, 1)
-                            feature_X = {
-                                'x': features,
-                                'sample_weight': sample_weights
-                            }
+                            if base_learner == 'dp':
+                                model.fit(preprocess_deep_prime(data, sample_weights), target)
+                            else:
+                                feature_X = {
+                                    'x': features,
+                                    'sample_weight': sample_weights
+                                }
+                                model.fit(feature_X, target)
                             sample_weights = sample_weights.view(-1)
                             sample_weights = sample_weights.numpy().flatten()
-                            model.fit(feature_X, target)
                             target = target.view(-1)
                     else:
                         if isfile(f'{save_path}.pkl'):
@@ -90,7 +95,10 @@ class EnsembleAdaBoost:
                                 pickle.dump(model, f)
 
                     # make predictions
-                    predictions = model.predict(features).flatten()
+                    if base_learner == 'dp':
+                        predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                    else:
+                        predictions = model.predict(features).flatten()
                     predictions = np.array(predictions)
                     # calculate the correlation between the predictions and the target as the model weight
                     alpha = spearmanr(predictions, target_np)[0]
@@ -122,6 +130,12 @@ class EnsembleAdaBoost:
         return self.models, self.alphas
     
     def tune(self, data: str):
+        self.base_learners = {
+            'xgb': xgboost,
+            'mlp': mlp_weighted,
+            'ridge': ridge_regression,
+            'rf': random_forest,
+        }
         # tune the hyperparameters power and threshold
         dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
         cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
@@ -245,6 +259,14 @@ class EnsembleAdaBoost:
                 param['spearman'].append(performances_spearman)
 
             output.append(param)
+            
+        self.base_learners = {
+            'xgb': xgboost,
+            'mlp': mlp_weighted,
+            'ridge': ridge_regression,
+            'rf': random_forest,
+            'dp': deepprime
+        }
 
         return output
 
