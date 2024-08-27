@@ -882,11 +882,11 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
         print(f'Parameter: {par}')
         print('-'*50, '\n')
 
-    # perform paired t test on the different configurations
-    # and calculate the mean performance of each configuration
-    performances = pd.DataFrame(params_arch)
-    # save the performance
-    performances.to_csv(os.path.join('models', 'data', 'performance', f'{fname}.csv'), index=False)
+        # perform paired t test on the different configurations
+        # and calculate the mean performance of each configuration
+        performances = pd.DataFrame(params_arch)
+        # save the performance
+        performances.to_csv(os.path.join('models', 'data', 'performance', f'{fname}.csv'), index=False)
 
 def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1, onehot: bool =True) -> None:
     """visualize the attention weights of the transformer model
