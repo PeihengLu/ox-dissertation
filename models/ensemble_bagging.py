@@ -21,7 +21,7 @@ class EnsembleBagging:
             'rf': random_forest,
             'dp': deepprime
         }
-        self.dl_models = ['mlp']
+        self.dl_models = ['mlp', 'dp']
         self.models = []
         self.model_weights = []
         self.sample_percentage = sample_percentage
@@ -49,6 +49,7 @@ class EnsembleBagging:
                     # sample a subset of the training data with replacement
                     np.random.seed(ind + i * len(self.base_learners))
                     indices = np.random.choice(len(target), int(len(target) * self.sample_percentage), replace=True)
+                    data_round = data.iloc[indices]
                     features_round = features[indices]
                     target_round = target[indices]
                     save_path = pjoin('models', 'trained-models', 'ensemble', 'bagging', f'{base_learner}-{data_source}-percentage-{int(self.sample_percentage * 100)}-fold-{fold+1}-round-{i+1}')
@@ -64,7 +65,10 @@ class EnsembleBagging:
                         else:
                             print(f"Training {base_learner}")
                             target_round = target_round.view(-1, 1)
-                            model.fit(features_round, target_round)
+                            if base_learner == 'dp':
+                                model.fit(preprocess_deep_prime(data_round), target_round)
+                            else:
+                                model.fit(features_round, target_round)
                             target_round = target_round.view(-1)
                     else:
                         if isfile(f'{save_path}.pkl'):
@@ -79,7 +83,11 @@ class EnsembleBagging:
                     # add the model to the list
                     models.append(model)
                     # use pearson correlation as the weight
-                    predictions = model.predict(features).flatten()
+                    if base_learner == 'dp':
+                        predictions = model.predict(preprocess_deep_prime(data_round)).flatten()
+                        model_weights.append(pearsonr(predictions, target)[0])
+                    else:
+                        predictions = model.predict(features_round).flatten()
                     model_weights.append(pearsonr(predictions, target)[0])
 
             self.models.append(models)
@@ -129,7 +137,10 @@ class EnsembleBagging:
             # aggregated predictions
             agg_predictions = np.zeros_like(target)
             for model, weight in zip(models, model_weights):
-                predictions = model.predict(features).flatten()
+                if isinstance(model, deepprime):
+                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                else:
+                    predictions = model.predict(features).flatten()
                 agg_predictions += weight * predictions
 
             # calculate the performance
