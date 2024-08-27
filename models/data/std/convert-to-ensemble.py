@@ -33,9 +33,14 @@ for f in glob("*.csv"):
         # convert the data to conventional ml
         ml_data = convert_to_conventional_ml(df)
         
+    # used the masked version of the sequence data
+    # find the deepprime file
+    dp_data_fname = pjoin('..', 'deepprime', f"dp-{('-'.join(f.split('-')[1:]))}")
+    dp_data = pd.read_csv(dp_data_fname)
+        
     # concatenate the sequence data with the ml data
-    ml_data['wt-sequence'] = wt_seq
-    ml_data['mut-sequence'] = mut_seq
+    ml_data['wt-sequence'] = dp_data['wt-sequence']
+    ml_data['mut-sequence'] = dp_data['mut-sequence']
     
     # move the sequence data to the first columns
     cols = ml_data.columns.tolist()
