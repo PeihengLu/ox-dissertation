@@ -393,7 +393,7 @@ def deepprime(save_path: str) -> skorch.NeuralNet:
     '''
     model = skorch.NeuralNetRegressor(
         DeepPrime(128, 1, 24, 0.05),
-        criterion=WeightedLoss,
+        criterion=nn.MSELoss,
         optimizer=torch.optim.Adam,
         device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
         batch_size=1024,
