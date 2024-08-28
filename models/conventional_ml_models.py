@@ -172,7 +172,7 @@ class MLPSkorch(skorch.NeuralNet):
         loss_reduced = (sample_weight * loss_unreduced).mean()
         return loss_reduced
 
-def mlp(save_path) -> BaseEstimator:
+def mlp(save_path, fine_tune: bool= False) -> BaseEstimator:
     '''
     MLP Regressor
     '''
@@ -217,7 +217,7 @@ def mlp(save_path) -> BaseEstimator:
 
     return estimator
 
-def mlp_weighted(save_path: str) -> BaseEstimator:
+def mlp_weighted(save_path: str, fine_tune: bool=False) -> BaseEstimator:
     '''
     MLP Regressor with sample weights
     '''
