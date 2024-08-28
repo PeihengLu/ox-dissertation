@@ -9,7 +9,7 @@ from scipy.stats import pearsonr, spearmanr
 from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
 
 class EnsembleBagging:
-    def __init__(self, n_rounds: int = 10, sample_percentage: float = 0.5):
+    def __init__(self, n_rounds: int = 3, sample_percentage: float = 0.7):
         """ 
         
         """
@@ -85,10 +85,10 @@ class EnsembleBagging:
                     # use pearson correlation as the weight
                     if base_learner == 'dp':
                         predictions = model.predict(preprocess_deep_prime(data_round)).flatten()
-                        model_weights.append(pearsonr(predictions, target)[0])
+                        model_weights.append(pearsonr(predictions, target_round)[0])
                     else:
                         predictions = model.predict(features_round).flatten()
-                    model_weights.append(pearsonr(predictions, target)[0])
+                    model_weights.append(pearsonr(predictions, target_round)[0])
 
             self.models.append(models)
             # normalize the weights
