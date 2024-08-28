@@ -29,7 +29,7 @@ class EnsembleBagging:
         # self.seed = np.random.seed(42)
 
         
-    def fit(self, data: str):
+    def fit(self, data: str, fine_tune: bool = False):
         dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
         cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
         data_source = '-'.join(data.split('-')[1:]).split('.')[0]
@@ -54,7 +54,7 @@ class EnsembleBagging:
                     target_round = target[indices]
                     save_path = pjoin('models', 'trained-models', 'ensemble', 'bagging', f'{base_learner}-{data_source}-percentage-{int(self.sample_percentage * 100)}-fold-{fold+1}-round-{i+1}')
                     if base_learner in self.dl_models:
-                        model = self.base_learners[base_learner](save_path=save_path)
+                        model = self.base_learners[base_learner](save_path=save_path, fine_tune=fine_tune)
                     else:
                         model = self.base_learners[base_learner]()
                     # train or load the model

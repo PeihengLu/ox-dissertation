@@ -1,6 +1,6 @@
 import numpy as np
 from models.conventional_ml_models import mlp_weighted, ridge_regression, random_forest, xgboost
-from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
+from models.deepprime import deepprime_weighted, preprocess_deep_prime, WeightedSkorch
 import torch
 import pickle
 from os.path import join as pjoin, isfile
@@ -21,7 +21,7 @@ class EnsembleAdaBoost:
             'mlp': mlp_weighted,
             'ridge': ridge_regression,
             'rf': random_forest,
-            'dp': deepprime
+            'dp': deepprime_weighted
         }
         self.dl_models = ['mlp', 'dp']
         self.models = []
@@ -32,7 +32,7 @@ class EnsembleAdaBoost:
         np.random.seed(42)
         torch.manual_seed(42)
         
-    def fit(self, data: str):
+    def fit(self, data: str, fine_tune: bool = False):
         dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
         # dataset = dataset.sample(frac=percentage, random_state=42)
         cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
@@ -60,7 +60,7 @@ class EnsembleAdaBoost:
                     save_path = pjoin('models', 'trained-models', 'ensemble', 'adaboost', f'{base_learner}-{data_source}-fold-{fold+1}-round-{i+1}-threshold-{self.threshold}-power-{self.power}')
                     print(f"Round {i+1} {base_learner}")
                     if base_learner in self.dl_models:
-                        model = self.base_learners[base_learner](save_path=save_path)
+                        model = self.base_learners[base_learner](save_path=save_path, fine_tune=fine_tune)
                     else:
                         model = self.base_learners[base_learner]()
                     # train or load the model

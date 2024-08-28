@@ -391,18 +391,32 @@ def fine_tune_deepprime(fine_tune_fname: str=None):
             dp_model.fit(X_fine_tune, y_fine_tune)
 
 
-def deepprime(save_path: str) -> skorch.NeuralNet:
+def deepprime(save_path: str, fine_tune: bool = False) -> skorch.NeuralNet:
     '''
     Returns the DeepPrime model wrapped by skorch
     '''
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    m = DeepPrime(128, 1, 24, 0.05)
+    if fine_tune:
+        # load the dp hek293t pe 2 model
+        m.load_state_dict(torch.load('models/trained-models/deepprime/dp-hek293t-pe2-fold-1.pt', map_location=device))
+        
+        # freeze the layers other than head and feature mlps
+        for param in m.parameters():
+            param.requires_grad = False
+        for param in m.head.parameters():
+            param.requires_grad = True
+        for param in m.d.parameters():
+            param.requires_grad = True
+            
     model = skorch.NeuralNetRegressor(
-        DeepPrime(128, 1, 24, 0.05),
+        m,
         criterion=nn.MSELoss,
         optimizer=torch.optim.Adam,
-        device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
+        device=device,
         batch_size=1024,
         max_epochs=500,
-        optimizer__lr=0.0025,
+        optimizer__lr=0.0025 if not fine_tune else 0.001,
         train_split= skorch.dataset.ValidSplit(cv=5),
         callbacks=[
             skorch.callbacks.EarlyStopping(patience=20),
@@ -410,6 +424,7 @@ def deepprime(save_path: str) -> skorch.NeuralNet:
             skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
         ]
     )
+    
     
     return model
 
@@ -426,9 +441,23 @@ class WeightedSkorch(skorch.NeuralNet):
         loss_reduced = (sample_weight * loss_unreduced).mean()
         return loss_reduced
 
-def deepprime_weighted(save_path: str) -> skorch.NeuralNet:
+def deepprime_weighted(save_path: str, fine_tune: bool=False) -> skorch.NeuralNet:
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    m = DeepPrime(128, 1, 24, 0.05)
+    if fine_tune:
+        # load the dp hek293t pe 2 model
+        m.load_state_dict(torch.load('models/trained-models/deepprime/dp-hek293t-pe2-fold-1.pt', map_location=device))
+        
+        # freeze the layers other than head and feature mlps
+        for param in m.parameters():
+            param.requires_grad = False
+        for param in m.head.parameters():
+            param.requires_grad = True
+        for param in m.d.parameters():
+            param.requires_grad = True
+            
     model = WeightedSkorch(
-        DeepPrime(128, 1, 24, 0.05),
+        m,
         criterion=nn.MSELoss,
         optimizer=torch.optim.Adam,
         device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
@@ -442,3 +471,5 @@ def deepprime_weighted(save_path: str) -> skorch.NeuralNet:
             skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
         ]
     )
+    
+    return model

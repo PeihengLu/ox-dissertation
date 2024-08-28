@@ -88,7 +88,7 @@ class EnsembleWeightedMean:
         self.dl_models = ['mlp', 'dp']
 
     # fit would load the models if trained, if not, it would train the models
-    def fit(self, data: str):
+    def fit(self, data: str, fine_tune: bool=False):
         dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
         # dataset = dataset.sample(frac=percentage, random_state=42)
         cell_line = '-'.join(data.split('-')[1:3]).split('.')[0]
@@ -109,7 +109,7 @@ class EnsembleWeightedMean:
             for base_learner in self.base_learners:
                 save_path = pjoin('models', 'trained-models', 'ensemble', 'weighted-mean', f'{base_learner}-{data_source}-fold-{i+1}')
                 if base_learner in self.dl_models:
-                    model = self.base_learners[base_learner](save_path=save_path)
+                    model = self.base_learners[base_learner](save_path=save_path, fine_tune=fine_tune)
                     if isfile(f'{save_path}.pt'):
                         model.initialize()
                         model.load_params(f_params=f'{save_path}.pt')
@@ -118,6 +118,8 @@ class EnsembleWeightedMean:
                         # reshape the target
                         target = target.view(-1, 1)
                         if base_learner == 'dp':
+                            # load the pre-trained model
+                            model.load_
                             model.fit(preprocess_deep_prime(data), target)
                         else:
                             model.fit(features, target)
