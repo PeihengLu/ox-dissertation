@@ -931,7 +931,7 @@ def fine_tune_transformer(fine_tune_fname: str = None):
                 # optimizer=torch.optim.SGD,
                 optimizer__lr=0.001,
                 max_epochs=500,
-                device='cuda',
+                device=device,
                 batch_size=2048,
                 train_split= skorch.dataset.ValidSplit(cv=5),
                 # early stopping
