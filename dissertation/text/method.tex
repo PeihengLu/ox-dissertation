@@ -467,9 +467,11 @@ Ideally, the tuning process should be repeated for each dataset. However, consid
     \label{fig:ensemble-adaboost-tuning}
 \end{figure}
 
-The result of the tuning process is shown in \autoref{fig:ensemble-adaboost-tuning}. The performance of the AdaBoost model was very sensitive to the error rate threshold, but not so much to the power of the error rate or the number of base estimators (number of rounds).
+The result of the tuning process is shown in \autoref{fig:ensemble-adaboost-tuning}. As expected, the performance of the AdaBoost model was very sensitive to the error rate threshold. However, the power of the error rate or the number of base estimators (number of rounds) did not have a significant impact on the performance of the model. Boosting for multiple rounds did slightly improved the performance when the threshold is low (0.05), but did not help when the threshold is set at higher values. As for power, the overall performance was slightly improved with higher power, but the difference was again not significant.
 
+As the threshold increases, the performance plummets, as the model focuses more on the misclassified examples and overfits to the training data. Yet, this effect is only observed when the model has more than 1 round of boosting. When the number of rounds is set to 1, the model's performance actually slightly increases with higher threshold. This may suggest that AdaBoost is not outperforming the simple power weighted mean algorithm, since with a very high threshold and low error rate, the algorithm effectively becomes a weighted mean algorithm. 
 
+There are multiple configurations with very similar performance, but the best pearson's $r$ was achieved with a threshold of 0.7 and a power of 3 after one round of boosting, while the best Spearman's $R$ was achieved with a threshold of 0.5 and a power of 3, also after one round of boosting. Following the principle that the Spearman's correlation is a closer representation of the objective of this task, the configuration with a threshold of 0.5 and a power of 3 was selected as the final AdaBoost model for further testing on the DeepPrime dataset.`'
 
 \section{Adoption of Transformer Model}
 

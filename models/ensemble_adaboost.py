@@ -1,6 +1,6 @@
 import numpy as np
 from models.conventional_ml_models import mlp_weighted, ridge_regression, random_forest, xgboost
-from models.deepprime import deepprime, preprocess_deep_prime
+from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
 import torch
 import pickle
 from os.path import join as pjoin, isfile
@@ -302,7 +302,10 @@ class EnsembleAdaBoost:
                 else:
                     with open(f'{save_path}.pkl', 'rb') as f:
                         model = pickle.load(f)
-                predictions = model.predict(features).flatten()
+                if base_learner == 'dp':
+                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                else:
+                    predictions = model.predict(features).flatten()
                 performances_pearson[base_learner].append(pearsonr(predictions, target)[0])
                 performances_spearman[base_learner].append(spearmanr(predictions, target)[0])
 
@@ -327,7 +330,7 @@ class EnsembleAdaBoost:
         self.fit(data)
         dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
         data_source = '-'.join(data.split('-')[1:]).split('.')[0]
-        predictions = np.zeros(len(dataset))
+        predictions = {}
         for i in range(5):
             alphas = self.alphas[i].flatten()
             models = self.models[i]
@@ -341,9 +344,12 @@ class EnsembleAdaBoost:
             agg_predictions = np.zeros(len(target))
 
             for model, alpha in zip(models, alphas):
-                predictions = model.predict(features).flatten()
+                if isinstance(model, WeightedSkorch):
+                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                else:
+                    predictions = model.predict(features).flatten()
                 agg_predictions += alpha * predictions
 
-            predictions[data.index] = agg_predictions
+            predictions[i] = agg_predictions
 
-        return predictions
+        return predictions    

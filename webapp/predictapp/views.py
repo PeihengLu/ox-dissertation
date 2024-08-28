@@ -33,8 +33,15 @@ def predict(request):
         cellline = cellline.lower()
         
         pam_table = {
-            'pe2': 'NGG',
-        }
+        'pe2max_epegrna': 'NGG',
+        'pe2max': 'NGG',
+        'pe4max': 'NGG',
+        'pe4max_epegrna': 'NGG',
+        'nrch_pe4max': 'NGG',
+        'pe2': 'NGG',
+        'nrch_pe2': 'NGG',
+        'nrch_pe2max': 'NGG',
+    }
         
         
         trained_on_pridict_only = ['k562', 'adv']
