@@ -176,9 +176,9 @@ def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp', sample_weig
         'x': torch.tensor(features, dtype=torch.float32)
     }
     
-    if sample_weight:
+    if sample_weight is not None:
         output['sample_weight'] = torch.tensor(sample_weight, dtype=torch.float32)
-    
+        
     return output
 
 def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_features: int, dropout: float, device: str, epochs: int, lr: float, batch_size: int, patience: int, num_runs: int = 3, source: str = 'dp') -> skorch.NeuralNet:

@@ -74,7 +74,7 @@ class EnsembleAdaBoost:
                             # sample weights need to be applied to all the features
                             sample_weights = torch.tensor(sample_weights, dtype=torch.float32).view(-1, 1)
                             if base_learner == 'dp':
-                                model.fit(preprocess_deep_prime(data, sample_weights), target)
+                                model.fit(preprocess_deep_prime(data, sample_weight=sample_weights), target)
                             else:
                                 feature_X = {
                                     'x': features,
