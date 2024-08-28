@@ -67,7 +67,7 @@ class WeightedMeanSkorch():
         self.model.initialize()
 
 class EnsembleWeightedMean:
-    def __init__(self, optimization: str = True, n_regressors: int = 4, with_features: bool = False):
+    def __init__(self, optimization: str = True, n_regressors: int = 5, with_features: bool = False):
         """
         Args:
             optimization (str, optional): to use direct optimization or not. Defaults to True.
