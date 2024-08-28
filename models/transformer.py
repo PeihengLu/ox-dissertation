@@ -19,6 +19,7 @@ import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 import gc
+from glob import glob
 
 import sys
 sys.path.append('../')
@@ -887,6 +888,72 @@ def tune_transformer(tune_fname: str, lr: float, batch_size: int, epochs: int, p
         performances = pd.DataFrame(params_arch)
         # save the performance
         performances.to_csv(os.path.join('models', 'data', 'performance', f'{fname}.csv'), index=False)
+        
+def fine_tune_transformer(fine_tune_fname: str = None):
+    # load the fine tune datasets
+    if not fine_tune_fname:
+        fine_tune_data = glob(os.path.join('models', 'data', 'deepprime', '*small*.csv'))
+    else:
+        fine_tune_data = [fine_tune_fname]
+
+    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    
+    for data in fine_tune_data:
+        data_source = os.path.basename(data).split('-')[1:]
+        data_source = '-'.join(data_source)
+        data_source = data_source.split('.')[0]
+        # load the fine tune data
+        fine_tune_data = pd.read_csv(data)
+        sequence_length = len(fine_tune_data['wt-sequence'].values[0])
+        for i in range(5):
+            fine_tune = fine_tune_data[fine_tune_data['fold'] != i]
+            fold = i + 1
+            # load the dp hek293t pe 2 model
+            model = PrimeDesignTransformer(sequence_length=sequence_length, pdropout=0.2, num_encoder_units=1, num_features=24, flash=False, local=False, annot=True, mlp_embed_dim=100)
+            model.load_state_dict(torch.load('models/trained-models/transformer/dp-hek293t-pe2-fold-1.pt', map_location=device))
+            
+            # freeze the layers other than head and feature mlps
+            for param in model.parameters():
+                param.requires_grad = False
+            for param in model.head.parameters():
+                param.requires_grad = True
+            for param in model.feature_embedding.parameters():
+                param.requires_grad = True
+                
+            # skorch wrapper
+            # skorch model
+            tr_model = skorch.NeuralNetRegressor(
+                model,
+                # accelerator=accelerator,
+                criterion=nn.MSELoss,
+                optimizer=torch.optim.AdamW,
+                # optimizer__eps=1e-4,
+                # optimizer=torch.optim.SGD,
+                optimizer__lr=0.001,
+                max_epochs=500,
+                device='cuda',
+                batch_size=2048,
+                train_split= skorch.dataset.ValidSplit(cv=5),
+                # early stopping
+                callbacks=[
+                    skorch.callbacks.EarlyStopping(patience=20),
+                    skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=15, T_mult=1, eta_min=1e-5),
+                    skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'models/trained-models/transformer/dp-{data_source}-fold-{fold}.pt', f_optimizer=None, f_history=None, f_criterion=None),
+                    # skorch.callbacks.ProgressBar(),
+                    # PrintParameterGradients()
+                ]
+            )
+            
+            
+            y_fine_tune = fine_tune.iloc[:, -2]
+            X_fine_tune = preprocess_transformer(fine_tune)
+            y_fine_tune = y_fine_tune.values
+            y_fine_tune = y_fine_tune.reshape(-1, 1)
+            y_fine_tune = torch.tensor(y_fine_tune, dtype=torch.float32)
+            
+            # train the model
+            tr_model.fit(X_fine_tune, y_fine_tune)
+
 
 def visualize_attention(model_name: str = 'dp-hek293t-pe2', num_features: int = 24, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False, num_encoder_units: int=1, onehot: bool =True) -> None:
     """visualize the attention weights of the transformer model

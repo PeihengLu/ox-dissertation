@@ -13,6 +13,12 @@ To test how the different models compare on a variety of datasets,
 % TODO: add references to the section and appendix after including the results
 As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime uses different features, for a more direct comparison of the architecture, both models were retrained using the features selected from this study.
 
+\subsection{Performance on All Datasets}
+
+As discussed in \autoref{sec:ensemble}, all three ensemble models were able to significantly outperform the base learners on the PRIDICT HEK293T PE2 dataset. Thus, power weighted mean ensemble, bagging and adaboost were trained on all available datasets alongside the transformer model to evaluate their performance against the base learners, as well as DeepPrime and PRIDICT.
+
+
+
 \section{Attention Analysis}
 \label{sec:attention_analysis}
 

@@ -87,7 +87,7 @@ class DeepPrime(nn.Module):
         )
 
     # g is the stacked gene sequences(wildtype and edited) and x is the feature vector
-    def forward(self, g, x):
+    def forward(self, g, x, sample_weight=None):
         device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
         g = g.to(device).long()
         x = x.to(device)        
@@ -143,7 +143,7 @@ class WeightedLoss(nn.Module):
         return weights
 
 # returns a loaded data loader
-def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp') -> Dict[str, torch.Tensor]:
+def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp', sample_weight = None) -> Dict[str, torch.Tensor]:
     '''
     Preprocesses the data for the DeepPrime model
     '''
@@ -170,10 +170,14 @@ def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp') -> Dict[str
     else:
         nut_to_ix = {'x': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
 
+
     output = {
         'g': torch.tensor([[nut_to_ix[n] for n in seq] for seq in seqs], dtype=torch.float32),
         'x': torch.tensor(features, dtype=torch.float32)
     }
+    
+    if sample_weight:
+        output['sample_weight'] = torch.tensor(sample_weight, dtype=torch.float32)
     
     return output
 
@@ -408,3 +412,33 @@ def deepprime(save_path: str) -> skorch.NeuralNet:
     )
     
     return model
+
+class WeightedSkorch(skorch.NeuralNet):
+    def __init__(self, *args, criterion__reduce=False, **kwargs):
+        # make sure to set reduce=False in your criterion, since we need the loss
+        # for each sample so that it can be weighted
+        super().__init__(*args, criterion__reduce=criterion__reduce, **kwargs)
+
+    def get_loss(self, y_pred, y_true, X, *args, **kwargs):
+        # override get_loss to use the sample_weight from X
+        loss_unreduced = super().get_loss(y_pred, y_true, X, *args, **kwargs)
+        sample_weight = skorch.utils.to_tensor(X['sample_weight'], device=self.device)
+        loss_reduced = (sample_weight * loss_unreduced).mean()
+        return loss_reduced
+
+def deepprime_weighted(save_path: str) -> skorch.NeuralNet:
+    model = WeightedSkorch(
+        DeepPrime(128, 1, 24, 0.05),
+        criterion=nn.MSELoss,
+        optimizer=torch.optim.Adam,
+        device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
+        batch_size=1024,
+        max_epochs=500,
+        optimizer__lr=0.0025,
+        train_split= skorch.dataset.ValidSplit(cv=5),
+        callbacks=[
+            skorch.callbacks.EarlyStopping(patience=20),
+            skorch.callbacks.Checkpoint(monitor='valid_loss_best', f_params=f'{save_path}.pt', f_optimizer=None, f_history=None, f_criterion=None),
+            skorch.callbacks.LRScheduler(policy=torch.optim.lr_scheduler.CosineAnnealingWarmRestarts , monitor='valid_loss', T_0=10, T_mult=1),
+        ]
+    )
