@@ -14,7 +14,7 @@ plt.switch_backend('agg')
 
 sys.path.append(pjoin(os.path.dirname(__file__), '../../'))
 
-from utils.data_utils import convert_to_SHAP
+from utils.data_utils import convert_to_SHAP, convert_to_shap_1bp
 from utils.stats_utils import get_pearson_and_spearman_correlation
 
 def SHAP_analysis(input_data, output, reset=False, fig_size=(10, 6), max_display=10):
@@ -31,7 +31,8 @@ def SHAP_analysis(input_data, output, reset=False, fig_size=(10, 6), max_display
         target = data['editing-efficiency']
         features = data.drop(columns=['editing-efficiency', 'group-id'])
     else:
-        # convert_to_SHAP(input_data)
+        if not os.path.exists(data_path) or reset: 
+            convert_to_SHAP(input_data)
         data = pd.read_csv(data_path) 
         group_ids = data['group-id']       
 
@@ -87,7 +88,7 @@ def SHAP_analysis(input_data, output, reset=False, fig_size=(10, 6), max_display
     # clear all figures
     plt.close('all')
 
-def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=(10, 6)) -> plt.Figure:
+def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=(14, 6)) -> plt.Figure:
     '''
     shap_values is of size (n_samples, n_features)
     '''
@@ -110,14 +111,14 @@ def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=
     # replace melting-temperature with mt, minimum-free-energy with mfe, gc-content with gcc in the y labels
     y_labels = ax.get_yticklabels()
     for label in y_labels:
-        label.set_text(label.get_text().replace('melting-temperature', 'tm').replace('minimum-free-energy', 'mfe').replace('gc-content', 'gcc').replace('maximal-length-of-consecutive-a-sequence', 'max-cas').replace('maximal-length-of-consecutive-t-sequence', 'max-cts').replace('maximal-length-of-consecutive-c-sequence', 'max-ccs').replace('maximal-length-of-consecutive-g-sequence', 'max-cgs').replace('edit-type', 'et').replace('-at-protospacer-position-', '-ap-').replace('gc-count', 'gc#'))
+        label.set_text(label.get_text().replace('melting-temperature', 'tm').replace('minimum-free-energy', 'mfe').replace('gc-content', 'gcc').replace('maximal-length-of-consecutive-a-sequence', 'max-cas').replace('maximal-length-of-consecutive-t-sequence', 'max-cts').replace('maximal-length-of-consecutive-c-sequence', 'max-ccs').replace('maximal-length-of-consecutive-g-sequence', 'max-cgs').replace('edit-type', 'et').replace('-at-protospacer-position-', '-ap-').replace('gc-count', 'gc#').replace('before-edit-position', 'bep').replace('after-edit-position', 'aep'))
         # remove hyphens
         label.set_text(label.get_text().replace('-', ' '))
 
     # set the y labels
     ax.set_yticklabels(y_labels)
     
-    if figsize[0] < 10:
+    if figsize[0] <= 10:
         font_size = 26
         print('Rotating y labels')
         plt.yticks(rotation=20)
@@ -150,8 +151,10 @@ def plot_shap_values(shap_values: np.ndarray, features, max_display=10, figsize=
 
 if __name__ == '__main__':
     reset = False
-    SHAP_analysis('std/std-dp-hek293t-pe2.csv', 'shap/shap-dp-hek293t-pe2.csv', reset=reset, fig_size=(20, 8), max_display=24)
+    # SHAP_analysis('std/std-dp-hek293t-pe2.csv', 'shap/shap-dp-hek293t-pe2.csv', reset=reset, fig_size=(20, 8), max_display=24)
     # perform SHAP analysis on different data types
     # SHAP_analysis('std/std-pd-hek293t-pe2-replace.csv', 'shap/shap-pd-hek293t-pe2-replace.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
     # SHAP_analysis('std/std-pd-hek293t-pe2-insert.csv', 'shap/shap-pd-hek293t-pe2-insert.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
     # SHAP_analysis('std/std-pd-hek293t-pe2-delete.csv', 'shap/shap-pd-hek293t-pe2-delete.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
+    for data_source in ['adv-pe2', 'k562-pe2', 'k562mlh1dn-pe2', 'hek293t-pe2']:    
+        SHAP_analysis(f'std/std-pd-{data_source}.csv', f'shap/shap-pd-{data_source}.csv', reset=reset, fig_size=(9, 6), max_display=24)

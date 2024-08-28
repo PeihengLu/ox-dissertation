@@ -4,20 +4,17 @@
 
 On top of the five main dataset of size $> 20k$, DeepPrime has additional 18 datasets of size $\sim5k$, which were used to fine tune the model for better generalizability. As a result, for a more thorough comparison between the models, the same fine tuning process was conducted on all deep learning models.
 
-To fine tune the models, the same hyperparameters were used as the original training, except for the learning rate, which was set to $1e-3$ for the fine tuning to accommodate the smaller dataset size. The sequence processing layers were frozen, leaving only the feature processing and the final meta learner to be trained. The models were trained for at most 300 epochs for each fold, and the best model was selected based on the validation loss.
+To fine tune the models, the same hyperparameters during the original training were used, except for the learning rate, which was lowered to $1e-3$ for the fine tuning to accommodate the smaller dataset size. Additionally, the NRCH versions of prime editors were used in some of the small datasets, which contains optimized SpCas9 proteins that can accommodate NRCH PAMs (N = A, T, C, G; R = A, G; H = A, C, T) \cite{millerContinuousEvolutionSpCas92020}. The pam matching function was thus updated to accommodate the additional PAMs.
 
-\section{Benchmarking}
-
-To test how the different models compare on a variety of datasets, 
+To preserve the sequence features acquired on the DeepPrime main dataset, the sequence processing layers were frozen, leaving only the feature processing and the final meta learner to be trained. The models were trained for at most 300 epochs for each fold, and the best model was selected based on the validation loss.
 
 % TODO: add references to the section and appendix after including the results
-As mentioned in section {ensemble training}, although both PRIDICT and DeepPrime uses different features, for a more direct comparison of the architecture, both models were retrained using the features selected from this study.
 
 \subsection{Performance on All Datasets}
 
 As discussed in \autoref{sec:ensemble}, all three ensemble models were able to significantly outperform the base learners on the PRIDICT HEK293T PE2 dataset. Thus, power weighted mean ensemble, bagging and adaboost were trained on all available datasets alongside the transformer model to evaluate their performance against the base learners, as well as DeepPrime and PRIDICT.
 
-
+\subsection{Performance on Individual Editing Types}
 
 \section{Attention Analysis}
 \label{sec:attention_analysis}
@@ -42,7 +39,7 @@ As discussed in \autoref{sec:ensemble}, all three ensemble models were able to s
 
 A significant advantage of the attention based methods are their interpretability. The attention mechanism allows the model to focus on specific parts of the input data using the attention weights, which can be visualized teo understand the model's decision making process. 
 
-In this architecture, the most informative and interpretable attention weights are the feature embedding attention weights at the final layer of the transformer model, pooling all token embeddings into a single feature embedding. 
+In this architecture, the most informative and interpretable attention weights are the feature embedding attention weights at the final layer of the transformer model, pooling all token embeddings into a single feature embedding by attributing different weights to each token position. 
 
 The examples were grouped together by their editing type and length so that the edit positions can be easily identified and compared. And the attention weights for edits at the same position were aggregated to show the overall importance of the position in the editing efficiency prediction.
 
@@ -61,4 +58,23 @@ However, for deletion, the attention weights were the highest at the edit positi
 
 The attention weights for the edits of length 3 showed similar result (\autoref{fig:attention_deletion_3bp}), the only noticeable difference is that the high attention regions for deletion were extended to 3bp long, reflecting the longer deletion length.
 
-During SHAP analysis in \autoref{sec:determinants}, the edited base was not investigated, as a meaningful representation for bases of different lengths could not be found. Thus, to understand if the base to edit during deletion is indeed an important feature, SHAP analysis was conducted again on the HEK293T PE2 
+During SHAP analysis in \autoref{sec:determinants}, the edited base was not investigated, as a meaningful representation for bases of different lengths could not be found. Thus, to understand if the base to edit during deletion is indeed an important feature, SHAP analysis was conducted again on the HEK293T PE2 dataset for 1-bp replacement, insertion, and deletion (\autoref{fig:shap-1bp})
+
+\begin{figure}
+    \subfigure[Replacement]{
+        \includegraphics[width=0.33\textwidth]{shap_1bp-dp-hek293t-pe2-replace.png}
+        \label{fig:shap_replacement}
+    }%
+    \subfigure[Insertion]{
+        \includegraphics[width=0.33\textwidth]{shap_1bp-dp-hek293t-pe2-insert.png}
+        \label{fig:shap_insertion}
+    }%
+    \subfigure[Deletion]{
+        \includegraphics[width=0.33\textwidth]{shap_1bp-dp-hek293t-pe2-delete.png}
+        \label{fig:shap_deletion}
+    }
+    \caption[SHAP analysis for 1-bp insertion and deletion of the DeepPrime model trained on the HEK293T-PE2 dataset]{SHAP analysis for 1-bp insertion and deletion of the DeepPrime model trained on the HEK293T-PE2 dataset. The x-axis represents the attributed weight to the outcome (SHAP value), while the y-axis represents the feature importance. The colour of the points indicates the feature value, with red indicating high values and blue indicating low values.}
+    \label{fig:shap-1bp}
+\end{figure}
+
+Interestingly, different from the attention weights, the base to edit during deletion was not considered an important feature by the model (Figure \ref{fig:shap_deletion}). 

@@ -184,3 +184,4 @@ models/data/ensemble/ensemble-pd-adv-pe2.csv
 models/data/ensemble/ensemble-pd-hek293t-pe2.csv
 models/data/ensemble/ensemble-pd-k562-pe2.csv
 models/data/ensemble/ensemble-pd-k562mlh1dn-pe2.csv
+models/data/shap/shap_1bp-dp-hek293t-pe2.csv
