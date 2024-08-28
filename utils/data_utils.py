@@ -675,7 +675,192 @@ def convert_to_SHAP(source: str) -> None:
     # save the extracted information
     output_df = pd.DataFrame(output, columns=feature_list, dtype=np.float16)
     output_df.to_csv(pjoin('..', 'shap', target), index=False)
+    
+def convert_to_shap_1bp(source: str) -> None:
+    '''
+    convert from standard format to SHAP format used for SHAP analysis
+    using only 1bp edit
+    '''
+    target = f"shap_1bp-{'-'.join(source.split('-')[1:])}"
+    if isfile(pjoin('..', 'shap', target)):
+        return
 
+    feature_list = ['edit-type-' + s for s in ['replacement', 'insertion', 'deletion']] 
+    feature_list += ['gc-content-' + s for s in ['spacer', 'pbs', 'extension', 'rha']]
+    feature_list += ['gc-count-' + s for s in ['spacer', 'pbs', 'extension', 'rha']]
+    feature_list += ['melting-temperature-' + s for s in ['spacer', 'pbs', 'extension', 'rha']]
+    feature_list += ['minimum-free-energy-' + s for s in ['spacer', 'pbs', 'extension', 'rha']]
+    feature_list += ['a-at-protospacer-position-' + str(i) for i in range(1, 21)]
+    feature_list += ['g-at-protospacer-position-' + str(i) for i in range(1, 21)]
+    feature_list += ['t-at-protospacer-position-' + str(i) for i in range(1, 21)]
+    feature_list += ['c-at-protospacer-position-' + str(i) for i in range(1, 21)]
+    feature_list += [f'{s}-before-edit-position' for s in ['a', 'g', 't', 'c']]
+    feature_list += [f'{s}-after-edit-position' for s in ['a', 'g', 't', 'c']]
+    feature_list += [f'{s}-length' for s in ['pbs', 'rha', 'lha', 'edit']]
+    feature_list += ['pam-disrupted']
+    feature_list += [f'maximal-length-of-consecutive-{s}-sequence' for s in ['a', 'g', 't', 'c']]
+    feature_list += [f'pre-edit-base-{s}' for s in ['a', 'g', 't', 'c']]
+    feature_list += [f'post-edit-base-{s}' for s in ['a', 'g', 't', 'c']]
+
+    feature_list.extend(['spcas9-score', 'group-id', 'editing-efficiency', 'fold'])
+
+    # load the data
+    data = pd.read_csv(source)
+    # only 1bp edit
+    data = data[data['edit-len'] == 1]
+
+    output = []
+
+    for ind, item in tqdm.tqdm(data.iterrows(), total=len(data)): 
+        wt_sequence = item['wt-sequence']
+        mut_sequence = item['mut-sequence']
+
+        pbs = wt_sequence[item['pbs-location-l']:item['pbs-location-r']]
+        pbs = get_compliment_dna_to_dna(pbs)
+        pbs = get_compliment_dna_to_rna(pbs)
+        protospacer = wt_sequence[item['protospacer-location-l']:item['protospacer-location-r']]
+        spacer = get_compliment_dna_to_rna(protospacer)
+        extension = wt_sequence[item['pbs-location-r']:item['rtt-location-r']]
+        extension = get_compliment_dna_to_dna(extension)
+        extension = get_compliment_dna_to_rna(extension)
+        rha = wt_sequence[item['rha-location-l']:item['rha-location-r']]
+        rha = get_compliment_dna_to_dna(rha)
+        rha = get_compliment_dna_to_rna(rha)
+        lha = wt_sequence[item['lha-location-l']:item['lha-location-r']]
+        lha = get_compliment_dna_to_dna(lha)
+        lha = get_compliment_dna_to_rna(lha)
+        cDNA = mut_sequence[item['pbs-location-l']:item['rtt-location-r']]
+        cDNA = get_compliment_dna_to_dna(cDNA)
+
+
+        # gc content and count
+        gc_content_spacer, gc_count_spacer = get_gc_content_and_count(spacer)
+        gc_content_pbs, gc_count_pbs = get_gc_content_and_count(pbs)
+        gc_content_extension, gc_count_extension = get_gc_content_and_count(extension)
+        gc_content_rha, gc_count_rha = get_gc_content_and_count(rha)
+
+        # melting temperature
+        melting_temperature_spacer = get_melting_temperature(spacer, table='R_DNA_NN1', c_seq=get_compliment_rna_to_dna(spacer))
+        melting_temperature_pbs = get_melting_temperature(pbs, table='R_DNA_NN1', c_seq=get_compliment_rna_to_dna(pbs))
+        melting_temperature_extension = get_melting_temperature(extension, table='R_DNA_NN1', c_seq=get_compliment_rna_to_dna(extension))
+        melting_temperature_rha = get_melting_temperature(rha, table='R_DNA_NN1', c_seq=get_compliment_rna_to_dna(rha))
+
+        # minimum free energy
+        minimum_free_energy_spacer = get_minimum_free_energy(spacer)
+        minimum_free_energy_pbs = get_minimum_free_energy(pbs)
+        minimum_free_energy_extension = get_minimum_free_energy(extension)
+        minimum_free_energy_rha = get_minimum_free_energy(rha)
+
+        # nucleotide at protospacer position
+        a_at_protospacer_position = [0] * 20
+        g_at_protospacer_position = [0] * 20
+        t_at_protospacer_position = [0] * 20
+        c_at_protospacer_position = [0] * 20
+
+        for i in range(20):
+            if protospacer[i] == 'A':
+                a_at_protospacer_position[i] = 1
+            elif protospacer[i] == 'G':
+                g_at_protospacer_position[i] = 1
+            elif protospacer[i] == 'T':
+                t_at_protospacer_position[i] = 1
+            elif protospacer[i] == 'C':
+                c_at_protospacer_position[i] = 1
+
+        # nucleotide before and after edit position
+        a_before_edit_position = 0
+        g_before_edit_position = 0
+        t_before_edit_position = 0
+        c_before_edit_position = 0
+        a_after_edit_position = 0
+        g_after_edit_position = 0
+        t_after_edit_position = 0
+        c_after_edit_position = 0
+
+        if wt_sequence[item['lha-location-r']] == 'A':
+            a_before_edit_position = 1
+        elif wt_sequence[item['lha-location-r']] == 'G':
+            g_before_edit_position = 1
+        elif wt_sequence[item['lha-location-r']] == 'T':
+            t_before_edit_position = 1
+        elif wt_sequence[item['lha-location-r']] == 'C':
+            c_before_edit_position = 1
+
+        if wt_sequence[item['rha-location-l']] == 'A':
+            a_after_edit_position = 1
+        elif wt_sequence[item['rha-location-l']] == 'G':
+            g_after_edit_position = 1
+        elif wt_sequence[item['rha-location-l']] == 'T':
+            t_after_edit_position = 1
+        elif wt_sequence[item['rha-location-l']] == 'C':
+            c_after_edit_position = 1
+
+        # length of the sequences
+        edit_type = item['mut-type']
+        edit_len = item['edit-len']
+        rha_len = len(rha)
+        lha_len = len(lha)
+        pbs_len = len(pbs)
+        
+        pre_edit_base = wt_sequence[item['lha-location-r']]
+        post_edit_base = mut_sequence[item['lha-location-r']]
+        pre_edit_bases = [0 for _ in range(4)]
+        post_edit_bases = [0 for _ in range(4)]
+        
+        if pre_edit_base == 'A':
+            pre_edit_bases[0] = 1
+        elif pre_edit_base == 'G':
+            pre_edit_bases[1] = 1
+        elif pre_edit_base == 'T':
+            pre_edit_bases[2] = 1
+        elif pre_edit_base == 'C':
+            pre_edit_bases[3] = 1
+        if post_edit_base == 'A':
+            post_edit_bases[0] = 1
+        elif post_edit_base == 'G':
+            post_edit_bases[1] = 1
+        elif post_edit_base == 'T':
+            post_edit_bases[2] = 1
+        elif post_edit_base == 'C':
+            post_edit_bases[3] = 1
+        
+
+        # pam disrupted
+        pam_disrupted = not (wt_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3] == mut_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3])
+
+        # maximal length of consecutive nucleotide sequence
+        if len(get_consecutive_n_sequences('A', cDNA) + get_consecutive_n_sequences('A', protospacer)) > 1:
+            a_max_length = max([len(seq) for seq in get_consecutive_n_sequences('A', cDNA) + get_consecutive_n_sequences('A', protospacer)])
+        else:
+            a_max_length = 0
+        if len(get_consecutive_n_sequences('G', cDNA) + get_consecutive_n_sequences('G', protospacer)) > 1:
+            g_max_length = max([len(seq) for seq in get_consecutive_n_sequences('G', cDNA) + get_consecutive_n_sequences('G', protospacer)])
+        else:
+            g_max_length = 0
+        if len(get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)) > 1:
+            t_max_length = max([len(seq) for seq in get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)])
+        else:
+            t_max_length = 0
+        if len(get_consecutive_n_sequences('C', cDNA) + get_consecutive_n_sequences('C', protospacer)) > 1:
+            c_max_length = max([len(seq) for seq in get_consecutive_n_sequences('C', cDNA) + get_consecutive_n_sequences('C', protospacer)])
+        else:
+            c_max_length = 0
+        
+        spcas9_score = item['spcas9-score']
+        editing_efficiency = item['editing-efficiency']
+
+        output.append([edit_type == 0, edit_type == 1, edit_type == 2, gc_content_spacer, gc_content_pbs, gc_content_extension, gc_content_rha, gc_count_spacer, gc_count_pbs, gc_count_extension, gc_count_rha, melting_temperature_spacer, melting_temperature_pbs, melting_temperature_extension, melting_temperature_rha, minimum_free_energy_spacer, minimum_free_energy_pbs, minimum_free_energy_extension, minimum_free_energy_rha] + a_at_protospacer_position + g_at_protospacer_position + t_at_protospacer_position + c_at_protospacer_position + [a_before_edit_position, g_before_edit_position, t_before_edit_position, c_before_edit_position, a_after_edit_position, g_after_edit_position, t_after_edit_position, c_after_edit_position, pbs_len, rha_len, lha_len, edit_len, pam_disrupted, a_max_length, g_max_length, t_max_length, c_max_length] + pre_edit_bases + post_edit_bases + [spcas9_score, item['group-id'], editing_efficiency, item['fold']])
+
+    # save the extracted information according to edit type
+    output_df = pd.DataFrame(output, columns=feature_list, dtype=np.float16)
+    output_df.to_csv(pjoin('shap', target), index=False)
+    output_df_replace = output_df[output_df['edit-type-replacement'] == 1]
+    output_df_insert = output_df[output_df['edit-type-insertion'] == 1]
+    output_df_delete = output_df[output_df['edit-type-deletion'] == 1]
+    output_df_replace.to_csv(pjoin('shap', target.split('.')[0] + '-replace.csv'), index=False)
+    output_df_insert.to_csv(pjoin('shap', target.split('.')[0] + '-insert.csv'), index=False)
+    output_df_delete.to_csv(pjoin('shap', target.split('.')[0] + '-delete.csv'), index=False)
+    
 
 def convert_to_conventional_ml(source: str) -> pd.DataFrame:
     '''
@@ -700,15 +885,16 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
     
     pe = target.split('-')[-1].split('.')[0]
     
+    # R is A or G, H is A, C or T, N is A, C, G or T
     pam_table = {
         'pe2max_epegrna': 'NGG',
         'pe2max': 'NGG',
         'pe4max': 'NGG',
         'pe4max_epegrna': 'NGG',
-        'nrch_pe4max': 'NGG',
+        'nrch_pe4max': 'NRCH',
         'pe2': 'NGG',
-        'nrch_pe2': 'NGG',
-        'nrch_pe2max': 'NGG',
+        'nrch_pe2': 'NRCH',
+        'nrch_pe2max': 'NRCH',
     }
     
     pam = pam_table[pe]
@@ -1070,10 +1256,23 @@ def match_pam(sequence: str, pam: str) -> bool:
         bool: True if the sequence is a valid PAM sequence, False otherwise
     """
     # N refers to any nucleotide
+    match = True
     for i in range(len(pam)):
-        if pam[i] != 'N' and sequence[i] != pam[i]:
-            return False
-    return True
+        if pam[i] == 'N':
+            continue
+        elif pam[i] == 'R':
+            if sequence[i] not in ['A', 'G']:
+                match = False
+                break
+        elif pam[i] == 'H':
+            if sequence[i] not in ['A', 'C', 'T']:
+                match = False
+                break
+        else:
+            if sequence[i] != pam[i]:
+                match = False
+                break
+    return match
 
 # =============================================================================
 # Training Data Preprocessing
