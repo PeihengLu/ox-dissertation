@@ -638,7 +638,7 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
         
     return model
 
-def predict_transformer(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False) -> skorch.NeuralNetRegressor:
+def predict(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False) -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
@@ -701,7 +701,7 @@ def predict_transformer(test_fname: str, num_features: int, adjustment: str = No
         prediction[i] = y_pred
         performance.append((pearson, spearman))
     
-    return prediction, performance
+    return prediction
 
 
 from sklearn.model_selection import ParameterGrid

@@ -709,7 +709,7 @@ def train_pridict(train_fname: str, lr: float, batch_size: int, epochs: int, pat
         
     # return model
 
-def predict_pridict(test_fname: str, num_features: int=24, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
+def predict(test_fname: str, num_features: int=24, device: str = 'cuda', dropout: float=0) -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
@@ -776,7 +776,7 @@ def predict_pridict(test_fname: str, num_features: int=24, device: str = 'cuda',
     del pd_model, m
     torch.cuda.empty_cache()
 
-    return prediction, performance
+    return prediction
 
 
 def fine_tune_pridict(fine_tune_fname: str=None):    
