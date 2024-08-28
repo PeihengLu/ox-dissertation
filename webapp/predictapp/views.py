@@ -8,9 +8,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import pandas as pd
 import numpy as np
-
+import sys
 import logging
 log = logging.getLogger(__name__)
+from .deepcas9 import runprediction
 
 # Define your PyTorch model (replace with your actual model)
 class DummyModel(torch.nn.Module):
@@ -18,6 +19,13 @@ class DummyModel(torch.nn.Module):
         return torch.tensor([x.sum()])
 
 model = DummyModel()
+
+def deepcas9(deepcas9seqlist):
+    """Perform DeepCas9 prediction on 30bp stretches of protospacer + targetseq for each protospacer."""
+    deepcas9scorelist = runprediction(deepcas9seqlist)
+    print('deepcas9 calculating...')
+    deepcas9scorelist = [round(x, 2) for x in deepcas9scorelist]
+    return deepcas9scorelist
 
 @csrf_exempt
 def predict(request):
@@ -33,15 +41,15 @@ def predict(request):
         cellline = cellline.lower()
         
         pam_table = {
-        'pe2max_epegrna': 'NGG',
-        'pe2max': 'NGG',
-        'pe4max': 'NGG',
-        'pe4max_epegrna': 'NGG',
-        'nrch_pe4max': 'NGG',
-        'pe2': 'NGG',
-        'nrch_pe2': 'NGG',
-        'nrch_pe2max': 'NGG',
-    }
+            'pe2max_epegrna': 'NGG',
+            'pe2max': 'NGG',
+            'pe4max': 'NGG',
+            'pe4max_epegrna': 'NGG',
+            'nrch_pe4max': 'NRCH',
+            'pe2': 'NGG',
+            'nrch_pe2': 'NRCH',
+            'nrch_pe2max': 'NRCH',
+        }
         
         
         trained_on_pridict_only = ['k562', 'adv']
@@ -128,7 +136,7 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
         # PAM is 3bp downstream of nicking site
         # nicking site is the end of PBS and start of LHA
         pam_position = edit_position - pam_distance_to_edit
-        if not match_pam(wt_sequence[edit_position - pam_position: edit_position - pam_position + len(pam)] , pam):
+        if not match_pam(wt_sequence[pam_position: pam_position + len(pam)] , pam):
             continue
         nicking_site = pam_position - 3
         for pbs_len in pbs_len_range:
@@ -145,10 +153,18 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
                 wt_sequences.append(wt_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
                 mut_sequences.append(mut_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
                 # TODO figure out deepspcas9 score
-                sp_cas9_score.append(0.5)
                 rtt_location_l.append(lha_location_l[-1])
                 rtt_location_r.append(rha_location_r[-1])
                 mut_types.append(mut_type)
+
+    spcas9_sequence_list = []
+    # spcas9 takes 30 bp long sequence starting from 4bp upstream of the protospacer
+    for i in range(len(protospacer_location_l)):
+        spcas9_sequence_list.append(wt_sequences[i][protospacer_location_l[i] - 4: protospacer_location_l[i] + 26])
+    log.info(f'Running DeepCas9 prediction on {len(spcas9_sequence_list)} sequences')
+    sp_cas9_score = runprediction(spcas9_sequence_list)
+    log.info(f'DeepCas9 prediction complete')
+    log.info(f'returns {len(sp_cas9_score)} scores')
 
     
     df = pd.DataFrame({
@@ -182,12 +198,24 @@ def match_pam(sequence: str, pam: str) -> bool:
         bool: True if the sequence is a valid PAM sequence, False otherwise
     """
     # N refers to any nucleotide
+    match = True
     for i in range(len(pam)):
-        if pam[i] != 'N' and sequence[i] != pam[i]:
-            return False
-    return True
+        if pam[i] == 'N':
+            continue
+        elif pam[i] == 'R':
+            if sequence[i] not in ['A', 'G']:
+                match = False
+                break
+        elif pam[i] == 'H':
+            if sequence[i] not in ['A', 'C', 'T']:
+                match = False
+                break
+        else:
+            if sequence[i] != pam[i]:
+                match = False
+                break
+    return match
     
-
 def index(request):
     log.info('Index request received')
     return render(request, 'predictapp/index.html')

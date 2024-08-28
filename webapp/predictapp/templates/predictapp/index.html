@@ -328,6 +328,13 @@
                     <option value="pe2-hek293t">PE2 - HEK293T</option>
                     <option value="pe2-k562">PE2 - K562</option>
                     <option value="pe2-adv">PE2 - Adv</option>
+                    <option value="pe2-k562mlh1dn">PE2 - K562 MLH1dn</option>
+                    <option value="pe2-hct116">PE2 - HCT116</option>
+                    <option value="pe2max-hek293t">PE2MAX - HEK293T</option>
+                    <option value="pe2max_epegrna-hek293t">PE2MAX_epegRNA - HEK293T</option>
+                    <option value="nrch_pe2-hek293t">NRCH_PE2 - HEK293T</option>
+                    <option value="nrch_pe2max-hek293t">NRCH_PE2MAX - HEK293T</option>
+                    <option value="nrch_pe4max-nih3t3">NRCH_PE4MAX - NIH3T3</option>
                     <!-- Add more options as needed -->
                 </select>
             </div>
@@ -409,6 +416,7 @@
                         wt_sequence: row.wt_sequence || '',
                         mut_sequence: row.mut_sequence || '',
                         mut_type: row.mut_type || '',
+                        sp_cas9_score: row.sp_cas9_score || '',
                     }));
                     // Removing wt_sequence and mut_sequence for table display
                     const displayData = globalData.map(({ wt_sequence, mut_sequence, mut_type, ...rest }) => rest);
@@ -481,10 +489,16 @@
             const pbsEnd = rowData.pbs_location_r - 1;
             const rttStart = rowData.rtt_location_l;
             const rttEnd = rowData.rtt_location_r - 1;
+            const lhaLocationR = rowData.lha_location_r;
+            const rhaLocationL = rowData.rha_location_l-1;
 
             // Generate the nucleotide sequence as a series of divs
             let dnaSequenceHtml = wtSequence.map((nucleotide, index) => {
-                return `<div class="nucleotide">${nucleotide}</div>`;
+                // Apply a red background color if within the lha_location_r and rha_location_l range
+                const isRed = index >= lhaLocationR && index <= rhaLocationL;
+                const style = isRed ? 'background-color: red; color: white;' : '';
+
+                return `<div class="nucleotide" style="${style}">${nucleotide}</div>`;
             }).join('');
 
             // Create separate rows for each bracket
