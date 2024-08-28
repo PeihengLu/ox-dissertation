@@ -118,8 +118,6 @@ class EnsembleWeightedMean:
                         # reshape the target
                         target = target.view(-1, 1)
                         if base_learner == 'dp':
-                            # load the pre-trained model
-                            model.load_
                             model.fit(preprocess_deep_prime(data), target)
                         else:
                             model.fit(features, target)
@@ -239,37 +237,38 @@ class EnsembleWeightedMean:
         return performances_pearson, performances_spearman
     
 
-    def predict(self, data: str):
-        """
-        Perform the prediction using the trained models
-        Produce predictions for the full dataset using corresponding fold models
-        """
-        self.fit(data)
-        dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
-        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
-        predictions = np.zeros(len(dataset))
-        output = {}
-        for i in range(5):
-            models = self.models[i]
+def predict(data: str):
+    """
+    Perform the prediction using the trained models
+    Produce predictions for the full dataset using corresponding fold models
+    """
+    model = EnsembleWeightedMean()
+    model.fit(data)
+    dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+    data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+    predictions = np.zeros(len(dataset))
+    output = {}
+    for i in range(5):
+        models = model.models[i]
 
-            data = dataset[dataset['fold'] == i]
-            features = data.iloc[:, 2:26].values
-            target = data.iloc[:, -2].values
-            features = torch.tensor(features, dtype=torch.float32)
+        data = dataset[dataset['fold'] == i]
+        features = data.iloc[:, 2:26].values
+        target = data.iloc[:, -2].values
+        features = torch.tensor(features, dtype=torch.float32)
 
-            # aggregated predictions
-            predictions = []
+        # aggregated predictions
+        predictions = []
 
-            for model in models:
-                if isinstance(model, WeightedSkorch):
-                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
-                else:
-                    predictions = model.predict(features).flatten()
-                predictions.append(predictions)
+        for model in models:
+            if isinstance(model, WeightedSkorch):
+                predictions = model.predict(preprocess_deep_prime(data)).flatten()
+            else:
+                predictions = model.predict(features).flatten()
+            predictions.append(predictions)
 
-            ensemble_predictions = torch.tensor(predictions, dtype=torch.float32).T @ torch.tensor(self.ensemble[i], dtype=torch.float32)
-            ensemble_predictions = ensemble_predictions.flatten()
-            output[i] = ensemble_predictions
-            
+        ensemble_predictions = torch.tensor(predictions, dtype=torch.float32).T @ torch.tensor(model.ensemble[i], dtype=torch.float32)
+        ensemble_predictions = ensemble_predictions.flatten()
+        output[i] = ensemble_predictions
+        
 
-        return predictions    
+    return predictions    

@@ -322,34 +322,35 @@ class EnsembleAdaBoost:
         
         return performances_pearson, performances_spearman
     
-    def predict(self, data: str):
-        """
-        Perform the prediction using the trained models
-        Produce predictions for the full dataset using corresponding fold models
-        """
-        self.fit(data)
-        dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
-        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
-        predictions = {}
-        for i in range(5):
-            alphas = self.alphas[i].flatten()
-            models = self.models[i]
+def predict(data: str):
+    """
+    Perform the prediction using the trained models
+    Produce predictions for the full dataset using corresponding fold models
+    """
+    model = EnsembleAdaBoost()
+    model.fit(data)
+    dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+    data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+    predictions = {}
+    for i in range(5):
+        alphas = model.alphas[i].flatten()
+        models = model.models[i]
 
-            data = dataset[dataset['fold'] == i]
-            features = data.iloc[:, 2:26].values
-            target = data.iloc[:, -2].values
-            features = torch.tensor(features, dtype=torch.float32)
+        data = dataset[dataset['fold'] == i]
+        features = data.iloc[:, 2:26].values
+        target = data.iloc[:, -2].values
+        features = torch.tensor(features, dtype=torch.float32)
 
-            # aggregated predictions
-            agg_predictions = np.zeros(len(target))
+        # aggregated predictions
+        agg_predictions = np.zeros(len(target))
 
-            for model, alpha in zip(models, alphas):
-                if isinstance(model, WeightedSkorch):
-                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
-                else:
-                    predictions = model.predict(features).flatten()
-                agg_predictions += alpha * predictions
+        for model, alpha in zip(models, alphas):
+            if isinstance(model, WeightedSkorch):
+                predictions = model.predict(preprocess_deep_prime(data)).flatten()
+            else:
+                predictions = model.predict(features).flatten()
+            agg_predictions += alpha * predictions
 
-            predictions[i] = agg_predictions
+        predictions[i] = agg_predictions
 
-        return predictions    
+    return predictions    

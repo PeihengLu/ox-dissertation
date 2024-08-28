@@ -266,7 +266,7 @@ def train_deep_prime(train_fname: str, hidden_size: int, num_layers: int, num_fe
 
     # return model
 
-def predict_deep_prime(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_features: int = 24, dropout: float = 0, adjustment: str = None, source: str='dp') -> Tuple[Dict[int, np.ndarray], np.ndarray]:
+def predict(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_features: int = 24, dropout: float = 0, adjustment: str = None, source: str='dp') -> Tuple[Dict[int, np.ndarray], np.ndarray]:
     """Make predictions using the DeepPrime model
 
     Args:
