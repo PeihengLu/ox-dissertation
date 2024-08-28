@@ -5,7 +5,7 @@ from scipy.stats import pearsonr, spearmanr
 
 from typing import List
 from models.conventional_ml_models import mlp, ridge_regression, lasso_regression, xgboost, random_forest
-from models.deepprime import deepprime, preprocess_deep_prime
+from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
 import pickle
 import pandas as pd
 import numpy as np
@@ -192,7 +192,10 @@ class EnsembleWeightedMean:
             
             predictions = []
             for base_learner in self.models[i]:
-                predictions.append(base_learner.predict(features).flatten())
+                if base_learner == 'dp':
+                    predictions.append(base_learner.predict(preprocess_deep_prime(data)).flatten())
+                else:
+                    predictions.append(base_learner.predict(features).flatten())
             
             if self.optimization:
                 predictions = torch.tensor(predictions, dtype=torch.float32).T
@@ -232,3 +235,39 @@ class EnsembleWeightedMean:
                 performance[ensemble_name] = performance.pop('ensemble')
 
         return performances_pearson, performances_spearman
+    
+
+    def predict(self, data: str):
+        """
+        Perform the prediction using the trained models
+        Produce predictions for the full dataset using corresponding fold models
+        """
+        self.fit(data)
+        dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+        predictions = np.zeros(len(dataset))
+        output = {}
+        for i in range(5):
+            models = self.models[i]
+
+            data = dataset[dataset['fold'] == i]
+            features = data.iloc[:, 2:26].values
+            target = data.iloc[:, -2].values
+            features = torch.tensor(features, dtype=torch.float32)
+
+            # aggregated predictions
+            predictions = []
+
+            for model in models:
+                if isinstance(model, WeightedSkorch):
+                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                else:
+                    predictions = model.predict(features).flatten()
+                predictions.append(predictions)
+
+            ensemble_predictions = torch.tensor(predictions, dtype=torch.float32).T @ torch.tensor(self.ensemble[i], dtype=torch.float32)
+            ensemble_predictions = ensemble_predictions.flatten()
+            output[i] = ensemble_predictions
+            
+
+        return predictions    

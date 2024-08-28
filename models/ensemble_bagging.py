@@ -6,7 +6,7 @@ from os.path import join as pjoin, isfile
 import pandas as pd
 import collections
 from scipy.stats import pearsonr, spearmanr
-from models.deepprime import deepprime, preprocess_deep_prime
+from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
 
 class EnsembleBagging:
     def __init__(self, n_rounds: int = 3, sample_percentage: float = 0.7):
@@ -137,7 +137,7 @@ class EnsembleBagging:
             # aggregated predictions
             agg_predictions = np.zeros_like(target)
             for model, weight in zip(models, model_weights):
-                if isinstance(model, deepprime):
+                if isinstance(model, WeightedSkorch):
                     predictions = model.predict(preprocess_deep_prime(data)).flatten()
                 else:
                     predictions = model.predict(features).flatten()
@@ -148,3 +148,36 @@ class EnsembleBagging:
             performances_spearman['bag'].append(spearmanr(agg_predictions, target)[0])
         
         return performances_pearson, performances_spearman
+    
+    
+    def predict(self, data: str):
+        """
+        Perform the prediction using the trained models
+        Produce predictions for the full dataset using corresponding fold models
+        """
+        self.fit(data)
+        dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
+        data_source = '-'.join(data.split('-')[1:]).split('.')[0]
+        predictions = np.zeros(len(dataset))
+        for i in range(5):
+            alphas = self.model_weights[i]
+            models = self.models[i]
+
+            data = dataset[dataset['fold'] == i]
+            features = data.iloc[:, 2:26].values
+            target = data.iloc[:, -2].values
+            features = torch.tensor(features, dtype=torch.float32)
+
+            # aggregated predictions
+            agg_predictions = np.zeros(len(target))
+
+            for model, alpha in zip(models, alphas):
+                if isinstance(model, WeightedSkorch):
+                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                else:
+                    predictions = model.predict(features).flatten()
+                agg_predictions += alpha * predictions
+
+            predictions[data.index] = agg_predictions
+
+        return predictions    

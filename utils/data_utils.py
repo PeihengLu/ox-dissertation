@@ -698,6 +698,21 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
     
     features += ['group-id', 'editing-efficiency']
     
+    pe = target.split('-')[-1].split('.')[0]
+    
+    pam_table = {
+        'pe2max_epegrna': 'NGG',
+        'pe2max': 'NGG',
+        'pe4max': 'NGG',
+        'pe4max_epegrna': 'NGG',
+        'nrch_pe4max': 'NGG',
+        'pe2': 'NGG',
+        'nrch_pe2': 'NGG',
+        'nrch_pe2max': 'NGG',
+    }
+    
+    pam = pam_table[pe]
+    
     # load the data
     data = pd.read_csv(source)
     
@@ -773,7 +788,7 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
         pbs_len = len(pbs)
 
         # pam disrupted
-        pam_disrupted = not (wt_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3] == mut_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3])
+        pam_disrupted = not match_pam(mut_sequence[item['protospacer-location-r']:item['protospacer-location-r']+len(pam)], pam)
 
         # maximal length of consecutive nucleotide sequence
         if len(get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)) > 1:
@@ -887,7 +902,7 @@ def convert_to_ensemble_df(data: pd.DataFrame) -> pd.DataFrame:
         pbs_len = len(pbs)
 
         # pam disrupted
-        pam_disrupted = not (wt_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3] == mut_sequence[item['protospacer-location-r']:item['protospacer-location-r']+3])
+        pam_disrupted = match_pam
 
         # maximal length of consecutive nucleotide sequence
         if len(get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)) > 1:
@@ -1043,7 +1058,22 @@ def align_wt_mut_sequences(wt_sequence: str, mut_sequence: str, edit_position: i
     
     return wt_sequence, mut_sequence
     
+def match_pam(sequence: str, pam: str) -> bool:
+    """
+    Check if the sequence is a valid PAM sequence
 
+    Args:
+        sequence (str): DNA sequence
+        pam (str): PAM sequence
+    
+    Returns:
+        bool: True if the sequence is a valid PAM sequence, False otherwise
+    """
+    # N refers to any nucleotide
+    for i in range(len(pam)):
+        if pam[i] != 'N' and sequence[i] != pam[i]:
+            return False
+    return True
 
 # =============================================================================
 # Training Data Preprocessing
