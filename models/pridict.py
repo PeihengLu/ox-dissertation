@@ -713,10 +713,12 @@ def predict(test_fname: str, num_features: int=24, device: str = 'cuda', dropout
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
+    data_source = model_name.split('-')[1:]
+    data_source = '-'.join(data_source)
     model_name = '-'.join(model_name.split('-')[1:])
-    models = [os.path.join('models', 'trained-models', 'pridict', f'{model_name}-fold-{i}.pt') for i in range(1, 6)]
+    models = [os.path.join('models', 'trained-models', 'pridict', f'pd-{data_source}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
-    test_data_all = pd.read_csv(os.path.join('models', 'data', 'pridict', test_fname))    
+    test_data_all = pd.read_csv(os.path.join('models', 'data', 'pridict', f'pd-{data_source}.csv'))    
     # remove rows with nan values
     test_data_all = test_data_all.dropna()
     # transform to float
@@ -755,8 +757,7 @@ def predict(test_fname: str, num_features: int=24, device: str = 'cuda', dropout
         # if adjustment:
         #     pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"), f_optimizer=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-optimizer.pt"), f_history=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}-history.json"))
         # else:
-        pd_model.load_params(f_params=os.path.join('models', 'trained-models', 'pridict', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
-
+        pd_model.load_params(f_params=model)
         print(f'Predicting fold {i+1}...')
         
         y_pred = pd_model.predict(X_test).flatten()

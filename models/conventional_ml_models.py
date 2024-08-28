@@ -244,6 +244,112 @@ def mlp_weighted(save_path: str, fine_tune: bool=False) -> BaseEstimator:
     return estimator
 
 # ================================================
+# Predictions
+# ================================================
+
+from os.path import join as pjoin, basename
+import pickle
+
+def mlp_predict(data: str) -> np.ndarray:
+    """
+    Make predictions using the MLP model on a csv file
+    """
+    data_source = '-'.join(basename(data).split('.')[0].split('-')[1:])
+    data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
+    
+    data = pd.read_csv(data_path)
+    # run predictions across five folds
+    predictions = {}
+    for fold in range(5):
+        fold_data = data[data['fold'] == fold]
+        # load the model
+        model = mlp(f'')
+        model.initialize()
+        model.load_params(f_params=f'models/data/conventional-ml/mlp-{data_source}-fold-{fold+1}.pt')
+
+        features = fold_data.iloc[:, :24].values
+        features = features.astype(np.float32)
+        
+        # make predictions
+        predictions[fold] = model.predict(features)
+
+    return predictions
+
+def xgboost_predict(data: str) -> np.ndarray:
+    """
+    Make predictions using the XGBoost model on a csv file
+    """
+    data_source = '-'.join(basename(data).split('.')[0].split('-')[1:])
+    data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
+    
+    data = pd.read_csv(data_path)
+    # run predictions across five folds
+    predictions = {}
+    for fold in range(5):
+        fold_data = data[data['fold'] == fold]
+        # load the model
+        with open(f'models/data/conventional-ml/xgboost-{data_source}-fold-{fold+1}.pkl', 'rb') as f:
+            model = pickle.load(f)
+        
+        features = fold_data.iloc[:, :24].values
+        features = features.astype(np.float32)
+        
+        # make predictions
+        predictions[fold] = model.predict(features)
+
+    return predictions
+
+def random_forest_predict(data: str) -> np.ndarray:
+    """
+    Make predictions using the Random Forest model on a csv file
+    """
+    data_source = '-'.join(basename(data).split('.')[0].split('-')[1:])
+    data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
+    
+    data = pd.read_csv(data_path)
+    # run predictions across five folds
+    predictions = {}
+    for fold in range(5):
+        fold_data = data[data['fold'] == fold]
+        # load the model
+        with open(f'models/data/conventional-ml/random_forest-{data_source}-fold-{fold+1}.pkl', 'rb') as f:
+            model = pickle.load(f)
+
+        features = fold_data.iloc[:, :24].values
+        features = features.astype(np.float32)
+        
+        # make predictions
+        predictions[fold] = model.predict(features)
+
+    return predictions
+
+def ridge_predict(data: str) -> np.ndarray:
+    """
+    Make predictions using the Ridge Regression model on a csv file
+    """
+    data_source = '-'.join(basename(data).split('.')[0].split('-')[1:])
+    data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
+    
+    data = pd.read_csv(data_path)
+    # run predictions across five folds
+    predictions = {}
+    for fold in range(5):
+        fold_data = data[data['fold'] == fold]
+        # load the model
+        model = ridge_regression()
+        
+        
+        # load the data
+        data = pd.read_csv(data_path)
+        features = data.iloc[:, :24].values
+        features = features.astype(np.float32)
+        
+        # make predictions
+        predictions[fold] = model.predict(features)
+
+    return predictions
+
+# ================================================
 # Helper functions
 # ================================================
 from utils.stats_utils import get_pearson_and_spearman_correlation

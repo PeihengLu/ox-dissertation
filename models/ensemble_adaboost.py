@@ -328,10 +328,10 @@ def predict(data: str):
     Produce predictions for the full dataset using corresponding fold models
     """
     model = EnsembleAdaBoost()
-    model.fit(data)
-    dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
     data_source = '-'.join(data.split('-')[1:]).split('.')[0]
-    predictions = {}
+    model.fit(f'ensemble-{data_source}.csv')
+    dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', f'ensemble-{data_source}.csv'))
+    predictions = dict()
     for i in range(5):
         alphas = model.alphas[i].flatten()
         models = model.models[i]
@@ -344,12 +344,12 @@ def predict(data: str):
         # aggregated predictions
         agg_predictions = np.zeros(len(target))
 
-        for model, alpha in zip(models, alphas):
-            if isinstance(model, WeightedSkorch):
-                predictions = model.predict(preprocess_deep_prime(data)).flatten()
+        for m, alpha in zip(models, alphas):
+            if isinstance(m, WeightedSkorch):
+                prediction = m.predict(preprocess_deep_prime(data)).flatten()
             else:
-                predictions = model.predict(features).flatten()
-            agg_predictions += alpha * predictions
+                prediction = m.predict(features).flatten()
+            agg_predictions += alpha * prediction
 
         predictions[i] = agg_predictions
 

@@ -674,7 +674,7 @@ def convert_to_SHAP(source: str) -> None:
 
     # save the extracted information
     output_df = pd.DataFrame(output, columns=feature_list, dtype=np.float16)
-    output_df.to_csv(pjoin('..', 'shap', target), index=False)
+    output_df.to_csv(pjoin('shap', target), index=False)
     
 def convert_to_shap_1bp(source: str) -> None:
     '''

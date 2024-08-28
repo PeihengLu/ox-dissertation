@@ -243,11 +243,10 @@ def predict(data: str):
     Produce predictions for the full dataset using corresponding fold models
     """
     model = EnsembleWeightedMean()
-    model.fit(data)
-    dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', data))
     data_source = '-'.join(data.split('-')[1:]).split('.')[0]
-    predictions = np.zeros(len(dataset))
-    output = {}
+    model.fit(f'ensemble-{data_source}.csv')
+    dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', f'ensemble-{data_source}.csv'))
+    predictions = dict()
     for i in range(5):
         models = model.models[i]
 
@@ -257,18 +256,18 @@ def predict(data: str):
         features = torch.tensor(features, dtype=torch.float32)
 
         # aggregated predictions
-        predictions = []
+        prediction_list = []
 
-        for model in models:
-            if isinstance(model, WeightedSkorch):
-                predictions = model.predict(preprocess_deep_prime(data)).flatten()
+        for m in models:
+            if isinstance(m, WeightedSkorch) or isinstance(m, skorch.NeuralNet):
+                prediction = m.predict(preprocess_deep_prime(data)).flatten()
             else:
-                predictions = model.predict(features).flatten()
-            predictions.append(predictions)
+                prediction = m.predict(features).flatten()
+            prediction_list.append(prediction)
 
-        ensemble_predictions = torch.tensor(predictions, dtype=torch.float32).T @ torch.tensor(model.ensemble[i], dtype=torch.float32)
+        ensemble_predictions = torch.tensor(prediction_list, dtype=torch.float32).T @ torch.tensor(model.ensemble[i], dtype=torch.float32)
         ensemble_predictions = ensemble_predictions.flatten()
-        output[i] = ensemble_predictions
+        predictions[i] = ensemble_predictions
         
 
     return predictions    

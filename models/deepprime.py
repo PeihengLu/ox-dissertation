@@ -278,10 +278,12 @@ def predict(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_fe
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
+    data_source = model_name.split('-')[1:]
+    data_source = '-'.join(data_source)
     model_name = '-'.join(model_name.split('-')[1:])
-    models = [os.path.join('models', 'trained-models', 'deepprime', f'{model_name}-fold-{i}.pt') for i in range(1, 6)]
+    models = [os.path.join('models', 'trained-models', 'deepprime', f'dp-{data_source}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
-    test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', test_fname))    
+    test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', f'dp-{data_source}.csv'))
     # apply standard scalar
     # cast all numeric columns to float
     test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
@@ -308,10 +310,8 @@ def predict(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_fe
         y_test = y_test.reshape(-1, 1)
         y_test = torch.tensor(y_test, dtype=torch.float32)
         dp_model.initialize()
-        if adjustment:
-            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
-        else:
-            dp_model.load_params(f_params=os.path.join('models', 'trained-models', 'deepprime', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
+        
+        dp_model.load_params(f_params=model, f_optimizer=None, f_history=None, f_criterion=None)
         
         y_pred = dp_model.predict(X_test)
         if adjustment == 'log':

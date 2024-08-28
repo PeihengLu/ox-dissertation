@@ -638,14 +638,16 @@ def train_transformer(train_fname: str, lr: float, batch_size: int, epochs: int,
         
     return model
 
-def predict(test_fname: str, num_features: int, adjustment: str = None, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False) -> skorch.NeuralNetRegressor:
+def predict(test_fname: str, num_features: int = 24, adjustment: str = None, device: str = 'cuda', dropout: float=0, percentage: float = 1.0, annot: bool = False) -> skorch.NeuralNetRegressor:
     # model name
     fname = os.path.basename(test_fname)
     model_name =  fname.split('.')[0]
+    data_source = model_name.split('-')[1:]
+    data_source = '-'.join(data_source)
     model_name = '-'.join(model_name.split('-')[1:])
-    models = [os.path.join('models', 'trained-models', 'transformer', f'{model_name}-fold-{i}.pt') for i in range(1, 6)]
+    models = [os.path.join('models', 'trained-models', 'transformer', f'transformer-{data_source}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
-    test_data_all = pd.read_csv(os.path.join('models', 'data', 'transformer', test_fname))    
+    test_data_all = pd.read_csv(os.path.join('models', 'data', 'transformer', f'transformer-{model_name}.csv'))    
     # if percentage is less than 1, then use a subset of the data
     if percentage < 1:
         test_data_all = test_data_all.sample(frac=percentage, random_state=42)
