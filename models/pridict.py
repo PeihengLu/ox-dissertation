@@ -735,7 +735,7 @@ def predict(test_fname: str, num_features: int=24, device: str = 'cuda', dropout
         device=device,
     )
 
-    prediction = {}
+    prediction = dict()
     performance = []
     
     fold = 5

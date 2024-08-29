@@ -101,7 +101,7 @@ class EnsembleAdaBoost:
                         predictions = model.predict(features).flatten()
                     predictions = np.array(predictions)
                     # calculate the correlation between the predictions and the target as the model weight
-                    alpha = spearmanr(predictions, target_np)[0]
+                    alpha = abs(spearmanr(predictions, target_np)[0])
                     # calculate relative error for each sample
                     error = np.abs(predictions - target_np)
                     error = error / target_np
@@ -331,6 +331,8 @@ def predict(data: str):
     data_source = '-'.join(data.split('-')[1:]).split('.')[0]
     model.fit(f'ensemble-{data_source}.csv')
     dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', f'ensemble-{data_source}.csv'))
+    # drop nan
+    dataset = dataset.dropna()
     predictions = dict()
     for i in range(5):
         alphas = model.alphas[i].flatten()
@@ -353,4 +355,4 @@ def predict(data: str):
 
         predictions[i] = agg_predictions
 
-    return predictions    
+    return predictions

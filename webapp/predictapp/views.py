@@ -9,9 +9,14 @@ from django.views.decorators.csrf import csrf_exempt
 import pandas as pd
 import numpy as np
 import sys
+# add the absolute path of the project to the sys.path
+sys.path.append('/home/peiheng/development/ox-dissertation')
+
 import logging
 log = logging.getLogger(__name__)
 from .deepcas9 import runprediction
+from models.ensemble_bagging import predict_df
+from utils.data_utils import convert_to_ensemble_df, match_pam
 
 # Define your PyTorch model (replace with your actual model)
 class DummyModel(torch.nn.Module):
@@ -35,7 +40,6 @@ def predict(request):
         data = json.loads(request.body)
         sequence: str = data.get('dna_sequence', 0)
         pe_cell_line: str = data.get('pe_cell_line', 0)
-        
         pe, cellline = pe_cell_line.split('-')
         pe = pe.lower()
         cellline = cellline.lower()
@@ -51,19 +55,42 @@ def predict(request):
             'nrch_pe2max': 'NRCH',
         }
         
-        
         trained_on_pridict_only = ['k562', 'adv']
 
         wt_sequence, mut_sequence, edit_position, mut_type, edit_length = prime_sequence_parsing(sequence)
 
         # return the pegRNA design in std format
         pegRNAs = propose_pegrna(wt_sequence=wt_sequence, mut_sequence=mut_sequence, edit_position=edit_position, mut_type=mut_type, edit_length=edit_length, pam=pam_table[pe], pridict_only=cellline in trained_on_pridict_only)
+
+        pegRNAs_aligned = pegRNAs.copy()
+        pegRNAs_aligned['pbs-location-l'] = pegRNAs['pbs-location-l'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['pbs-location-r'] = pegRNAs['pbs-location-r'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['lha-location-l'] = pegRNAs['lha-location-l'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['lha-location-r'] = pegRNAs['lha-location-r'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['rha-location-l'] = pegRNAs['rha-location-l'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['rha-location-r'] = pegRNAs['rha-location-r'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['rtt-location-l'] = pegRNAs['rtt-location-l'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['rtt-location-r'] = pegRNAs['rtt-location-r'] - pegRNAs['protospacer-location-l'] + 10
+        pegRNAs_aligned['protospacer-location-l'] = 10
+        pegRNAs_aligned['protospacer-location-r'] = 30
+
+        # log.info(f'Proposed pegRNAs: {pegRNAs.columns}')
+        ensemble_data = convert_to_ensemble_df(pegRNAs_aligned, pam=pam_table[pe])
+        # log.info(f'Running ensemble prediction on {len(ensemble_data)} sequences')
+        # log.info(f'PE: {pe}, Cellline: {cellline}')
+        # log.info(f'Ensemble data: {ensemble_data}') 
+        efficiencies = predict_df(ensemble_data, cell_line=cellline, pe=pe)
         
         # load all models trained on the specified cell line and prime editors
         # then takes an average of the predictions
         # TODO implement the model loading and prediction
         # TODO realign the locations to starting from 10 bp upstream of the protospacer
-        pegRNAs['editing_efficiency'] = [0.1 for _ in range(len(pegRNAs))]
+        pegRNAs['predicted_efficiency'] = efficiencies
+        # change all - in the column names to _
+        pegRNAs.columns = [col.replace('-', '_') for col in pegRNAs.columns]
+
+        # order by predicted efficiency
+        pegRNAs = pegRNAs.sort_values(by='predicted_efficiency', ascending=False)
 
         # return the pegRNAs as well as the original sequence
         response = {
@@ -130,6 +157,7 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
     # 99bp sequence starting from 10bp upstream of the protospacer
     wt_sequences = []
     mut_sequences = []
+    edit_lengths = []
     
     for pam_distance_to_edit in edit_to_pam_range:
         # no valid PAM sequence
@@ -152,69 +180,40 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
                 protospacer_location_r.append(pam_position)
                 wt_sequences.append(wt_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
                 mut_sequences.append(mut_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
-                # TODO figure out deepspcas9 score
                 rtt_location_l.append(lha_location_l[-1])
                 rtt_location_r.append(rha_location_r[-1])
                 mut_types.append(mut_type)
+                edit_lengths.append(edit_length)
 
     spcas9_sequence_list = []
     # spcas9 takes 30 bp long sequence starting from 4bp upstream of the protospacer
     for i in range(len(protospacer_location_l)):
         spcas9_sequence_list.append(wt_sequences[i][protospacer_location_l[i] - 4: protospacer_location_l[i] + 26])
     log.info(f'Running DeepCas9 prediction on {len(spcas9_sequence_list)} sequences')
-    sp_cas9_score = runprediction(spcas9_sequence_list)
+    spcas9_score = runprediction(spcas9_sequence_list)
     log.info(f'DeepCas9 prediction complete')
     log.info(f'returns {len(sp_cas9_score)} scores')
 
     
     df = pd.DataFrame({
-        'pbs_location_l': pbs_location_l,
-        'pbs_location_r': pbs_location_r,
-        'lha_location_l': lha_location_l,
-        'lha_location_r': lha_location_r,
-        'rha_location_l': rha_location_l,
-        'rha_location_r': rha_location_r,
-        'protospacer_location_l': protospacer_location_l,
-        'protospacer_location_r': protospacer_location_r,
-        'rtt_location_l': rtt_location_l,
-        'rtt_location_r': rtt_location_r,
-        'sp_cas9_score': sp_cas9_score,
-        'mut_type': mut_types,
-        'wt_sequence': wt_sequences,
-        'mut_sequence': mut_sequences
+        'pbs-location-l': pbs_location_l,
+        'pbs-location-r': pbs_location_r,
+        'lha-location-l': lha_location_l,
+        'lha-location-r': lha_location_r,
+        'rha-location-l': rha_location_l,
+        'rha-location-r': rha_location_r,
+        'protospacer-location-l': protospacer_location_l,
+        'protospacer-location-r': protospacer_location_r,
+        'rtt-location-l': rtt_location_l,
+        'rtt-location-r': rtt_location_r,
+        'spcas9-score': spcas9_score,
+        'mut-type': mut_types,
+        'wt-sequence': wt_sequences,
+        'mut-sequence': mut_sequences,
+        'edit-len': edit_lengths,
     })
 
     return df
-    
-def match_pam(sequence: str, pam: str) -> bool:
-    """
-    Check if the sequence is a valid PAM sequence
-
-    Args:
-        sequence (str): DNA sequence
-        pam (str): PAM sequence
-    
-    Returns:
-        bool: True if the sequence is a valid PAM sequence, False otherwise
-    """
-    # N refers to any nucleotide
-    match = True
-    for i in range(len(pam)):
-        if pam[i] == 'N':
-            continue
-        elif pam[i] == 'R':
-            if sequence[i] not in ['A', 'G']:
-                match = False
-                break
-        elif pam[i] == 'H':
-            if sequence[i] not in ['A', 'C', 'T']:
-                match = False
-                break
-        else:
-            if sequence[i] != pam[i]:
-                match = False
-                break
-    return match
     
 def index(request):
     log.info('Index request received')

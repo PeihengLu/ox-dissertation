@@ -658,25 +658,26 @@ def predict(test_fname: str, num_features: int = 24, adjustment: str = None, dev
     
     sequence_length = len(test_data_all['wt-sequence'].values[0])
 
-    m = PrimeDesignTransformer(sequence_length=sequence_length, pdropout=dropout, num_encoder_units=3, num_features=num_features, onehot=True, annot=annot, flash=False, local=False)
+    m = PrimeDesignTransformer(sequence_length=sequence_length, pdropout=0, num_encoder_units=1, num_features=num_features, onehot=True, annot=True, flash=False, local=False)
     
-    accelerator = Accelerator(mixed_precision='bf16')
+    # accelerator = Accelerator(mixed_precision='bf16')
             
     # skorch model
-    tr_model = AcceleratedNet(
+    tr_model = skorch.NeuralNetRegressor(
         m,
-        accelerator=accelerator,
+        # accelerator=accelerator,
         criterion=nn.MSELoss,
         optimizer=torch.optim.AdamW,
+        device='cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
     )
 
-    prediction = {}
+    prediction = dict()
     performance = []
 
     # Load the models
     for i, model in enumerate(models):
-        if not os.path.isfile(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt")):
-            continue
+        # if not os.path.isfile(os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt")):
+        #     continue
         
         test_data = test_data_all[test_data_all['fold']==i]
         X_test = test_data
@@ -689,7 +690,7 @@ def predict(test_fname: str, num_features: int = 24, adjustment: str = None, dev
         if adjustment:
             tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
         else:
-            tr_model.load_params(f_params=os.path.join('models', 'trained-models', 'transformer', f"{'-'.join(os.path.basename(test_fname).split('.')[0].split('-')[1:])}-fold-{i+1}.pt"))
+            tr_model.load_params(f_params=model)
         
         y_pred = tr_model.predict(X_test)
         if adjustment == 'log':

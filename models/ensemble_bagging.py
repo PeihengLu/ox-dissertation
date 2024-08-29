@@ -8,6 +8,8 @@ import collections
 from scipy.stats import pearsonr, spearmanr
 from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
 import skorch
+import logging
+log = logging.getLogger(__name__)
 
 class EnsembleBagging:
     def __init__(self, n_rounds: int = 3, sample_percentage: float = 0.7):
@@ -86,10 +88,10 @@ class EnsembleBagging:
                     # use pearson correlation as the weight
                     if base_learner == 'dp':
                         predictions = model.predict(preprocess_deep_prime(data_round)).flatten()
-                        model_weights.append(pearsonr(predictions, target_round)[0])
+                        # model_weights.append(pearsonr(predictions, target_round)[0])
                     else:
                         predictions = model.predict(features_round).flatten()
-                    model_weights.append(pearsonr(predictions, target_round)[0])
+                    model_weights.append(abs(spearmanr(predictions, target_round)[0]))
 
             self.models.append(models)
             # normalize the weights
@@ -182,4 +184,54 @@ def predict(data: str):
 
         predictions[i] = agg_predictions
 
-    return predictions    
+def predict_df(data: pd.DataFrame, cell_line: str, pe: str) -> np.ndarray:
+    """
+    Perform the prediction using the trained models on a DataFrame
+
+    Args:
+        data (pd.DataFrame): the data to perform the prediction on
+        cell_line (str): the cell line to predict
+        pe (str): the pe to predict
+
+    Returns:
+        np.ndarray: the predicted editing efficiency
+    """
+    model = EnsembleBagging()
+    data_sources = ['pd', 'dp', 'dp_small']
+    predictions = []
+
+    log.log(msg=f'Predicting on {len(data)} sequences', level=logging.INFO)
+
+    for data_source in data_sources:
+        if isfile(pjoin('models', 'data', 'ensemble', f'ensemble-{data_source}-{cell_line}-{pe}.csv')):
+            model.fit(f'ensemble-{data_source}-{cell_line}-{pe}.csv')
+        else:
+            log.error(f'No data found for {data_source}-{cell_line}-{pe}')
+            continue
+
+        log.log(msg=f'Running ensemble prediction on {len(data)}', level=logging.INFO)
+        for i in range(5):
+            alphas = model.model_weights[i]
+            models = model.models[i]
+
+            features = data.iloc[:, 2:26].values
+            features = features.astype(np.float32)
+
+            # aggregated predictions
+            agg_predictions = np.zeros(len(
+                data.iloc[:, -2].values
+            ))
+
+            for m, alpha in zip(models, alphas):
+                if isinstance(m, WeightedSkorch) or isinstance(m, skorch.NeuralNet):
+                    prediction = m.predict(preprocess_deep_prime(data)).flatten()
+                else:
+                    prediction = m.predict(features).flatten()
+                agg_predictions += alpha * prediction
+
+            predictions.append(agg_predictions)
+
+    # calculate the mean of the predictions
+    predictions = np.mean(predictions, axis=0)
+
+    return predictions

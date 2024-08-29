@@ -14,6 +14,8 @@ import sklearn
 import torch.utils
 import skorch
 from sklearn.preprocessing import StandardScaler
+import logging
+log = logging.getLogger(__name__)
 
 util_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
 sys.path.append(util_path)
@@ -150,19 +152,24 @@ def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp', sample_weig
     # sequence data
     wt_seq = X_train['wt-sequence'].values
     mut_seq = X_train['mut-sequence'].values
+
+    # log.info(f'number of wildtype sequences: {len(wt_seq)}')
     
     # crop the sequences to 74bp if longer
-    print(len(wt_seq[0]))
     if len(wt_seq[0]) > 74:
         wt_seq = [seq[:74] for seq in wt_seq]
         mut_seq = [seq[:74] for seq in mut_seq]
     
     # the rest are the features
     features = X_train.iloc[:, 2:26].values
+    features = features.astype(np.float32)
+
+    # log.info(f'Features: {features[0]}')
     
     # concatenate the sequences
     seqs = []
     for wt, mut in zip(wt_seq, mut_seq):
+        # log.info(f'Wildtype: {wt}, Mutant: {mut}')
         seqs.append(wt + mut)
     
     if source != 'org':
@@ -170,6 +177,7 @@ def preprocess_deep_prime(X_train: pd.DataFrame, source: str = 'dp', sample_weig
     else:
         nut_to_ix = {'x': 0, 'A': 1, 'C': 2, 'G': 3, 'T': 4}
 
+    # log.info(f'Sequences: {seqs}')
 
     output = {
         'g': torch.tensor([[nut_to_ix[n] for n in seq] for seq in seqs], dtype=torch.float32),
@@ -284,6 +292,8 @@ def predict(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_fe
     models = [os.path.join('models', 'trained-models', 'deepprime', f'dp-{data_source}-fold-{i}.pt') for i in range(1, 6)]
     # Load the data
     test_data_all = pd.read_csv(os.path.join('models', 'data', 'deepprime', f'dp-{data_source}.csv'))
+    # drop nan values
+    test_data_all = test_data_all.dropna()
     # apply standard scalar
     # cast all numeric columns to float
     test_data_all.iloc[:, 2:26] = test_data_all.iloc[:, 2:26].astype(float)
@@ -297,7 +307,7 @@ def predict(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_fe
         device=device,
     )
 
-    prediction = {}
+    prediction = dict()
     performance = []
 
     # Load the models
@@ -328,7 +338,7 @@ def predict(test_fname: str, hidden_size: int = 128, num_layers: int = 1, num_fe
     del dp_model    
     torch.cuda.empty_cache()
     
-    return prediction, performance
+    return prediction
 
 def fine_tune_deepprime(fine_tune_fname: str=None):    
     # load the fine tune datasets

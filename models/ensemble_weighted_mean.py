@@ -167,7 +167,7 @@ class EnsembleWeightedMean:
                 self.ensemble[i] = []
                 # using the pearson correlation as the weight
                 for j in range(self.n_regressors):
-                    self.ensemble[i].append(spearmanr(predictions[:, j], target)[0])
+                    self.ensemble[i].append(abs(spearmanr(predictions[:, j], target)[0]))
                     print(f"Weight for model {j}: {self.ensemble[i][-1]}")
                 self.ensemble[i] = np.array(self.ensemble[i])
                 # normalize the weights
@@ -242,10 +242,11 @@ def predict(data: str):
     Perform the prediction using the trained models
     Produce predictions for the full dataset using corresponding fold models
     """
-    model = EnsembleWeightedMean()
+    model = EnsembleWeightedMean(optimization=False)
     data_source = '-'.join(data.split('-')[1:]).split('.')[0]
     model.fit(f'ensemble-{data_source}.csv')
     dataset = pd.read_csv(pjoin('models', 'data', 'ensemble', f'ensemble-{data_source}.csv'))
+    dataset = dataset.dropna()
     predictions = dict()
     for i in range(5):
         models = model.models[i]

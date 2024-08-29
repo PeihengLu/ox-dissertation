@@ -152,7 +152,7 @@ class MLP(torch.nn.Module):
         elif activation == 'logistic':
             self.activation = torch.nn.Sigmoid()
 
-    def forward(self, x, sample_weight=None):
+    def forward(self, x, g=None, sample_weight=None):
         x = self.activation(self.input_layer(x))
         for i in range(len(self.hidden_layer_sizes)-1):
             x = self.activation(getattr(self, f'hidden_layer_{i}')(x))
@@ -258,14 +258,15 @@ def mlp_predict(data: str) -> np.ndarray:
     data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
     
     data = pd.read_csv(data_path)
+    data = data.dropna()
     # run predictions across five folds
-    predictions = {}
+    predictions = dict()
     for fold in range(5):
         fold_data = data[data['fold'] == fold]
         # load the model
         model = mlp(f'')
         model.initialize()
-        model.load_params(f_params=f'models/data/conventional-ml/mlp-{data_source}-fold-{fold+1}.pt')
+        model.load_params(f_params=f'models/trained-models/conventional-ml/mlp-{data_source}-fold-{fold+1}.pt')
 
         features = fold_data.iloc[:, :24].values
         features = features.astype(np.float32)
@@ -282,13 +283,13 @@ def xgboost_predict(data: str) -> np.ndarray:
     data_source = '-'.join(basename(data).split('.')[0].split('-')[1:])
     data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
     
-    data = pd.read_csv(data_path)
+    data = pd.read_csv(data_path).dropna()
     # run predictions across five folds
-    predictions = {}
+    predictions = dict()
     for fold in range(5):
         fold_data = data[data['fold'] == fold]
         # load the model
-        with open(f'models/data/conventional-ml/xgboost-{data_source}-fold-{fold+1}.pkl', 'rb') as f:
+        with open(f'models/trained-models/conventional-ml/xgboost-{data_source}-fold-{fold+1}.pkl', 'rb') as f:
             model = pickle.load(f)
         
         features = fold_data.iloc[:, :24].values
@@ -306,13 +307,13 @@ def random_forest_predict(data: str) -> np.ndarray:
     data_source = '-'.join(basename(data).split('.')[0].split('-')[1:])
     data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
     
-    data = pd.read_csv(data_path)
+    data = pd.read_csv(data_path).dropna()
     # run predictions across five folds
-    predictions = {}
+    predictions =dict()
     for fold in range(5):
         fold_data = data[data['fold'] == fold]
         # load the model
-        with open(f'models/data/conventional-ml/random_forest-{data_source}-fold-{fold+1}.pkl', 'rb') as f:
+        with open(f'models/trained-models/conventional-ml/random_forest-{data_source}-fold-{fold+1}.pkl', 'rb') as f:
             model = pickle.load(f)
 
         features = fold_data.iloc[:, :24].values
@@ -330,18 +331,18 @@ def ridge_predict(data: str) -> np.ndarray:
     data_source = '-'.join(basename(data).split('.')[0].split('-')[1:])
     data_path = pjoin('models', 'data', 'conventional-ml', f'ml-{data_source}.csv')
     
-    data = pd.read_csv(data_path)
+    data = pd.read_csv(data_path).dropna()
     # run predictions across five folds
-    predictions = {}
+    predictions = dict()
     for fold in range(5):
         fold_data = data[data['fold'] == fold]
         # load the model
-        model = ridge_regression()
-        
+        with open(f'models/trained-models/conventional-ml/ridge-{data_source}-fold-{fold+1}.pkl', 'rb') as f:
+            model = pickle.load(f)
         
         # load the data
         data = pd.read_csv(data_path)
-        features = data.iloc[:, :24].values
+        features = fold_data.iloc[:, :24].values
         features = features.astype(np.float32)
         
         # make predictions

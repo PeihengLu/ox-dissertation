@@ -416,10 +416,12 @@
                         wt_sequence: row.wt_sequence || '',
                         mut_sequence: row.mut_sequence || '',
                         mut_type: row.mut_type || '',
-                        sp_cas9_score: row.sp_cas9_score || '',
+                        // spcas9_score: row.spcas9_score || '',
+                        edit_len: row.edit_len || '',
+                        // spcas9_score: row.spcas9_score || '',
                     }));
                     // Removing wt_sequence and mut_sequence for table display
-                    const displayData = globalData.map(({ wt_sequence, mut_sequence, mut_type, ...rest }) => rest);
+                    const displayData = globalData.map(({ wt_sequence, mut_sequence, mut_type, edit_len, ...rest }) => rest);
                     displayResult(displayData);
                 } else {
                     alert("No pegRNA data found.");

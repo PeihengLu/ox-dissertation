@@ -9,6 +9,8 @@ import ast
 import tqdm
 import torch
 from typing import List, Tuple
+import logging
+log = logging.getLogger(__name__)
 
 from utils.features import get_gc_content_and_count, get_melting_temperature, get_minimum_free_energy, get_consecutive_n_sequences
 
@@ -996,11 +998,10 @@ def convert_to_conventional_ml(source: str) -> pd.DataFrame:
     
     return output_df
 
-def convert_to_ensemble_df(data: pd.DataFrame) -> pd.DataFrame:
+def convert_to_ensemble_df(data: pd.DataFrame, pam: str) -> pd.DataFrame:
     """ Convert loaded std data to ensemble data format
-
     """
-    features = ['wt_sequence', 'mut_sequence', 'gc-count-pbs', 'rha-length', 'pbs-length', 'gc-count-extension',
+    features = ['wt-sequence', 'mut-sequence', 'gc-count-pbs', 'rha-length', 'pbs-length', 'gc-count-extension',
        'melting-temperature-pbs', 'spcas9-score', 'lha-length',
        'maximal-length-of-consecutive-t-sequence', 'edit-type-replacement',
        'g-at-protospacer-position-16', 'gc-content-rha', 'pam-disrupted',
@@ -1010,9 +1011,7 @@ def convert_to_ensemble_df(data: pd.DataFrame) -> pd.DataFrame:
        't-at-protospacer-position-16', 'gc-content-extension', 'gc-count-rha',
        'g-at-protospacer-position-15', 'g-at-protospacer-position-19',
        'gc-content-pbs']
-    
-    features += ['group-id', 'editing-efficiency']
-    
+        
     output = []
     
     for ind, item in tqdm.tqdm(data.iterrows(), total=len(data)):
@@ -1088,7 +1087,8 @@ def convert_to_ensemble_df(data: pd.DataFrame) -> pd.DataFrame:
         pbs_len = len(pbs)
 
         # pam disrupted
-        pam_disrupted = match_pam
+        pam_disrupted = match_pam(mut_sequence[item['protospacer-location-r']:item['protospacer-location-r']+len(pam)], pam)
+        pam_disrupted = float(pam_disrupted)
 
         # maximal length of consecutive nucleotide sequence
         if len(get_consecutive_n_sequences('T', cDNA) + get_consecutive_n_sequences('T', protospacer)) > 1:
@@ -1096,19 +1096,23 @@ def convert_to_ensemble_df(data: pd.DataFrame) -> pd.DataFrame:
         else:
             t_max_length = 0
         
-        # spcas9_score = item['spcas9-score']
-        # spcas9_score needs to be calculated
+        spcas9_score = item['spcas9-score']
 
-        editing_efficiency = item['editing-efficiency']
+        log.log(msg=f'wt-sequence: {wt_sequence}', level=logging.INFO)
+        log.log(msg=f'mut-sequence: {mut_sequence}', level=logging.INFO)
+        log.log(msg=f'features: {[gc_count_pbs, rha_len, pbs_len, gc_count_extension, melting_temperature_pbs, spcas9_score, lha_len, t_max_length, edit_type == 0, g_at_protospacer_position[15], gc_content_rha, pam_disrupted, edit_len, c_at_protospacer_position[16], melting_temperature_rha, minimum_free_energy_extension, a_at_protospacer_position[12], a_at_protospacer_position[13], t_at_protospacer_position[15], gc_content_extension, gc_count_rha, g_at_protospacer_position[14], g_at_protospacer_position[18], gc_content_pbs]}', level=logging.INFO)
 
-        output.append([wt_sequence, mut_sequence, gc_count_pbs, rha_len, pbs_len, gc_count_extension, melting_temperature_pbs, spcas9_score, lha_len, t_max_length, edit_type == 0, g_at_protospacer_position[15], gc_content_rha, pam_disrupted, edit_len, c_at_protospacer_position[16], melting_temperature_rha, minimum_free_energy_extension, a_at_protospacer_position[12], a_at_protospacer_position[13], t_at_protospacer_position[15], gc_content_extension, gc_count_rha, g_at_protospacer_position[14], g_at_protospacer_position[18], gc_content_pbs, item['group-id'], editing_efficiency])
+        output.append([wt_sequence, mut_sequence, gc_count_pbs, rha_len, pbs_len, gc_count_extension, melting_temperature_pbs, spcas9_score, lha_len, t_max_length, edit_type == 0, g_at_protospacer_position[15], gc_content_rha, pam_disrupted, edit_len, c_at_protospacer_position[16], melting_temperature_rha, minimum_free_energy_extension, a_at_protospacer_position[12], a_at_protospacer_position[13], t_at_protospacer_position[15], gc_content_extension, gc_count_rha, g_at_protospacer_position[14], g_at_protospacer_position[18], gc_content_pbs])
 
     # save the extracted information
-    output_df = pd.DataFrame(output, columns=features, dtype=np.float32)
+    output_df = pd.DataFrame(output, columns=features)
     # join output_df with data
-    output_df = pd.concat([data, output_df], axis=1)
+    # drop the sequences
+    # data = data.drop(columns=['wt-sequence', 'mut-sequence'])
+    # output_df = pd.concat([output_df, data], axis=1)
     # move group_id and editing_efficiency to the end
-    output_df = output_df[[col for col in output_df.columns if col not in ['group-id', 'editing-efficiency']] + ['group-id', 'editing-efficiency']]
+    # output_df = output_df[[col for col in output_df.columns if col not in ['group-id', 'editing-efficiency']] + ['group-id', 'editing-efficiency']]
+
     return output_df
 
 # =============================================================================

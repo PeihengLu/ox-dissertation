@@ -12,6 +12,12 @@ To preserve the sequence features acquired on the DeepPrime main dataset, the se
 
 \subsection{Performance on All Datasets}
 
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{all_models_performance.png}
+    \caption[Performance of the models on all datasets]{Performance of the deep learning models on all datasets. The x-axis represents the dataset name, while the y-axis represents the Spearman correlation}
+\end{figure}
+
 As discussed in \autoref{sec:ensemble}, all three ensemble models were able to significantly outperform the base learners on the PRIDICT HEK293T PE2 dataset. Thus, power weighted mean ensemble, bagging and adaboost were trained on all available datasets alongside the transformer model to evaluate their performance against the base learners, as well as DeepPrime and PRIDICT.
 
 \subsection{Performance on Individual Editing Types}
