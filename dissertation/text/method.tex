@@ -336,15 +336,13 @@ To get an understanding of the suitability of the ensemble learning and establis
     \label{fig:error-analysis}
 \end{figure}
 
-Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$ for all model pairs, and $R>0.5$ for all pairs except Ridge and Lasso regressions with other models). This may suggest that the models are making similar errors, and an ensemble of these models may not be significantly outperform the individual models, especially for algorithms like AdaBoost that heavily relies on the diversity of the base learners. 
+Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$ and $R>0.5$ for all model pairs). This may suggest that the models are making similar errors, and an ensemble of these models may not be significantly outperform the individual models, especially for algorithms like AdaBoost that heavily relies on the diversity of the base learners. 
 
-The ridge and lasso regression models had 100\% spearman correlation, as they are essentially the same model with different penalty terms. This ruled out the necessity of using both models in the ensemble, and only the ridge regression was preserved due to its superior stability, as lasso regression's L1 regularization can result in zeros in coefficients and cause abrupt changes in the prediction. 
+A number of models had especially strong correlation ($r>0.9$). The ridge and lasso regression models had 100\% spearman correlation, as they are essentially the same model with different penalty terms. At the same time, despite having much better performance, the XGBoost and MLP model seemed to be making similar mistakes on the examples in the DeepPrime dataset ($r=0.95, R=0.83$).
 
-DeepPrime and PRIDICT models also had a high correlation, despite significant difference in architecture. This may indicate that the two models are both strong enough to fit to the data as accurately as possible, and an ensemble of the two models may not be very beneficial. 
+Howeve, very different results were observed when conducting further analysis on the four PRIDICT models (\autoref{appendix:error-analysis-figures}). Very high correlation among MLP, Lasso, Ridge and Random Forest models were observed in PRIDICT Adv and K562 datasets, while only the two tree based models XGBoost and Random Forest were highly correlated in the PRIDICT HEK293T and K562MLH1dn datasets.  
 
-Interestingly, despite both being tree based models, the Random Forest and XGBoost models had a relatively low correlation in terms of error, with a Spearman correlation of 0.7. This suggests that the different ensembling method used by Random Forest and XGBoost have an impact on the prediction, and the two models can complement each other in the ensemble. Thus, the testing ensemble models were selected to be the Ridge regression, Random Forest, XGBoost, and the MLP model.
-
-The same analysis was conducted on all PRIDICT datasets, with consistent results, shown in \autoref{appendix:error-analysis-figures}. However, the correlation between DeepPrime and PRIDICT was weaker on those datasets. Still, given the much longer training time of PRIDICT model, only DeepPrime would be used in the final ensemble model. 
+The only consistent observation was the high correlation between the two varients of linear regression models, Lasso and Ridge, always achieving 100\% Spearman and Pearson correlation. This ruled out the necessity of using both models in the ensemble, and only the ridge regression was preserved due to its superior stability, as lasso regression's L1 regularization can result in zeros in coefficients and cause abrupt changes in the prediction.
 
 
 \subsection{Ensemble Using Weighted Averaging}
