@@ -75,16 +75,16 @@ class EnsembleWeightedMean:
         """
         self.ensemble = [None for _ in range(5)]
         self.optimization = optimization
-        self.n_regressors = n_regressors
         self.with_features = with_features
         self.models = []
         self.base_learners = {
             'ridge': ridge_regression,
             'xgb': xgboost,
             'rf': random_forest,
-            'mlp': mlp,
-            'dp': deepprime
+            # 'mlp': mlp,
+            # 'dp': deepprime
         }
+        self.n_regressors = len(self.base_learners)
         self.dl_models = ['mlp', 'dp']
 
     # fit would load the models if trained, if not, it would train the models

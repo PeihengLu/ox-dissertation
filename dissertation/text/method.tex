@@ -4,6 +4,8 @@
 
 \section{Curating a Benchmarking Dataset}
 
+\label{sec:datasets}
+
 Before starting the development of novel models, to establish a common ground for evaluating the performance of machine learning models, a benchmarking dataset was curated using data from various literatures. The main data source is the 2024 study by Mathis et al. which has the most diverse editing types ranging from 1-to-5bp replacement to 1-to-15bp deletions and insertions\cite{mathisMachineLearningPrediction2024}. It is complimented by the DeepPrime dataset, as it has a much bigger HEK293T dataset ($\sim290,000$ vs $\sim22,000$ for DeepPrime and PRIDICT respectively) as well as a wider range of cell type and PE pairs that can be used for fine-tuning the model to achieve better generalizability and higher impact\cite{yuPredictionEfficienciesDiverse2023}. 
 
 In the DeepPrime data, the mutated sequences in the datasets were masked, exposing only the region corresponding to PBS-RTT. To match the PRIDICT format, the mutated sequences were unmasked and aligned to the wild type sequences. 
@@ -207,7 +209,7 @@ To help the models trained on PRIDICT datasets work on unseen data supplied by t
     \subfigure[Replacement]{
         \includegraphics[width=0.33\textwidth]{shap-pd-hek293t-pe2-replace.png}
     }%
-    \caption[SHAP analysis for DeepPrime and PRIDICT2.0 datasets]{SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line: \textbf{(a)} Top 15 determinants from SHAP analysis using all of DeepPrime HEK293T Datasets. \textbf{(b-d)} Top 10 determinants from SHAP analysis using PRIDICT2.0 HEK293T data for each individual editing types. The colour of the individual data point shows their normalized values from high (red) to low (blue). The binary values have 1 (True) for high and 0 (False) for low. A number of shorthands have been used to improve the clarity of the illustrations. gcc for GC Content (different from GC count); et for editing type; tm for melting temperature; mfe for minimum free energy; n ap \# for base n at protospacer position \#; max cns for the length of maximum consecutive sequence of base n.} 
+    \caption[SHAP analysis for DeepPrime and PRIDICT2.0 datasets]{SHAP analysis for DeepPrime and PRIDICT2.0 datasets on HEK293T cell line: \textbf{(a)} Top 15 determinants from SHAP analysis using all of DeepPrime HEK293T Datasets. \textbf{(b-d)} Top 10 determinants from SHAP analysis using PRIDICT2.0 HEK293T data for each individual editing types. The colour of the individual data point shows their normalized values from high (red) to low (blue). A number of shorthands have been used to improve the clarity of the illustrations. gcc for GC Content (different from GC count); et for editing type; tm for melting temperature; mfe for minimum free energy; n ap \# for base n at protospacer position \#; max cns for the length of maximum consecutive sequence of base n.} 
     \label{fig:shap}
 \end{figure}
 
@@ -226,7 +228,7 @@ The major determinants are as follows:
     \item \textcolor{red}{Minimum free energy}: minimum free energy (MFE) describes the lowest possible energy required for a RNA sequence to stay in a particular form\cite{lorenzViennaRNAPackage2011}. It appears to have similar effect to Tm, with low MFE in the extension being beneficial for the editing efficiency.
     % TODO: Check MFE 
     \item \textcolor{red}{GC content/count}: GC count in the PBS sequence was shown to be the most important feature for the DeepPrime dataset (Figure \ref{fig:shap-dp-pe2-hek}), consistent with the observation made by Liu et al in their 2019 study introducing prime editors\cite{liudavidr.SearchandreplaceGenomeEditing2019}. They expected lower editing efficiency with low GC count in the PBS, due to the energetic requirements of hybridization of the nicked DNA strand to the PBS. GC content also correlates to the minimum free energy and melting temperature, as GC base pairs have stronger hydrogen bond than AU base pairs.
-    \item \textcolor{red}{Poly-T sequences}: Shown as `max cts' in \autoref{fig:shap}, the length of the longest consecutive T (poly-T) sequences in the cDNA of the 3'extension and spacer RNA sequences has a clear negative impact on the editing efficiency. The poly-T termination signal, while not causing termination in itself, causes catalytic inactivation and backtracking of Pol III\cite{nielsenMechanismEukaryoticRNA2013}
+    \item \textcolor{red}{Poly-T sequences}: Shown as `max cts' in \autoref{fig:shap}, the length of the longest consecutive T (poly-T) sequences in the cDNA of the pegRNA sequence has a clear negative impact on the editing efficiency. Poly-T sequences are known to cause premature termination of the RNA polymerase III (Pol III) during transcription when the pegRNA plasmids are being transcribed. This can significantly hinders the effectiveness of pegRNA transfection, ending the editing process before the components are even produced\cite{nielsenMechanismEukaryoticRNA2013}.
     \item \textcolor{red}{SpCas9 score}: DeepSpCas9 is a deep learning model that estimates the activity of the SpCas9 protein on a target loci, and has been shown to be a good indicator of prime editing efficiency\cite{kimPredictingEfficiencyPrime2021}. This is likely due the SpCas9's role in the prime editing process, as it is responsible for the initial binding of the pegRNA to the target loci. 
     \item \textcolor{red}{PAM disruption}: it was shown that prime editors can sometimes rebind to the edited sequences and induce unintended edits, lowering the editing efficiency\cite{liudavidr.SearchandreplaceGenomeEditing2019}. Thus, the disruption of the PAM sequence is beneficial for the editing efficiency as it prevents the reannealing of the pegRNA to the edited sequence.
     \item \textcolor{red}{LHA/RHA/PBS length}: the length of rha (right homology arm, RTT overhang) is a significant determinant for all editing types, with a short rha length leading to deceased prime editing efficiency, while the positive effect of a long rha is not as pronounced. This suggests the existence of a minimum threshold for rha length below which the edited strand cannot efficiently anneal to the unedited strand, consistent with the findings of Yu et al, 2023, recommending a rha length of at least 7nt\cite{yuPredictionEfficienciesDiverse2023}. Reported as edit position in some literatures, lha length corresponding to the distance between the PAM sequence and the edit location is also a significant feature for all editing types, especially insertion and deletion. A longer lha length adversely affects the editing efficiency, suggesting that although prime editors have less stringent requirements for PAM locations, editing should still be done close to the protospacer whenever possible. As for PBS length, both a very short and a very long PBS have a negative impact on the editing efficiency, suggesting an optimal range.
@@ -249,9 +251,9 @@ as HAP1(derived from a chronic myelogenous leukemia patient)\cite{mathisPredicti
 \section{Conventional Machine Learning Models}
 \label{sec:conventional-ml}
 
-Using the top 24 extracted features, a number of conventional machine learning models were trained to serve as a baseline for the deep learning models. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron.
+Using the top 24 extracted features, a number of conventional machine learning models were trained to serve as a baseline for the more complex models to be developed in this project. The models include Lasso and Ridge regression, Random Forest Regressor, Gradient Boosted Trees from the XGBoost library, and a Multi-Layer Perceptron.
 
-Their hyperparameter were optimized on one fold of the DeepPrime HEK293T using sklearn's GridSearchCV function, following the protocol used by PRIDICT. The performance of the optimized models were then evaluated using Pearson and Spearman correlation on the DeepPrime and PRIDICT dataset for three different cell types on all 5 folds to provide a more accurate estimation of the models' performance. The MLP model involved the additional Skorch library to allow for the use of scikit-learn's GridSearchCV for hyperparameter optimization on the Pytorch model. The optimized parameters for the models are as follows:
+Their hyperparameter were optimized on one fold of the DeepPrime HEK293T PE2 dataset using sklearn's GridSearchCV function, consistent with the protocol used by mathis et al during the development of PRIDICT. The performance of the optimized models were then evaluated using Pearson and Spearman correlation on the DeepPrime and PRIDICT dataset for three different cell types on all 5 folds to provide a more accurate estimation of the models' performance. The MLP model involved the additional Skorch library to allow for the use of scikit-learn's GridSearchCV for hyperparameter optimization on the Pytorch model. The optimized parameters for the models are as follows:
 
 \begin{itemize}[itemsep=-0mm]
     \item \textcolor{blue}{Lasso}: \verb|alpha=0.006158482110660266| (coefficient for penalty term for L1 regularization)
@@ -308,7 +310,7 @@ For easier identification, the training models stored in `trained-models' direct
 
 \subsection{Error Analysis}
 
-To get an understanding of the suitability of the ensemble learning and establish an expectation of how helpful would ensemble learning be with the given set of models, the error distribution of the individual models were analyzed using the PRIDICT HEK293T dataset after they have fully converged. The prediction of the five folds were combined to form the final prediction of the full dataset.
+To get an understanding of the suitability of the ensemble learning and establish an expectation of how helpful  ensemble learning would be with the given set of models, the error distribution of the individual models were analyzed using the PRIDICT HEK293T dataset. The prediction of the five folds were combined to form the final prediction of the full dataset.
 
 \begin{figure}
     \centering
@@ -334,7 +336,7 @@ To get an understanding of the suitability of the ensemble learning and establis
     \label{fig:error-analysis}
 \end{figure}
 
-Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$ for all model pairs, and $R>0.5$ for all pairs except Ridge and Lasso regressions with other models). This may suggest that the models are making similar errors, and an ensemble of these models may not be significantly outperform the individual models, especially for algorithms like AdaBoost that heavily relies on the diversity of the base learners. At the same time, the low target values of majority of the DeepPrime HEK293T dataset could result in a high Pearson correlation, and since we care more about the ranking of the predicted efficiencies in this task when comparing different pegRNA designs, the Spearman correlation could be more informative.
+Shown in \autoref{fig:error-analysis}, high correlation in terms of both Pearson and Spearman correlation was observed between the individual models($r>0.5$ for all model pairs, and $R>0.5$ for all pairs except Ridge and Lasso regressions with other models). This may suggest that the models are making similar errors, and an ensemble of these models may not be significantly outperform the individual models, especially for algorithms like AdaBoost that heavily relies on the diversity of the base learners. 
 
 The ridge and lasso regression models had 100\% spearman correlation, as they are essentially the same model with different penalty terms. This ruled out the necessity of using both models in the ensemble, and only the ridge regression was preserved due to its superior stability, as lasso regression's L1 regularization can result in zeros in coefficients and cause abrupt changes in the prediction. 
 
@@ -461,17 +463,35 @@ Ideally, the tuning process should be repeated for each dataset. However, consid
         \includegraphics[width=0.9\textwidth]{ensemble-adaboost-threshold-power-fixed-at-3.png}
         \label{fig:ensemble-adaboost-threshold-power-3}
     }
-    \caption{
+    \caption[AdaBoost Tuning]{
         Pearson (\textbf{left}) and spearman (\textbf{right}) performance of the AdaBoost ensemble model on one fold of the PRIDICT HEK293T dataset with different error rate threshold $\phi$, power $n$ and number of rounds. 3 repeated runs were conducted on the same fold for each configuration. The mean performance was shown in the bar plot, while the performance of each individual run was shown in the scatter plot. The dotted line represents the highest pearson/spearman correlation among all configurations for easier comparison across different power values. 
     }
     \label{fig:ensemble-adaboost-tuning}
 \end{figure}
 
-The result of the tuning process is shown in \autoref{fig:ensemble-adaboost-tuning}. As expected, the performance of the AdaBoost model was very sensitive to the error rate threshold. However, the power of the error rate or the number of base estimators (number of rounds) did not have a significant impact on the performance of the model. Boosting for multiple rounds did slightly improved the performance when the threshold is low (0.05), but did not help when the threshold is set at higher values. As for power, the overall performance was slightly improved with higher power, but the difference was again not significant.
+The result of the tuning process is shown in \autoref{fig:ensemble-adaboost-tuning}. As expected, the performance of the AdaBoost model was very sensitive to the error rate threshold. However, the power of the error rate or the number of base estimators (number of rounds) did not have a significant impact on the performance of the model. Boosting for multiple rounds did slightly improved the performance when the threshold is low (0.05), but did not help when the threshold is set at higher values. As for power, the overall performance was slightly improved with higher value of $n$, but the difference was not significant.
 
-As the threshold increases, the performance plummets, as the model focuses more on the misclassified examples and overfits to the training data. Yet, this effect is only observed when the model has more than 1 round of boosting. When the number of rounds is set to 1, the model's performance actually slightly increases with higher threshold. This may suggest that AdaBoost is not outperforming the simple power weighted mean algorithm, since with a very high threshold and low error rate, the algorithm effectively becomes a weighted mean algorithm. 
+At the same time, as the threshold increases, the performance plummets, as the model focuses more on the misclassified examples and overfits to the training data. Yet, this effect is only observed when the model has more than 1 round of boosting. When the number of rounds is set to 1, the model's performance actually slightly increases with higher threshold. This may suggest that AdaBoost is not outperforming the simple power weighted mean algorithm, since with a very high threshold and low error rate, the algorithm effectively becomes a weighted mean algorithm. 
 
-There are multiple configurations with very similar performance, but the best pearson's $r$ was achieved with a threshold of 0.7 and a power of 3 after one round of boosting, while the best Spearman's $R$ was achieved with a threshold of 0.5 and a power of 3, also after one round of boosting. Following the principle that the Spearman's correlation is a closer representation of the objective of this task, the configuration with a threshold of 0.5 and a power of 3 was selected as the final AdaBoost model for further testing on the DeepPrime dataset.`'
+There are multiple configurations with very similar performance, but the best pearson's $r$ was achieved with a threshold of 0.7 and a power of 3 after one round of boosting, while the best Spearman's $R$ was achieved with a threshold of 0.5 and a power of 3, also after one round of boosting. Following the principle that the Spearman's correlation is a closer representation of the objective of this task, the configuration with a threshold of 0.5 and a power of 3 was selected as the final AdaBoost model for further testing on the DeepPrime dataset.
+
+\begin{figure}
+    \centering
+    \subfigure[Pearson]{
+        \centering
+        \includegraphics[width=0.45\textwidth]{ensemble_adaboost_comparison_Pearson.png}
+        \label{fig:ensemble-adaboost-pearson}
+    }%
+    \subfigure[Spearman]{
+        \centering
+        \includegraphics[width=0.45\textwidth]{ensemble_adaboost_comparison_Spearman.png}
+        \label{fig:ensemble-adaboost-spearman}
+    }%
+    \caption[AdaBoost Ensemble Model Performance]{Pearson \textbf{(a)} and Spearman \textbf{(b)} Performance of the AdaBoost ensemble model alongside bagging, power weighted mean and base learners. The horizontal line represents the mean performance of the AdaBoost model across all five folds of the PRIDICT HEK293T dataset.}
+    \label{fig:ensemble-adaboost}
+\end{figure}
+
+\autoref{fig:ensemble-adaboost} compares the performance of AdaBoost with the previously developed ensemble models bagging and performance weighted mean, as well as the base learners using the optimized parameters. AdaBoost matched the performance of the bagging ensemble, with slightly higher Pearson's correlation and similar Spearman's correlation compared to performance weighted mean. 
 
 \section{Adoption of Transformer Model}
 
@@ -574,9 +594,10 @@ The next stage focuses on the parameter size of the model. Since the MLP modules
 Each configuration was repeated for 3 runs to get a better representation of the model's performance, with the result shown in \autoref{fig:transformer-tune}. 
 The effects of dropout rate varied with the number of encoder and decoder units as well as the positional feedforward embedding size. With 100 hidden units, performance consistently increased with dropout rate 0.2 or 0.3, and then started to plummet. With 50 and 150 units, the trend is similar when 1 or 3 encoder/decoder units were used, but with an initial drop in performance when the dropout rate was increased from 0.05 to 0.1. However, when a stack of 5 encoder/decoder units were used, the 150 hidden unit configurations still follows the first increase then decrease trend, while the 50 hidden unit configuration showed a steady decrease in both pearson and spearman correlation as the dropout rate increased.
 
-Overall, the configuration with dropout rate of 0.2, 1 encoder and decoder unit, and positional feedforward hidden unit size of 100 achieved the highest performance in terms of both Pearson and Spearman correlation, and the 3 encoder and decoder units configuration with 0.3 dropout trails closely behind. The performance difference were not significant between the best and the second best configurations (pearson's $r$ of 0.82 vs 0.82, spearman's rank correlation of 0.84 vs 0.84, $p>0.1$, paired t-test). However, the 1 encoder and decoder unit configuration consumes significantly less computational resources and was significantly faster to train. Taking into the practical considerations, the 1 encoder and decoder unit configuration was selected as the final model.
+Overall, the configuration with dropout rate of 0.2, 1 encoder and decoder unit, and positional feedforward hidden unit size of 100 achieved the highest performance in terms of both Pearson and Spearman correlation, and the 3 encoder and decoder units configuration with 0.3 dropout trails closely behind. The performance difference were not significant between the best and the second best configurations (pearson's $r$ of 0.82 vs 0.82, spearman's rank correlation of 0.84 vs 0.84, $p>0.1$, paired t-test). However, the 1 encoder and decoder unit configuration consumes significantly less computational resources and was significantly faster to train. Taking the practical considerations into account, the 1 encoder and decoder unit configuration was selected as the final model.
 
 As a result, the final model was configured with 1 encoder and decoder unit, positional feedforward hidden unit size of 100, 3 scalar dot product attention heads, and a dropout rate of 0.2. 
+
 
 \section{Development of pegRNA Design Web Tool}
 
@@ -586,7 +607,7 @@ User input should be in the PRIDICT format of \{at-lesat-100bp\}-(before-edit/af
 
 The result is returned as a JSON response and is parsed by the front end as a table of pegRNA candidates with their corresponding editing efficiency. The pegRNA's composition with regard to the wild type sequence can also be visualized by selecting a particular result for easier interpretation.
 
-Other than the model itself, an algorithm for suggesting candidate pegRNAs given a desirable edit was also implemented. Supposing the nick is done at 3bp upstream of the PAM, for the edit to be possible, the PAM sequence must be at most 3bp downstream of the edit start location (in which case LHA length is 0). Additionally, the protospacer must begin with a guanine nucleotide (G), so that the U6 motor used for the transcription of the pegRNA can recognize the sequence and start the expression\cite{hsieh-fengEfficientExpressionMultiple2020}.
+Other than the model itself, an algorithm for suggesting candidate pegRNAs given a desirable edit was also implemented. Supposing the nick is done at 3bp upstream of the PAM, for the edit to be possible, the PAM sequence must be at most 3bp downstream of the edit start location (in which case LHA length is 0). 
 
 These requirements have the most significant constraint on the LHA length, as it always starts at the nick site 3bp upstream of the PAM and must end at the edit location. Thus, its length depends entirely on the choice of the protospacer location. PBS and RHA, on the other hand, are much more flexible in length, as they can be freely extended to their 3' and 5' ends respectively.
 However, as discussed in \autoref{sec:determinants}, the length of LHA, RHA and PBS all have significant impact on the editing efficiency. To come up with a recommended range for these parameters, a more detailed analysis of the relationship between the lengths and the editing efficiency was conducted.
@@ -638,7 +659,7 @@ The user can supply their target edit in the correct format in the input box, an
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.6\textwidth]{webapp-table.png}
+    \includegraphics[width=\textwidth]{webapp-table.png}
     \caption[pegRNA Design Web Tool Output]{Output of the pegRNA Design Web Tool. The output contains the position of the protospacer, RTT and PBS, as well as the predicted editing efficiency. For each pegRNA, the user can click on the `Visualize Sequence' button to see the composition of the pegRNA with regard to the wild type sequence.}
     \label{fig:webtool-output}
 \end{figure}
@@ -646,10 +667,12 @@ The user can supply their target edit in the correct format in the input box, an
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{webapp-visualization.png}
-    \caption[pegRNA Design Web Tool Visualization]{Visualization of the pegRNA Design Web Tool. The composition of the pegRNA with regard to the wild type sequence is shown, with the brackets indicating the position of the protospacer, RTT and PBS.}
+    \caption[pegRNA Design Web Tool Visualization]{Visualization of the pegRNA Design Web Tool. The composition of the pegRNA with regard to the wild type sequence is shown, with the brackets indicating the position of the protospacer, RTT and PBS. To highlight the edit position, the base pairs involved in the edit are colored in red.}
     \label{fig:webtool-visualize}
 \end{figure}
 
 % TODO replace all figures in this section
 
 After the user submits the input, the web tool would process the input and return the a number of proposed pegRNAs in a table format (\autoref{fig:webtool-output}). The output contains the position of the protospacer, RTT and PBS, as well as the predicted editing efficiency. For each pegRNA, the user can click on the `Visualize Sequence' button to see the composition of the pegRNA with regard to the wild type sequence (\autoref{fig:webtool-visualize}).
+
+Note that although the corresponding 20bp protospacer sequence does not necessarily start with a guanine (G), the spacer sequence must begin with a G so that the U6 motor used for the transcription of the pegRNA can recognize the sequence and start the expression\cite{hsieh-fengEfficientExpressionMultiple2020}.

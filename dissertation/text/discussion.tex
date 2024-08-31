@@ -1,7 +1,13 @@
 \chapter{Discussion}
 
-The cross attention mechanism is possibly more suitable for the case of base editing efficiency prediction, since the editing window is relatively static with regard to the protospacer location. While for prime editors, even by following the more stringent constraint on LHA length than practical standard, the edit position can vary in a window as wide as 20bp. This resulted in a far bigger possible range of possible outcomes
+Overall, the ensemble models have shown promising results in predicting the efficiency of prime editing in a number of configurations of prime editors and cell lines. They are able to achieve on par performance with the current state of the art model, PRIDICT and DeepPrime on most datasets other than the DeepPrime HEK293T PE2 dataset. 
 
-A number of alternative structures could be experimented with 
+However, the transformer model underperformed in this task, unable to achieve the same level of performance as the ensemble models. This is possibly due to the inherent differences between the tasks of prime editing and base editing efficiency prediction. 
+
+For base editors, the editing window is relatively static with regard to the protospacer location. At the same time, each base editor can only introduce a single type of base change, resulting a very small amount of possible outcomes, and the relationship between the wild type and mutated sequence is relatively predictable.
+
+At the same time, the prime editing efficiency prediction task is more complex, as the prime editor can introduce a variety of changes to the target sequence. The editing window is also dynamic, as the prime editor can introduce changes at different locations after the nick site of the protospacer. 
+
+I avoided modifying the architecture of the transformer model too much as development of a new architecture would require a significant amount of time and resources beyond the limit of this project. However, a number of alternative architectures can be explored that may improve upon the performance of the transformer model. 
 
 The performance of the ensemble can also be improved further by performing hyperparameter tuning on each dataset instead of using the parameters from PRIDICT HEK293T PE2 dataset as representative setting. 

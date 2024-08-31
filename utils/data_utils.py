@@ -68,7 +68,7 @@ def convert_from_deepprime_org(data: pd.DataFrame, cell_line: str, editor: str, 
         elif item['type_del']:
             mut_type = 2
         
-        protospacer_location_l = 4
+        protospacer_location_l = 5
         protospacer_location_r = 24
 
         protospacer = wt_sequence[protospacer_location_l:protospacer_location_r]
@@ -308,13 +308,13 @@ def convert_from_pridict2_org(data: pd.DataFrame) -> None:
         rtt_location_mut = ast.literal_eval(item['RT_mutated_location'])
 
         protospacer_location_l = protospacer_location[0]
-        protospacer_location_r = protospacer_location[1] + 1
-        pbs_location_l = pbs_location[0] + 1
-        pbs_location_r = pbs_location[1] + 1
-        rtt_location_wt_l = rtt_location_wt[0] + 1
-        rtt_location_wt_r = rtt_location_wt[1] + 1
-        rtt_location_mut_l = rtt_location_mut[0] + 1
-        rtt_location_mut_r = rtt_location_mut[1] + 1
+        protospacer_location_r = protospacer_location[1]
+        pbs_location_l = pbs_location[0]
+        pbs_location_r = pbs_location[1]
+        rtt_location_wt_l = rtt_location_wt[0]
+        rtt_location_wt_r = rtt_location_wt[1]
+        rtt_location_mut_l = rtt_location_mut[0]
+        rtt_location_mut_r = rtt_location_mut[1]
 
         mut_type = mutation_types.index(item['Mutation_Type'])
         if mut_type == 3: # deletion

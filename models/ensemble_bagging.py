@@ -19,10 +19,10 @@ class EnsembleBagging:
         self.n_rounds = n_rounds
         self.base_learners = {
             'xgb': xgboost,
-            'mlp': mlp,
+            # 'mlp': mlp,
             'ridge': ridge_regression,
             'rf': random_forest,
-            'dp': deepprime
+            # 'dp': deepprime
         }
         self.dl_models = ['mlp', 'dp']
         self.models = []
@@ -133,6 +133,7 @@ class EnsembleBagging:
                 else:
                     with open(f'{save_path}.pkl', 'rb') as f:
                         model = pickle.load(f)
+                
                 predictions = model.predict(features).flatten()
                 performances_pearson[base_learner].append(pearsonr(predictions, target)[0])
                 performances_spearman[base_learner].append(spearmanr(predictions, target)[0])
@@ -183,6 +184,8 @@ def predict(data: str):
             agg_predictions += alpha * prediction
 
         predictions[i] = agg_predictions
+
+    return predictions
 
 def predict_df(data: pd.DataFrame, cell_line: str, pe: str) -> np.ndarray:
     """

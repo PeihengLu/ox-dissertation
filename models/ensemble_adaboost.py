@@ -18,10 +18,10 @@ class EnsembleAdaBoost:
         self.n_rounds = n_rounds
         self.base_learners = {
             'xgb': xgboost,
-            'mlp': mlp_weighted,
+            # 'mlp': mlp_weighted,
             'ridge': ridge_regression,
             'rf': random_forest,
-            'dp': deepprime_weighted
+            # 'dp': deepprime_weighted
         }
         self.dl_models = ['mlp', 'dp']
         self.models = []
@@ -313,7 +313,10 @@ class EnsembleAdaBoost:
             agg_predictions = np.zeros(len(target))
 
             for model, alpha in zip(models, alphas):
-                predictions = model.predict(features).flatten()
+                if isinstance(model, WeightedSkorch):
+                    predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                else:
+                    predictions = model.predict(features).flatten()
                 agg_predictions += alpha * predictions
 
             # calculate the performance

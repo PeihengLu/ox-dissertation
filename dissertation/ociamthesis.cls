@@ -80,7 +80,7 @@
 %
 
 \ifmc@nobind
-\usepackage[includehead,hmargin={3.1cm, 3.1cm}, vmargin={2.5cm,2.7cm}, headsep=.8cm,footskip=1.2cm]{geometry}
+\usepackage[includehead,hmargin={3.1cm, 3.1cm}, vmargin={3cm,3.2cm}, headsep=.8cm,footskip=1.2cm]{geometry}
 \else
 \usepackage[includehead,hmargin={3.6cm, 2.6cm}, vmargin={2.5cm,2.7cm}, headsep=.8cm,footskip=1.2cm]{geometry}
 \fi
@@ -97,9 +97,9 @@
 \renewcommand{\headrulewidth}{0pt}
 \fancyhead[LO]{\emph{\leftmark}} 
 \fancyhead[R]{\emph{\rightmark}} 
-\fancyhead[RO,L]{\emph{\thepage}}
+\fancyhead[RO]{\emph{\thepage}}
 
-\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\emph{\thepage}}}
+% \fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\emph{\thepage}}}
 
 % JEM fix header on cleared pages for openright
 \def\cleardoublepage{\clearpage\if@twoside \ifodd\c@page\else
@@ -372,7 +372,7 @@
    {\end{list}\mtcaddchapter}
 
 
-\usepackage[grey,utopia]{quotchap} 
+% \usepackage[grey,utopia]{quotchap} 
 	% To put nice quotes at the beginning of the chapters
 
 \usepackage[nottoc]{tocbibind}
@@ -382,16 +382,16 @@
 \setlength{\textfloatsep}{20pt plus15pt minus4pt}
 
 % JEM: Fix paragraph spacing within quotes for multi-par quotes
-\renewenvironment{savequote}[1][10cm]{%
-\begin{lrbox}{\@quotebox}
-\begin{minipage}[t]{#1}\footnotesize\slshape%
-\setlength{\parskip}{6pt}}{%
-\unskip\end{minipage}\end{lrbox}
-\global\setbox\@quotebox\copy\@quotebox
-\global\let\@printcites\@iprintcites
-\ignorespacesafterend}
-\renewcommand{\qauthor}[1]{\par
-{\raggedleft\upshape #1\qquad\hbox{}\par}\bigskip}
+% \renewenvironment{savequote}[1][10cm]{%
+% \begin{lrbox}{\@quotebox}
+% \begin{minipage}[t]{#1}\footnotesize\slshape%
+% \setlength{\parskip}{6pt}}{%
+% \unskip\end{minipage}\end{lrbox}
+% \global\setbox\@quotebox\copy\@quotebox
+% \global\let\@printcites\@iprintcites
+% \ignorespacesafterend}
+% \renewcommand{\qauthor}[1]{\par
+% {\raggedleft\upshape #1\qquad\hbox{}\par}\bigskip}
 
 % JEM: All of this is so that headers in these sections aren't uppercase
 \let\@ldtoc\tableofcontents
@@ -411,8 +411,8 @@
 \usepackage{lmodern}
 \usepackage[LGR,TS1,T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[greek,latin,english]{babel}
-\usepackage{csquotes}
+% \usepackage[greek,latin,english]{babel}
+% \usepackage{csquotes}
 \hyphenpenalty=500
 \def\longs{{\fontencoding{TS1}\selectfont s}}
 
@@ -439,8 +439,8 @@
 
 
 % JEM: adjust start-of-chapter spacing
-\renewcommand{\chapterheadstartvskip}{\vspace*{40pt}}
-\renewcommand{\chapterheadendvskip}{\vspace{30pt}}
+% \renewcommand{\chapterheadstartvskip}{\vspace*{40pt}}
+% \renewcommand{\chapterheadendvskip}{\vspace{30pt}}
 
 
 % JEM: combine all of the commands you run before appendices start

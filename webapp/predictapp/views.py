@@ -83,8 +83,6 @@ def predict(request):
         
         # load all models trained on the specified cell line and prime editors
         # then takes an average of the predictions
-        # TODO implement the model loading and prediction
-        # TODO realign the locations to starting from 10 bp upstream of the protospacer
         pegRNAs['predicted_efficiency'] = efficiencies
         # change all - in the column names to _
         pegRNAs.columns = [col.replace('-', '_') for col in pegRNAs.columns]
@@ -166,6 +164,9 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
         pam_position = edit_position - pam_distance_to_edit
         if not match_pam(wt_sequence[pam_position: pam_position + len(pam)] , pam):
             continue
+        # check if the protospacer start with a G
+        # if wt_sequence[pam_position - 20] != 'G':
+        #     continue
         nicking_site = pam_position - 3
         for pbs_len in pbs_len_range:
             for rha_len in rha_len_range:
@@ -184,6 +185,40 @@ def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_
                 rtt_location_r.append(rha_location_r[-1])
                 mut_types.append(mut_type)
                 edit_lengths.append(edit_length)
+
+    if len(protospacer_location_l) == 0:
+        log.info('No valid pegRNA found')
+        # keep searching until the end of the sequence
+        edit_to_pam_range = np.arange(edit_to_pam_range[-1] + 1, 70)
+        for pam_distance_to_edit in edit_to_pam_range:
+            # no valid PAM sequence
+            # PAM is 3bp downstream of nicking site
+            # nicking site is the end of PBS and start of LHA
+            pam_position = edit_position - pam_distance_to_edit
+            if not match_pam(wt_sequence[pam_position: pam_position + len(pam)] , pam):
+                continue
+            # check if the protospacer start with a G
+            if wt_sequence[pam_position - 20] != 'G':
+                continue
+            nicking_site = pam_position - 3
+            for pbs_len in pbs_len_range:
+                for rha_len in rha_len_range:
+                    # logging.info(f'PAM position: {pam_position}, PBS length: {pbs_len}, RHA length: {rha_len}')
+                    pbs_location_l.append(nicking_site - pbs_len)
+                    pbs_location_r.append(nicking_site)
+                    lha_location_l.append(nicking_site)
+                    lha_location_r.append(edit_position)
+                    rha_location_l.append(edit_position + edit_length)
+                    rha_location_r.append(edit_position + edit_length + rha_len)
+                    protospacer_location_l.append(pam_position - 20)
+                    protospacer_location_r.append(pam_position)
+                    wt_sequences.append(wt_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
+                    mut_sequences.append(mut_sequence[protospacer_location_l[-1] - 10: protospacer_location_r[-1] + 89])
+                    rtt_location_l.append(lha_location_l[-1])
+                    rtt_location_r.append(rha_location_r[-1])
+                    mut_types.append(mut_type)
+                    edit_lengths.append(edit_length)
+            break
 
     spcas9_sequence_list = []
     # spcas9 takes 30 bp long sequence starting from 4bp upstream of the protospacer

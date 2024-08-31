@@ -15,12 +15,38 @@ To preserve the sequence features acquired on the DeepPrime main dataset, the se
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{all_models_performance.png}
-    \caption[Performance of the models on all datasets]{Performance of the deep learning models on all datasets. The x-axis represents the dataset name, while the y-axis represents the Spearman correlation}
+    \caption[Performance of the models on all datasets]{Performance of the deep learning models on all datasets. The x-axis represents the model name, while the y-axis represents the datasets used for training and testing. The mean performance of the models across five folds is shown in the heatmap, with brighter colours indicating higher pearson or spearman correlation.
+    As mentioned in \autoref{sec:datasets}, the datasets are named in the format of `data source - cell line - prime editor'. 
+    
+    There were three data sources involved during benchmarking - DeepPrime (dp), PRIDICT (pd), and DeepPrime Small (dp\_small, $\sim5k$ examples). At the same time, the cell line and prime editors' names are self-explanatory. 
+    
+    Four models in total were produced in this study - the transformer based model (tr), the power weighted mean ensemble (pwm), the bagging ensemble (bg), and the adaboost ensemble (ab). Their performance is highlighted in the heatmap with the red bounding box.
+    They were compared with the two state of the art deep learning solutions, DeepPrime (dp) and PRIDICT (pd). The datasets where any of the models trained on this study significantly outperformed both DeepPrime and PRIDICT are marked with a blue bounding box (performance across five folds, $p<0.05$, paired t-test).
+    }
+    \label{fig:performance}
 \end{figure}
 
 As discussed in \autoref{sec:ensemble}, all three ensemble models were able to significantly outperform the base learners on the PRIDICT HEK293T PE2 dataset. Thus, power weighted mean ensemble, bagging and adaboost were trained on all available datasets alongside the transformer model to evaluate their performance against the base learners, as well as DeepPrime and PRIDICT.
 
+Unfortunately, the transformer model failed to significantly outperform DeepPrime and PRIDICT on any of five main datasets, with lower Pearson's $r$ and similar Spearman's $R$. It did outperform DeepPrime and PRIDICT on two of the DeepPrime small datasets (A549 PE2-max and A546 with PE2-max using engineered pegRNA (epegRNA)) in terms of Spearman correlation, but not Pearson correlation. The consistently better performance on A549 PE2-max dataset may suggest that the motifs learned by the transformer model is especially useful for this configuration. 
+
+The three ensemble methods showed similar performance across all datasets, with bagging and adaboost often marginally outperforming the power weighted mean ensemble. They significantly outperformed PRIDICT and DeepPrime on two of the PRIDICT datasets in terms of Pearson or Spearman correlation (HEK293T PE2 and K562MLH1dn PE2), and on four of the DeepPrime small datasets. One of the most significant boost in performance was observed on the PRIDICT HEK293T PE2 dataset, where the fine tuning of AdaBoost and Bagging ensemble models was performed. This hints that the ensemble methods, especially AdaBoost and Bagging, can be sensitive to the dataset size and composition, and could benefit from retuning on each dataset.
+
+
 \subsection{Performance on Individual Editing Types}
+
+On top of the overall performance, the performance of the models on individual editing types was also evaluated on the five main datasets to understand the models' ability to handle different types of mutations. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\textwidth]{all_models_performance-edits.png}
+    \caption[Performance of the models on individual editing types]{Performance of the deep learning and ensemble models on individual editing types. The x-axis illustrates the name of the dataset and the corresponding edit type subset (sub[stitution], ins[ertion], [deletion]), while the y-axis represents the model names. Similar to \autoref{fig:performance}, the mean performance of the models across five folds is shown in the heatmap, with brighter colours indicating higher pearson or spearman correlation.}
+    \label{fig:performance_edits}
+\end{figure}
+
+Shown in \autoref{fig:performance_edits}, the performance of insertion is often predicted with the highest accuracy. 
+
+In terms of Spearman rank, the transformer model is often on par or can even slightly outperform PRIDICT and DeepPrime
 
 \section{Attention Analysis}
 \label{sec:attention_analysis}
@@ -28,18 +54,18 @@ As discussed in \autoref{sec:ensemble}, all three ensemble models were able to s
 \begin{figure}
     \centering
     \subfigure[Substitution]{
-        \includegraphics[width=0.88\textwidth]{dp-hek293t-pe2-transformer-only-attention-insertion.png}
+        \includegraphics[width=0.85\textwidth]{dp-hek293t-pe2-transformer-only-attention-replace-1bp.png}
         \label{fig:attention_insertion}
     }
     \subfigure[Insertion]{
-        \includegraphics[width=0.88\textwidth]{dp-hek293t-pe2-transformer-only-attention-insertion.png}
+        \includegraphics[width=0.85\textwidth]{dp-hek293t-pe2-transformer-only-attention-insertion-1bp.png}
         \label{fig:attention_substitution}
     }
     \subfigure[Deletion]{
-        \includegraphics[width=0.88\textwidth]{dp-hek293t-pe2-transformer-only-attention-deletion.png}
+        \includegraphics[width=0.85\textwidth]{dp-hek293t-pe2-transformer-only-attention-deletion-1bp.png}
         \label{fig:attention_deletion}
     }
-    \caption[Attention weights for the DeepPrime model trained on the HEK293T-PE2 dataset]{Attention weights of length 1 edits for the DeepPrime model trained on the HEK293T-PE2 dataset. The x-axis represents the position of the transformer output token, the y-axis indicates the edit position. Red colour indicates higher attention weights, while blue indicates lower attention weights. The example size for each edit location is shown on the right in the format of 'n=number of examples'.}
+    \caption[Attention weights for the DeepPrime model trained on the HEK293T-PE2 dataset]{Attention weights of length 1 edits for the DeepPrime model trained on the HEK293T-PE2 dataset. The x-axis represents the position of the transformer output token, the y-axis indicates the edit position. Red colour indicates higher attention weights, while blue represents lower attention weights. The example size for each edit location is shown on the right in the format of `n=number of examples'.}
     \label{fig:attention}
 \end{figure}
 
@@ -62,10 +88,6 @@ However, for deletion, the attention weights were the highest at the edit positi
     \label{fig:attention_deletion_3bp}
 \end{figure}
 
-The attention weights for the edits of length 3 showed similar result (\autoref{fig:attention_deletion_3bp}), the only noticeable difference is that the high attention regions for deletion were extended to 3bp long, reflecting the longer deletion length.
-
-During SHAP analysis in \autoref{sec:determinants}, the edited base was not investigated, as a meaningful representation for bases of different lengths could not be found. Thus, to understand if the base to edit during deletion is indeed an important feature, SHAP analysis was conducted again on the HEK293T PE2 dataset for 1-bp replacement, insertion, and deletion (\autoref{fig:shap-1bp})
-
 \begin{figure}
     \subfigure[Replacement]{
         \includegraphics[width=0.33\textwidth]{shap_1bp-dp-hek293t-pe2-replace.png}
@@ -79,8 +101,13 @@ During SHAP analysis in \autoref{sec:determinants}, the edited base was not inve
         \includegraphics[width=0.33\textwidth]{shap_1bp-dp-hek293t-pe2-delete.png}
         \label{fig:shap_deletion}
     }
-    \caption[SHAP analysis for 1-bp insertion and deletion of the DeepPrime model trained on the HEK293T-PE2 dataset]{SHAP analysis for 1-bp insertion and deletion of the DeepPrime model trained on the HEK293T-PE2 dataset. The x-axis represents the attributed weight to the outcome (SHAP value), while the y-axis represents the feature importance. The colour of the points indicates the feature value, with red indicating high values and blue indicating low values.}
+    \caption[SHAP analysis for 1-bp insertion and deletion of the DeepPrime model trained on the HEK293T-PE2 dataset]{SHAP analysis for 1-bp insertion and deletion of the DeepPrime model trained on the HEK293T-PE2 dataset. The x-axis represents the attributed weight to the outcome (SHAP value), while the y-axis represents the features ranked by importance (mean absolute SHAP value). The colour of the points indicates the feature value, with red indicating high values and blue indicating low values.}
     \label{fig:shap-1bp}
 \end{figure}
 
-Interestingly, different from the attention weights, the base to edit during deletion was not considered an important feature by the model (Figure \ref{fig:shap_deletion}). 
+The attention weights for the edits of length 3 showed similar result (\autoref{fig:attention_deletion_3bp}), the only noticeable difference is that the high attention regions for deletion were extended to 3bp long, reflecting the longer deletion length.
+
+During SHAP analysis in \autoref{sec:determinants}, the edited base was not investigated, as a meaningful representation for bases of different lengths could not be found. Thus, to understand if the base to edit during deletion is indeed an important feature, SHAP analysis was conducted again on the HEK293T PE2 dataset for 1-bp replacement, insertion, and deletion (\autoref{fig:shap-1bp})
+
+
+Interestingly, different from the attention weights, the base to edit during deletion was not considered an important feature by the model (Figure \ref{fig:shap_deletion}). The same analysis was also conducted on the four PRIDICT datasets (\autoref{appendix:shap-1bp-pridict}), and the results were consistent. 

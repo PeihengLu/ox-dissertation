@@ -1,47 +1,81 @@
-\chapter{Full List of Features Invested}
+\chapter{Repository Information}
+\label{appendix:repository}
+
+
+\chapter{Full List of Features Investigated}
 \label{appendix:features}
 
 For individual feature such as tm-pbs, $\checkmark$ indicates that the feature was used in the final model and $\times$ indicates that the feature was not used in the final model. At the same time, for a group of features, if at least one feature was used in the final model, a $\circ$ is placed in the last column. 
 
 % table of features and their explanations
-\begin{table}[ht]
-    \centering
-    \begin{tabular}{|p{0.3\textwidth}|p{0.5\textwidth}|p{0.1\textwidth}|}
-        \hline
-        \textbf{Feature} & \textbf{Explanation} & \textbf{Top 24} \\ 
-        \hline
-        tm-pbs& Melting temperature fo pbs RNA sequences & $\checkmark$ \\
-        \hline
-        tm-rt& Melting temperature of RT primer RNA sequences & $\times$ \\
-        \hline
-        tm-spacer& Melting temperature of spacer RNA sequences & $\checkmark$ \\
-        \hline
-        max-cas & Maximum number of consecutive A bases in the cDNA of extension as well as protospacer sequence & $\times$ \\
-        \hline
-        max-cts & Maximum number of consecutive T bases in the cDNA of extension as well as protospacer sequence & $\checkmark$ \\
-        \hline
-        max-cgs & Maximum number of consecutive G bases in the cDNA of extension as well as protospacer sequence & $\times$ \\
-        \hline
-        max-ccs & Maximum number of consecutive C bases in the cDNA of extension as well as protospacer sequence & $\times$ \\
-        \hline
-    \end{tabular}
-\end{table}
+\begin{longtable}{|p{0.3\textwidth}|p{0.5\textwidth}|p{0.1\textwidth}|}
+    \hline
+    \textbf{Feature} & \textbf{Explanation} & \textbf{Top 24} \\ 
+    \hline
+    \endfirsthead
 
-% table of features and their explanations
-\begin{table}[ht]
-    \centering
-    \begin{tabular}{|p{0.3\textwidth}|p{0.5\textwidth}|p{0.1\textwidth}|}
-        \hline
-        \textbf{Feature} & \textbf{Explanation} & \textbf{Top 24} \\ 
-        \hline
-        mfe-pbs & Minimum free energy of pbs RNA sequences & $\checkmark$ \\
-        \hline
-        mfe-rt & Minimum free energy of RT primer RNA sequences & $\times$ \\
-        \hline
-        mfe-spacer & Minimum free energy of spacer RNA sequences & $\checkmark$ \\
-        \hline
-    \end{tabular}
-\end{table}
+    \hline
+    \textbf{Feature} & \textbf{Explanation} & \textbf{Top 24} \\ 
+    \hline
+    \endhead
+
+    \hline
+    \endfoot
+
+    \hline
+    \endlastfoot
+
+    tm-rha & Melting temperature of RHA RNA sequences & $\checkmark$ \\
+    \hline
+    tm-pbs & Melting temperature of PBS RNA sequences & $\checkmark$ \\
+    \hline
+    tm-spacer & Melting temperature of spacer RNA sequences & $\times$ \\
+    \hline
+    tm-extension & Melting temperature of extension RNA sequences & $\times$ \\
+    \hline
+    max-cas & Maximum number of consecutive A bases in the cDNA of extension as well as protospacer sequence & $\times$ \\
+    \hline
+    max-cts & Maximum number of consecutive T bases in the cDNA of extension as well as protospacer sequence & $\checkmark$ \\
+    \hline
+    max-cgs & Maximum number of consecutive G bases in the cDNA of extension as well as protospacer sequence & $\times$ \\
+    \hline
+    max-ccs & Maximum number of consecutive C bases in the cDNA of extension as well as protospacer sequence & $\times$ \\
+    \hline
+    mfe-pbs & Minimum free energy of PBS RNA sequences & $\times$ \\
+    \hline
+    mfe-rt & Minimum free energy of RT primer RNA sequences & $\times$ \\
+    \hline
+    mfe-spacer & Minimum free energy of spacer RNA sequences & $\times$ \\
+    \hline
+    mfe-extension & Minimum free energy of extension RNA sequences & $\checkmark$ \\
+    \hline
+    a-at-protospacer-position-x & Number of A bases at position x in the protospacer sequence & $\circ$ \\
+    \hline
+    t-at-protospacer-position-x & Number of T bases at position x in the protospacer sequence & $\circ$ \\
+    \hline
+    g-at-protospacer-position-x & Number of G bases at position x in the protospacer sequence & $\circ$ \\
+    \hline
+    c-at-protospacer-position-x & Number of C bases at position x in the protospacer sequence & $\circ$ \\
+    \hline
+    edit-type-replace & Whether the edit type is replace & $\checkmark$ \\
+    \hline
+    edit-type-insert & Whether the edit type is insert & $\times$ \\
+    \hline
+    edit-type-delete & Whether the edit type is delete & $\times$ \\
+    \hline
+    rha-length & Length of the RHA RNA sequence & $\checkmark$ \\
+    \hline
+    pbs-length & Length of the PBS RNA sequence & $\checkmark$ \\
+    \hline
+    lha-length & Length of the LHA RNA sequence & $\checkmark$ \\
+    \hline
+    pam-disrupted & Whether the PAM sequence is disrupted & $\checkmark$ \\
+    \hline
+    spcas9-score & The prediction score of DeepSpCas9 model on the spacer sequence & $\checkmark$ \\
+    \hline
+    \caption{List of Features Investigated in the Study}
+    \label{table:features}
+\end{longtable}
 
 
 \chapter{Additional Figures}
@@ -80,7 +114,7 @@ The same error analysis conducted on \autoref{fig:error-analysis} was also condu
 
 Due to the smaller data size, the downsampling and smoothing were done with a lower ratio of 10:1 and a smaller moving window of size 100, respectively. 
 
-\begin{figure}
+\begin{figure}[ht]
     \centering
     \subfigure[][Error Distribution]{
         \centering
@@ -105,7 +139,7 @@ Due to the smaller data size, the downsampling and smoothing were done with a lo
     \label{fig:error-analysis-hek293t-pe2}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[ht]
     \centering
     \subfigure[][Error Distribution]{
         \centering
@@ -129,7 +163,7 @@ Due to the smaller data size, the downsampling and smoothing were done with a lo
     \label{fig:error-analysis-k562-pe2}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[ht]
     \centering
     \subfigure[][Error Distribution]{
         \centering
@@ -159,4 +193,92 @@ Due to the smaller data size, the downsampling and smoothing were done with a lo
 
 \newpage
 
-\section{}
+\section{Additional Figures for 1bp SHAP Analysis}
+\label{appendix:shap-1bp-pridict}
+
+During \autoref{sec:attention_analysis}, we discussed how SHAP analysis placed very little importance in the base pair to delete, contradicting the possible findings of the transformer models. To further verify this, the SHAP analysis was conducted on the 1bp edits on four other big datasets from PRIDICT. The results are shown in \autoref{fig:shap-1bp-adv-pe2}, \autoref{fig:shap-1bp-hek293t-pe2}, \autoref{fig:shap-1bp-k562-pe2}, and \autoref{fig:shap-1bp-k562mlh1dn-pe2}. The results are consistent with the findings in \autoref{sec:attention_analysis}, showing that the base pair to delete is not considered important for the editing efficiency by the XGBoost model.
+
+\begin{figure}[ht]
+    \centering
+    \subfigure[Substitution]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-adv-pe2-replace.png}
+        \label{fig:shap-1bp-adv-pe2-replace}
+    }%
+    \subfigure[Insertion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-adv-pe2-insert.png}
+        \label{fig:shap-1bp-adv-pe2-insert}
+    }%
+    \subfigure[Deletion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-adv-pe2-delete.png}
+        \label{fig:shap-1bp-adv-pe2-delete}
+    }
+    \caption[SHAP Analysis of 1bp Edits on PRIDICT Adv PE2 Dataset]{SHAP Analysis of 1bp Edits on the PRIDICT Adv PE2 dataset. The SHAP values are calculated for the base pair to replace, insert, and delete. The SHAP values are averaged over all the examples in the dataset.}
+    \label{fig:shap-1bp-adv-pe2}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \subfigure[Substitution]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-hek293t-pe2-replace.png}
+        \label{fig:shap-1bp-hek293t-pe2-replace}
+    }%
+    \subfigure[Insertion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-hek293t-pe2-insert.png}
+        \label{fig:shap-1bp-hek293t-pe2-insert}
+    }%
+    \subfigure[Deletion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-hek293t-pe2-delete.png}
+        \label{fig:shap-1bp-hek293t-pe2-delete}
+    }
+    \caption[SHAP Analysis of 1bp Edits on PRIDICT HEK293T PE2 Dataset]{SHAP Analysis of 1bp Edits on the PRIDICT HEK293T PE2 dataset. The SHAP values are calculated for the base pair to replace, insert, and delete. The SHAP values are averaged over all the examples in the dataset.}
+    \label{fig:shap-1bp-hek293t-pe2}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \subfigure[Substitution]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-k562-pe2-replace.png}
+        \label{fig:shap-1bp-k562-pe2-replace}
+    }%
+    \subfigure[Insertion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-k562-pe2-insert.png}
+        \label{fig:shap-1bp-k562-pe2-insert}
+    }%
+    \subfigure[Deletion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-k562-pe2-delete.png}
+        \label{fig:shap-1bp-k562-pe2-delete}
+    }
+    \caption[SHAP Analysis of 1bp Edits on PRIDICT K562 PE2 Dataset]{SHAP Analysis of 1bp Edits on the PRIDICT K562 PE2 dataset. The SHAP values are calculated for the base pair to replace, insert, and delete. The SHAP values are averaged over all the examples in the dataset.}
+    \label{fig:shap-1bp-k562-pe2}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \subfigure[Substitution]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-k562mlh1dn-pe2-replace.png}
+        \label{fig:shap-1bp-k562mlh1dn-pe2-replace}
+    }%
+    \subfigure[Insertion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-k562mlh1dn-pe2-insert.png}
+        \label{fig:shap-1bp-k562mlh1dn-pe2-insert}
+    }%
+    \subfigure[Deletion]{
+        \centering
+        \includegraphics[width=0.33\textwidth]{shap_1bp-pd-k562mlh1dn-pe2-delete.png}
+        \label{fig:shap-1bp-k562mlh1dn-pe2-delete}
+    }
+    \caption[SHAP Analysis of 1bp Edits on PRIDICT K562 MLH1 DN PE2 Dataset]{SHAP Analysis of 1bp Edits on the PRIDICT K562 MLH1 DN PE2 dataset. The SHAP values are calculated for the base pair to replace, insert, and delete. The SHAP values are averaged over all the examples in the dataset.}
+    \label{fig:shap-1bp-k562mlh1dn-pe2}
+\end{figure}
+
