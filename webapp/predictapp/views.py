@@ -132,9 +132,9 @@ def prime_sequence_parsing(sequence: str) -> Tuple[str, str, int, int, int]:
 
 
 def propose_pegrna(wt_sequence: str, mut_sequence: str, edit_position: int, mut_type: int, edit_length: int, pam: str, pridict_only: bool) -> pd.DataFrame:
-    pbs_len_range = np.arange(8, 18) if not pridict_only else [13] 
+    pbs_len_range = np.arange(8, 16) if not pridict_only else [13] 
     lha_len_range = np.arange(0, 13)
-    rha_len_range = np.arange(7, 20)
+    rha_len_range = np.arange(7, 12)
     
     # in the range of lha length, scan for PAM sequences
     # edit must start before 3bp upstream of the PAM

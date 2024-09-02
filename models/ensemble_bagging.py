@@ -7,6 +7,7 @@ import pandas as pd
 import collections
 from scipy.stats import pearsonr, spearmanr
 from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
+from models.pridict import pridict, preprocess_pridict
 import skorch
 import logging
 log = logging.getLogger(__name__)
@@ -19,12 +20,13 @@ class EnsembleBagging:
         self.n_rounds = n_rounds
         self.base_learners = {
             'xgb': xgboost,
-            # 'mlp': mlp,
+            'mlp': mlp,
             'ridge': ridge_regression,
             'rf': random_forest,
-            # 'dp': deepprime
+            'dp': deepprime, 
+            # 'pd': pridict
         }
-        self.dl_models = ['mlp', 'dp']
+        self.dl_models = ['mlp', 'dp', 'pd']
         self.models = []
         self.model_weights = []
         self.sample_percentage = sample_percentage
@@ -70,6 +72,8 @@ class EnsembleBagging:
                             target_round = target_round.view(-1, 1)
                             if base_learner == 'dp':
                                 model.fit(preprocess_deep_prime(data_round), target_round)
+                            elif base_learner == 'pd':
+                                model.fit(preprocess_pridict(data_round), target_round)
                             else:
                                 model.fit(features_round, target_round)
                             target_round = target_round.view(-1)
@@ -89,6 +93,8 @@ class EnsembleBagging:
                     if base_learner == 'dp':
                         predictions = model.predict(preprocess_deep_prime(data_round)).flatten()
                         # model_weights.append(pearsonr(predictions, target_round)[0])
+                    elif base_learner == 'pd':
+                        predictions = model.predict(preprocess_pridict(data_round)).flatten()
                     else:
                         predictions = model.predict(features_round).flatten()
                     model_weights.append(abs(spearmanr(predictions, target_round)[0]))

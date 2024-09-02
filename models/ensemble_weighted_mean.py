@@ -6,6 +6,7 @@ from scipy.stats import pearsonr, spearmanr
 from typing import List
 from models.conventional_ml_models import mlp, ridge_regression, lasso_regression, xgboost, random_forest
 from models.deepprime import deepprime, preprocess_deep_prime, WeightedSkorch
+from models.pridict import pridict, preprocess_pridict
 import pickle
 import pandas as pd
 import numpy as np
@@ -73,7 +74,6 @@ class EnsembleWeightedMean:
             optimization (str, optional): to use direct optimization or not. Defaults to True.
             n_regressors (int, optional): number of regressors in the ensemble. Defaults to 5.
         """
-        self.ensemble = [None for _ in range(5)]
         self.optimization = optimization
         self.with_features = with_features
         self.models = []
@@ -81,11 +81,13 @@ class EnsembleWeightedMean:
             'ridge': ridge_regression,
             'xgb': xgboost,
             'rf': random_forest,
-            # 'mlp': mlp,
-            # 'dp': deepprime
+            'mlp': mlp,
+            'dp': deepprime,
+            'pd': pridict
         }
         self.n_regressors = len(self.base_learners)
-        self.dl_models = ['mlp', 'dp']
+        self.ensemble = [None for _ in range(self.n_regressors)]
+        self.dl_models = ['mlp', 'dp', 'pd']
 
     # fit would load the models if trained, if not, it would train the models
     def fit(self, data: str, fine_tune: bool=False):
@@ -119,6 +121,8 @@ class EnsembleWeightedMean:
                         target = target.view(-1, 1)
                         if base_learner == 'dp':
                             model.fit(preprocess_deep_prime(data), target)
+                        elif base_learner == 'pd':
+                            model.fit(preprocess_pridict(data), target)
                         else:
                             model.fit(features, target)
                         target = target.view(-1)
@@ -136,6 +140,8 @@ class EnsembleWeightedMean:
 
                 if base_learner == 'dp':
                     predictions.append(model.predict(preprocess_deep_prime(data)).flatten())
+                elif base_learner == 'pd':
+                    predictions.append(model.predict(preprocess_pridict(data)).flatten())    
                 else:
                     predictions.append(model.predict(features).flatten())
                 models_fold.append(model)
@@ -194,6 +200,8 @@ class EnsembleWeightedMean:
             for base_learner in self.models[i]:
                 if base_learner == 'dp':
                     predictions.append(base_learner.predict(preprocess_deep_prime(data)).flatten())
+                elif base_learner == 'pd':
+                    predictions.append(base_learner.predict(preprocess_pridict(data)).flatten())
                 else:
                     predictions.append(base_learner.predict(features).flatten())
             

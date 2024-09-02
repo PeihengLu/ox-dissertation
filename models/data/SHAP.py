@@ -32,7 +32,7 @@ def SHAP_analysis(input_data, output, reset=False, fig_size=(10, 6), max_display
         features = data.drop(columns=['editing-efficiency', 'group-id'])
     else:
         if not os.path.exists(data_path) or reset: 
-            convert_to_SHAP(input_data)
+            convert_to_shap_1bp(input_data)
         data = pd.read_csv(data_path) 
         group_ids = data['group-id']       
 
@@ -156,5 +156,8 @@ if __name__ == '__main__':
     # SHAP_analysis('std/std-pd-hek293t-pe2-replace.csv', 'shap/shap-pd-hek293t-pe2-replace.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
     # SHAP_analysis('std/std-pd-hek293t-pe2-insert.csv', 'shap/shap-pd-hek293t-pe2-insert.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
     # SHAP_analysis('std/std-pd-hek293t-pe2-delete.csv', 'shap/shap-pd-hek293t-pe2-delete.csv', reset=reset, fig_size=(8, 3.5), max_display=10)
-    for data_source in ['adv-pe2', 'k562-pe2', 'k562mlh1dn-pe2', 'hek293t-pe2']:    
-        SHAP_analysis(f'std/std-pd-{data_source}.csv', f'shap/shap-pd-{data_source}.csv', reset=reset, fig_size=(9, 6), max_display=24)
+    # for data_source in ['adv-pe2', 'k562-pe2', 'k562mlh1dn-pe2', 'hek293t-pe2']:    
+    #     SHAP_analysis(f'std/std-pd-{data_source}.csv', f'shap/shap-pd-{data_source}.csv', reset=reset, fig_size=(9, 6), max_display=24)
+    for edit in ['replace', 'insert', 'delete']:
+        for data_source in ['dp_small-a549-pe2max']:    
+            SHAP_analysis(f'std/std-{data_source}.csv', f'shap/shap_1bp-{data_source}-{edit}.csv', reset=reset, fig_size=(9, 6), max_display=24)

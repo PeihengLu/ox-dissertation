@@ -56,7 +56,7 @@
 % must also un-comment and complete the following three lines:
 \masterssubmissiontrue
 \candidateno{1592800}
-\wordcount{14,000}
+\wordcount{17,263}
 
 % Uncomment the following line if your degree also includes exams (eg most masters):
 %\renewcommand{\submittedtext}{Submitted in partial completion of the}
@@ -131,9 +131,9 @@
 %%%%% ACKNOWLEDGEMENTS -- Nothing to do here except comment out if you don't want it.
 \begin{acknowledgements}
 
-    Thank you to my supervisor, Dr. Peter Minary and soon to be Dr. Jeffery Mak. Your guidance and support have been invaluable throughout this project, especially when I am navigating the unfamiliar territories of deep learning and gene editing. Taking up this project with no deep learning experience was a daunting task, but your patience and encouragement have made the journey much more manageable. Regardless of the outcome, I have learned a lot from this project, and I am grateful for the opportunity to work with you.
+    Thank you to my supervisor, and soon to be Dr. (censored for anonymity, I'll make sure you see the full version after mark is released). Your guidance and support have been invaluable throughout this project, especially when I am navigating the unfamiliar territories of deep learning and gene editing. Taking up this project with no deep learning experience was a daunting task, but your patience and encouragement have made the journey much more manageable. Regardless of the outcome, I have learned a lot from this project, and I am grateful for the opportunity to work with you.
 
-    I would also like to thank my friends for help me going through the rough patches of the project, the experience would have been much more grueling without your support.
+    I would also like to thank my friends for help me going through the rough patches of the project, the experience would have been much more grueling without your support. The everyday cooking and chatting have been a great way to unwind after a long day of work, and I am grateful for the friendship we have built over the past months. 
 
     Finally, at the (possible) end of my student life, I would like to thank my family for their unwavering support and encouragement. Supporting me through my education abroad has been a significant financial and emotional burden, but they never mentioned it once through the five years of my study. They have always been my biggest cheerleaders, and would like nothing in return but my happiness and success.
 \end{acknowledgements}
@@ -141,9 +141,17 @@
 %%%%% ABSTRACT -- Nothing to do here except comment out if you don't want it.
 \begin{abstract}
 
-    Prime editing is one of the latest advances in the field of gene editing, offering a much more versatile and precise way to edit the genome compared to the CRISPR-Cas9 and base editor systems. However, its application is significantly limited by low efficiencies when using unoptimized guide RNAs. Empirical guide optimization is a time-consuming and labor-intensive process, requiring the repeated testing of a large number of guide designs to find the configuration that offers the highest efficiency. Thus, a number of computational tools have been developed for in silico guide optimization, and have achieved varying degrees of success. 
+    Prime editing is one of the latest advances in the field of gene editing, offering a much more versatile and precise way to edit the genome compared to the CRISPR-Cas9 and base editor systems. However, its application is significantly limited by low efficiencies when using unoptimized guide RNAs. To solve this problem, a number of computational tools have been developed for in silico guide optimization, and achieved varying degrees of success. 
 
-    This study further enriches the toolkits of computational guide optimization by developing a number of new machine learning models that offer superior or comparable performance to existing tools. 
+    This study further enriched the toolkits of computational guide optimization by developing a number of new machine learning models that offer superior or comparable performance to existing tools on a number of datasets. 
+
+    The project began with the development of a benchmarking dataset of prime editing outcomes from the literatures, including a total of 23 datasets from 2 different studies. Five of these datasets have a large number of examples (over 20,000) and were used as the main datasets for model training and evaluation, while the rest served as additional datasets for fine tuning the deep learning models and improve their practical usability.
+
+    A number of ensemble models were developed, leveraging classical ensemble methods including weighted averaging, bagging and AdaBoost. The ensembles contained the existing PRIDICT and DeepPrime models, as well as other more traditional machine learning algorithms, including XGBoost and ridge regression. 
+
+    Additionally, the transformer architecture, shown to be highly effective in sequence-to-sequence tasks, was also explored for prime editing efficiency prediction. However, it failed to achieve the same level of performance as the ensemble models on the main datasets. This could be due to the inherent differences between the tasks of prime editing and base editing efficiency prediction, where the architecture previously found success.
+
+    The best performing model was presented as a web application, allowing users without deep learning expertise to input their target edits and receive a number of recommended pegRNA designs.
 \end{abstract}
 
 %%%%% MINI TABLES

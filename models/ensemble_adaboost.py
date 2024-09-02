@@ -1,6 +1,7 @@
 import numpy as np
 from models.conventional_ml_models import mlp_weighted, ridge_regression, random_forest, xgboost
 from models.deepprime import deepprime_weighted, preprocess_deep_prime, WeightedSkorch
+from models.pridict import pridict_weighted, preprocess_pridict
 import torch
 import pickle
 from os.path import join as pjoin, isfile
@@ -18,12 +19,13 @@ class EnsembleAdaBoost:
         self.n_rounds = n_rounds
         self.base_learners = {
             'xgb': xgboost,
-            # 'mlp': mlp_weighted,
+            'mlp': mlp_weighted,
             'ridge': ridge_regression,
             'rf': random_forest,
-            # 'dp': deepprime_weighted
+            'dp': deepprime_weighted,
+            'pd': pridict_weighted
         }
-        self.dl_models = ['mlp', 'dp']
+        self.dl_models = ['mlp', 'dp', 'pd']
         self.models = []
         self.alphas = []
         self.threshold = threshold
@@ -75,6 +77,8 @@ class EnsembleAdaBoost:
                             sample_weights = torch.tensor(sample_weights, dtype=torch.float32).view(-1, 1)
                             if base_learner == 'dp':
                                 model.fit(preprocess_deep_prime(data, sample_weight=sample_weights), target)
+                            elif base_learner == 'pd':
+                                model.fit(preprocess_pridict(data, sample_weight=sample_weights), target)
                             else:
                                 feature_X = {
                                     'x': features,
@@ -97,6 +101,8 @@ class EnsembleAdaBoost:
                     # make predictions
                     if base_learner == 'dp':
                         predictions = model.predict(preprocess_deep_prime(data)).flatten()
+                    elif base_learner == 'pd':
+                        predictions = model.predict(preprocess_pridict(data)).flatten()
                     else:
                         predictions = model.predict(features).flatten()
                     predictions = np.array(predictions)

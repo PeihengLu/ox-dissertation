@@ -4,13 +4,13 @@
 
 On top of the five main dataset of size $> 20k$, DeepPrime has additional 18 datasets of size $\sim5k$, which were used to fine tune the model for better generalizability. As a result, for a more thorough comparison between the models, the same fine tuning process was conducted on all deep learning models.
 
-To fine tune the models, the same hyperparameters during the original training were used, except for the learning rate, which was lowered to $1e-3$ for the fine tuning to accommodate the smaller dataset size. Additionally, the NRCH versions of prime editors were used in some of the small datasets, which contains optimized SpCas9 proteins that can accommodate NRCH PAMs (N = A, T, C, G; R = A, G; H = A, C, T) \cite{millerContinuousEvolutionSpCas92020}. The pam matching function was thus updated to accommodate the additional PAMs.
+To fine tune the models, the same hyperparameters during the original training were used, except for the learning rate, which was lowered to $1e-3$ for the fine tuning to accommodate the smaller dataset size. Additionally, the NRCH versions of prime editors were used in some of the small datasets, which contains optimized SpCas9 proteins that can accommodate NRCH PAMs (N = A, T, C, G; R = A, G; H = A, C, T) \cite{millerContinuousEvolutionSpCas92020}. The pam matching function was thus updated to accommodate the additional PAMs when determining if the protospacer adjacent motifs were disrupted during the edit.
 
 To preserve the sequence features acquired on the DeepPrime main dataset, the sequence processing layers were frozen, leaving only the feature processing and the final meta learner to be trained. The models were trained for at most 300 epochs for each fold, and the best model was selected based on the validation loss.
 
 % TODO: add references to the section and appendix after including the results
 
-\subsection{Performance on All Datasets}
+\section{Performance on All Datasets}
 
 \begin{figure}
     \centering
@@ -20,33 +20,43 @@ To preserve the sequence features acquired on the DeepPrime main dataset, the se
     
     There were three data sources involved during benchmarking - DeepPrime (dp), PRIDICT (pd), and DeepPrime Small (dp\_small, $\sim5k$ examples). At the same time, the cell line and prime editors' names are self-explanatory. 
     
-    Four models in total were produced in this study - the transformer based model (tr), the power weighted mean ensemble (pwm), the bagging ensemble (bg), and the adaboost ensemble (ab). Their performance is highlighted in the heatmap with the red bounding box.
-    They were compared with the two state of the art deep learning solutions, DeepPrime (dp) and PRIDICT (pd). The datasets where any of the models trained on this study significantly outperformed both DeepPrime and PRIDICT are marked with a blue bounding box (performance across five folds, $p<0.05$, paired t-test).
+    Four models in total were produced in this study - the transformer based model (tr), the power weighted mean ensemble (pwm), the bagging ensemble (bag), and the adaboost ensemble (ada). Their performances are highlighted in the heatmap with the red bounding box.
+    They were compared with the two state of the art deep learning solutions, DeepPrime (dp) and PRIDICT (pd). The datasets where any of the models trained in this study significantly outperformed both DeepPrime and PRIDICT are marked with a blue bounding box (performance across five folds, $p<0.05$, paired t-test).
     }
     \label{fig:performance}
 \end{figure}
 
 As discussed in \autoref{sec:ensemble}, all three ensemble models were able to significantly outperform the base learners on the PRIDICT HEK293T PE2 dataset. Thus, power weighted mean ensemble, bagging and adaboost were trained on all available datasets alongside the transformer model to evaluate their performance against the base learners, as well as DeepPrime and PRIDICT.
 
-Unfortunately, the transformer model failed to significantly outperform DeepPrime and PRIDICT on any of five main datasets, with lower Pearson's $r$ and similar Spearman's $R$. It did outperform DeepPrime and PRIDICT on two of the DeepPrime small datasets (A549 PE2-max and A546 with PE2-max using engineered pegRNA (epegRNA)) in terms of Spearman correlation, but not Pearson correlation. The consistently better performance on A549 PE2-max dataset may suggest that the motifs learned by the transformer model is especially useful for this configuration. 
+Unfortunately, the transformer model failed to significantly outperform DeepPrime and PRIDICT on any of five main datasets, with lower Pearson's $r$ and similar Spearman's $\rho$. Additionally, when compared with the conventional machine learning models' performance in \autoref{fig:conventional_ml_models_performance}, only marginal improvement was observed over the MLP model that makes up part of the transformer model in the DeepPrime dataset ($r$ of 0.69 vs 0.67) and no improvement in the PRIDICT dataset. This indicates that the transformer model may not have contributed significantly to the outcome, and the performance was mainly driven by the MLP model. 
 
-The three ensemble methods showed similar performance across all datasets, with bagging and adaboost often marginally outperforming the power weighted mean ensemble. They significantly outperformed PRIDICT and DeepPrime on two of the PRIDICT datasets in terms of Pearson or Spearman correlation (HEK293T PE2 and K562MLH1dn PE2), and on four of the DeepPrime small datasets. One of the most significant boost in performance was observed on the PRIDICT HEK293T PE2 dataset, where the fine tuning of AdaBoost and Bagging ensemble models was performed. This hints that the ensemble methods, especially AdaBoost and Bagging, can be sensitive to the dataset size and composition, and could benefit from retuning on each dataset.
+However, it did outperform DeepPrime and PRIDICT on two of the DeepPrime small datasets (A549 PE2-max and A546 with PE2-max using engineered pegRNA (epegRNA)) in terms of Spearman correlation, but not Pearson correlation. The consistently better performance on A549 PE2-max dataset may suggest that the motifs learned by the transformer model is especially useful for this configuration. 
+
+The three ensemble methods showed similar performance with each other across all datasets, with bagging and adaboost often marginally outperforming the power weighted mean ensemble. They significantly outperformed PRIDICT and DeepPrime on two of the PRIDICT datasets in terms of Pearson or Spearman correlation (HEK293T PE2 and K562MLH1dn PE2), as well as on two of the DeepPrime small datasets. One of the most significant boost in performance was observed on the PRIDICT HEK293T PE2 dataset, where the tuning of AdaBoost and Bagging ensemble models' hyperparameters was performed. This hints that the ensemble methods, especially AdaBoost and Bagging, can be sensitive to the dataset size and composition, and may benefit from retuning on each dataset.
 
 
-\subsection{Performance on Individual Editing Types}
+\section{Performance on Individual Editing Types}
 
-On top of the overall performance, the performance of the models on individual editing types was also evaluated on the five main datasets to understand the models' ability to handle different types of mutations. 
+On top of the overall performance, the performances of the models on individual editing types were also evaluated on the five main datasets to understand the models' ability to handle different types of mutations. 
 
 \begin{figure}
     \centering
     \includegraphics[width=0.8\textwidth]{all_models_performance-edits.png}
-    \caption[Performance of the models on individual editing types]{Performance of the deep learning and ensemble models on individual editing types. The x-axis illustrates the name of the dataset and the corresponding edit type subset (sub[stitution], ins[ertion], [deletion]), while the y-axis represents the model names. Similar to \autoref{fig:performance}, the mean performance of the models across five folds is shown in the heatmap, with brighter colours indicating higher pearson or spearman correlation.}
+    \caption[Performance of the models on individual editing types]{Performance of the deep learning and ensemble models on individual editing types. Contrary to \autoref{fig:performance}, the x-axis now illustrates the name of the dataset and the corresponding edit type subset (sub[stitution], ins[ertion], [deletion]), while the y-axis represents the model names. Similar to \autoref{fig:performance}, the mean performance of the models across five folds is shown in the heatmap, with brighter colours indicating higher pearson or spearman correlation. The only dataset where the models trained in this study achieved statistically significant improvement over DeepPrime and PRIDICT was the PRIDICT HEK293T PE2 dataset, marked with a blue bounding box.}
     \label{fig:performance_edits}
 \end{figure}
 
-Shown in \autoref{fig:performance_edits}, the performance of insertion is often predicted with the highest accuracy. 
+Illustrated in \autoref{fig:performance_edits}, the performances of predicting individual edits were mostly consistent with the overall performances in terms of Pearson's $r$. The transformer model falls short of the performance of PRIDICT and DeepPrime on all edit types of all datasets other than PRIDICT HEK293T PE2, where it marginally outperformed PRIDICT on insertion examples.
 
-In terms of Spearman rank, the transformer model is often on par or can even slightly outperform PRIDICT and DeepPrime
+At the same time, although the transformer model was on par with PRIDICT and DeepPrime when evaluated with Spearman's $\rho$ on overall data, the relative performances of the models were not consistent across different mutations. The transformer model was often on par or can marginally outperform PRIDICT and DeepPrime when predicting insertion and deletion efficiency. However, the performance of the transformer model on substitution examples was consistently lower than PRIDICT and DeepPrime.
+
+The relative performances of the ensemble models with DeepPrime and PRIDICT were more complex and varies more substantially across different datasets, possibly due to the sensitivity to hyperparameters mentioned in the previous section. 
+
+The ensemble models had slightly lower Pearson and Spearman performance on the substitution and insertion examples of the PRIDICT K562 dataset, but noticeably outperformed PRIDICT and DeepPrime on the deletion examples. The same was true for the PRIDICT Adv dataset when evaluated with Spearman's $\rho$, while only similar performance for the deletion examples was observed when evaluated with Pearson's $r$.
+
+Pronounced improvement on the deletion examples was also observed on the PRIDICT K562MLH1dn PE2 dataset, but in this case, the ensemble models were able to match the performance of PRIDICT and DeepPrime on the substitution and insertion examples.
+
+On the PRIDICT HEK293T PE2 dataset, the ensemble models significantly outperformed PRIDICT and DeepPrime on all edit types ($p<0.05$, paired t-test across five folds), while the opposite was true for the larger DeepPrime dataset.
 
 \section{Attention Analysis}
 \label{sec:attention_analysis}
@@ -69,11 +79,11 @@ In terms of Spearman rank, the transformer model is often on par or can even sli
     \label{fig:attention}
 \end{figure}
 
-A significant advantage of the attention based methods are their interpretability. The attention mechanism allows the model to focus on specific parts of the input data using the attention weights, which can be visualized teo understand the model's decision making process. 
+A significant advantage of the attention based methods are their interpretability. The attention mechanism allows the model to focus on specific parts of the input data using the attention weights, which can be visualized teo understand some of the model's decision making process. 
 
 In this architecture, the most informative and interpretable attention weights are the feature embedding attention weights at the final layer of the transformer model, pooling all token embeddings into a single feature embedding by attributing different weights to each token position. 
 
-The examples were grouped together by their editing type and length so that the edit positions can be easily identified and compared. And the attention weights for edits at the same position were aggregated to show the overall importance of the position in the editing efficiency prediction.
+For better clarity, the examples were grouped together by their editing type and length so that the edit positions can be easily identified and compared. And the attention weights for edits at the same position were aggregated to show the overall importance of the position in the editing efficiency prediction.
 
 The model trained on the biggest DeepPrime dataset was first tested, as the transformer model has the greatest chance of learning the underlying motifs influencing the editing efficiency in the data. Starting with the edits of length 1, the attention weights were visualized for the substitution, insertion, and deletion, shown in \autoref{fig:attention}. 
 
@@ -111,3 +121,4 @@ During SHAP analysis in \autoref{sec:determinants}, the edited base was not inve
 
 
 Interestingly, different from the attention weights, the base to edit during deletion was not considered an important feature by the model (Figure \ref{fig:shap_deletion}). The same analysis was also conducted on the four PRIDICT datasets (\autoref{appendix:shap-1bp-pridict}), and the results were consistent. 
+The same was true for the a562 pe2max dataset, where the transformer model significantly outperformed PRIDICT and DeepPrime. This to some extent undermines the improvement in performance, suggesting that the better result could be a result of randomness in the training process, rather than the inherent superiority of the model architecture.

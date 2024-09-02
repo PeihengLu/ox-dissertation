@@ -316,7 +316,7 @@
             guide designs.
             The input should be in the format of {at least 100 bp}-{(preedit/postedit)}-{at least 100 bp}. For example,
             a deletion would be represented as <strong>(ATG/NNN)</strong>, an insertion would be represented as
-            <strong>(NNN/ATG)</strong>, and a substitution would be represented as <strong>(ATG/GAT)</strong>.
+            <strong>(NNN/ATG)</strong>, and a substitution would be represented as <strong>(ATG/GAT)</strong>. The padding token N cannot be mixed with other nucleotides in the edit sequence, and any malformed inputs would likely result in an error during prediction.
             An example input is shown in the text area below. Click the "Fill Test Example" button to populate the text
             area with the example input.
         </p>
@@ -402,7 +402,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Error executing the prediction request, please check the input and try again.');
                 }
 
                 const data = await response.json();
