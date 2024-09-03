@@ -1,11 +1,26 @@
 \chapter{Repository Information and Notes for Reproduction}
 \label{appendix:repository}
 
-All source code for this project is available on GitHub at \url{https://github.com/1592800-ox/ox-dissertation.git}. 
-
 \section{Repository Structure}
 
-For easier identification, the training models stored in `trained-models' directory follows a uniform naming convention: `model-\{data-source\}-\{cell-line\}-\{PE\}-\{fold\}.pth/pkl/json'. 
+\begin{itemize}
+    \item \textbf{dissertation} - Contains the latex code and figures to generate this document.
+    \item \textbf{utils} - Contains utility functions used in the project. \begin{itemize}
+        \item \textbf{data\_utils.py} - Contains functions used to preprocess and convert the data.
+        \item \textbf{ml\_utils.py} - Contains functions useful in training and evaluating the models.
+        \item \textbf{features\_utils.py} - Contains functions used to extract the biological features.
+        \item \textbf{stats\_utils.py} - Contains functions used for statistical analysis.
+    \end{itemize}
+    \item \textbf{models} - Contains the implementations of the models used in the project. The `.py' scripts in the base directory are the main scripts containing the model implementations, as well as the functions for training and evaluating the models. 
+    There are also a number of subdirectories
+    \begin{itemize}
+        \item \textbf{data} - Contains the data used in the project. The `std' directory contains the standardized data used in the models, as well as the scripts used to convert the data to and from the standardized format.
+        \item \textbf{trained-models} - Contains the trained models used in the project. The models are stored in the format `model-\{data-source\}-\{cell-line\}-\{PE\}-\{fold\}.pth/pkl/json' for easy identification.
+    \end{itemize}
+    \item \textbf{webapp} - Contains the code for the web application used to predict the efficiency of prime editing. The main implementation can be found in `predictapp/views.py' and the HTML templates in `predictapp/templates'.
+\end{itemize}
+
+On top of the main scripts, there are also a number of Jupyter notebooks used to generate the figures and tables in this document. These can be found in the root directory, and their names are self explanatory.
 
 \section{Notes for Reproduction}
 
@@ -212,7 +227,7 @@ Due to the smaller data size, the downsampling and smoothing were done with a lo
 \section{Additional Figures for 1bp SHAP Analysis}
 \label{appendix:shap-1bp-pridict}
 
-During \autoref{sec:attention_analysis}, we discussed how SHAP analysis placed very little importance in the base pair to delete, contradicting the possible findings of the transformer models. To further verify this, the SHAP analysis was conducted on the 1bp edits on four other big datasets from PRIDICT. The results are shown in \autoref{fig:shap-1bp-adv-pe2}, \autoref{fig:shap-1bp-hek293t-pe2}, \autoref{fig:shap-1bp-k562-pe2}, and \autoref{fig:shap-1bp-k562mlh1dn-pe2}. The results are consistent with the findings in \autoref{sec:attention_analysis}, showing that the base pair to delete is not considered important for the editing efficiency by the XGBoost model.
+During \autoref{sec:attention_analysis}, we discussed how SHAP analysis placed very little importance in the base pair to delete, contradicting the possible findings of the transformer models. To further verify this, the SHAP analysis was conducted on the 1bp edits on four other big datasets from PRIDICT, as well as the A549 PE2MAX dataset from DeepPrime. The results are shown in \autoref{fig:shap-1bp-adv-pe2}, \autoref{fig:shap-1bp-hek293t-pe2}, \autoref{fig:shap-1bp-k562-pe2}, \autoref{fig:shap-1bp-k562mlh1dn-pe2} and \autoref{fig:shap-1bp-a549-pe2max}. The results are consistent with the findings in \autoref{sec:attention_analysis}, showing that the base pair to delete is not considered important for the editing efficiency by the XGBoost model.
 
 \begin{figure}[!htb]
     \centering

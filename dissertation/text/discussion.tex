@@ -1,25 +1,33 @@
 \chapter{Discussion}
 
-Overall, the ensemble models have shown promising results in predicting the efficiency of prime editing in a number of configurations of prime editors and cell lines. They were able to achieve on par performance with the current state of the art model, PRIDICT and DeepPrime on most datasets other than the DeepPrime HEK293T PE2 dataset. 
+\minitoc
 
-Additionally, as discussed in the benchmarking section, the ensemble models may be able to achieve better performance than the current state of the art models on more datasets if they were tuned to the specific dataset instead of using one set of hyperparameters for all datasets. 
+\section{Summary of Results}
 
-However, the transformer model underperformed in this task, unable to achieve the same level of performance as the ensemble models on the five main datasets. This is possibly due to the inherent differences between the tasks of prime editing and base editing efficiency prediction. 
+Overall, the ensemble models have shown promising results in predicting the efficiency of prime editing in a number of configurations of prime editors and cell lines. They were able to achieve comparable performance with the current state of the art model, PRIDICT and DeepPrime on most datasets other than the DeepPrime HEK293T PE2 dataset. 
 
-For base editors, the editing window is relatively static with regard to the protospacer location. At the same time, each base editor can only introduce a single type of base change (C to T or A to G) at a single location in the protospacer. This limits the number of possible outcomes for each base editor to a small number of possibilities, and the relationship between the wild type and mutated sequence is relatively predictable.
+Additionally, as discussed in the benchmarking section, the ensemble models may be able to achieve better performance than the current state of the art models on more datasets if they were tuned using the full ensemble on each dataset. 
 
-Meanwhile, the prime editing efficiency prediction task is much more complex. The prime editor can introduce a variety of changes to the target sequence, and the editing window is also dynamic, as the prime editor can introduce changes at different locations after the nick site of the protospacer. This results in a much larger number of possible outcomes, and the attention mechanism might have a much harder time capturing enough features specific to each edit.
+However, the transformer model underperformed in this task, failing to reach the same level of performance as the ensemble models on the five main datasets. This outcome may be attributed to the inherent differences between the task of predicting prime editing efficiency and the task of base editing efficiency, where the transformer model had previously excelled.
 
-A number of possible improvements could be made to the transformer model to help it establish the connection between wild type and mutated sequences. 
+For base editors, the editing window is relatively static within the protospacer. At the same time, each base editor can only introduce a single type of base change (C to T or A to G) at each location in the editing window. This setup limits the number of possible outcomes for a given base editor on a target loci to a small set of possibilities, making the relationship between wild-type and mutated sequences relatively predictable.
 
-On the data preprocessing level, we had established that the functional annotation denoting the PBS and RTT sequences used by PRIDICT was important for the performance of the transformer model. However, the number of possible edits given the locations of the PBS and RTT sequences is still very large. It may be beneficial to incorporate the actual bases of the PBS and RTT sequences into the wild type sequence to help the model establish the connection between the wild type and mutated sequences. 
+In contrast, the prime editing efficiency prediction task is significantly more complex. Prime editors can introduce a much bigger variety of mutations to the target sequence. At the same time, the editing window is also dynamic, as prime editors can perform edits at virtually any location after the nick site of the protospacer. This complexity results in a much larger number of possible outcomes, making it more challenging for the attention mechanism of the transformer model to capture the specific features of each edit.
 
-On top of that, I avoided modifying the architecture of the transformer model too much as the development of a new architecture would require a significant amount of time and resources beyond the limit of this project. However, a number of alternative architectures can be explored that may improve upon the performance of the transformer model.
+\section{Future Work}
+
+\subsection{Improving the Transformer Model}
+
+A number of possible improvements could be made to the transformer model. On the data preprocessing level, we have established that the functional annotation denoting the PBS and RTT sequences used by PRIDICT was important for the performance of the transformer model. However, the number of possible edits given the locations of the PBS and RTT sequences is still very large. It may be beneficial to somehow incorporate the actual bases of the PBS and RTT sequences into the wild-type sequence to help the model better understand the relationship between wild-type and mutated sequences.
+
+On top of that, I have refrained from modifying the architecture of the transformer model too much as the development of a new architecture would require a significant amount of time and resources beyond the limit of this project. However, a number of alternative designs that may improve the performance could be explored if given a longer time frame.
 
 For example, the transformer model could be modified to include a convolutional neural network (CNN) layer at the input to help the model capture local features in the sequence. At the same time, a number of different generator could be used to generate the output of the transformer model other than the feature embedding attention layer used in this study. A number of possibilities include another CNN layer, a gated recurrent unit used by DeepPrime, or a simple feedforward neural network. 
 
-Finally, as briefly mentioned in \autoref{sec:determinants}, the current methods all follow the same general approach of training one model for each prime editor and cell line combination. However, recent research has shown that multi-task learning can be beneficial in a number of different tasks, including the prediction of the efficiency of base editors\cite{mollaysaAttentionbasedMultitaskLearning2023a}
+\subsection{Developing a Multi-Task Learning Model}
 
-Obviously, this would introduce many problems during implementation. The most prominent issue would be the assembling of the dataset. As discussed in \autoref{sec:determinants}, many cellular level factors can affect the efficiency of prime editing. These factors were ignored in this study since they were encapsulated in the cell line and prime editor. However, if a single model were to be trained for all prime editors and cell lines, these factors would have to be included in the dataset. This may require substantial biological knowledge and could involve scrapping multiple sequencing datasets to obtain the necessary information. 
-More imbalance in the dataset would also arise, for example, cells with MMR deficiency may become underrepresented and cause the model to perform poorly on these cell lines. 
+As briefly mentioned in \autoref{sec:determinants}, the current methods all follow the same general approach of training one model for each prime editor and cell line combination. However, recent research has shown that multi-task learning can be beneficial in a number of different tasks, including the prediction of the efficiency of base editors\cite{mollaysaAttentionbasedMultitaskLearning2023a}
+
+Obviously, this would introduce many challenges during implementation. The most prominent issue will be the assembling of the dataset. As discussed in \autoref{sec:determinants}, many cellular level factors can affect the efficiency of prime editing. These factors were ignored in this study since they were encapsulated in the cell line and prime editor type. However, if a single model were to be trained for all prime editors and cell lines, these factors would have to be included in the dataset. This may require substantial biological knowledge and could involve scrapping multiple sequencing datasets to obtain the necessary information. 
+More imbalance in the dataset could also arise, for example, cells with MMR deficiency may become underrepresented and cause the model to perform poorly on these cell lines. 
 These problems would require significantly more resources (both in time and data) to solve, and should be an interesting topic for future research.
